@@ -1,6 +1,15 @@
 /*
  * Author: Ralph Ridley
  * Date: 20/12/19
+ * Modified By: Ori Lazar
+     .---.
+   .'_:___".
+   |__ --==|
+   [  ]  :[|
+   |__| I=[|
+   / / ____|
+  |-/.____.'
+ /___\ /___\
  */
 
 #include "vulkanrenderer.h"
@@ -255,7 +264,7 @@ void VulkanRenderer::CreateRenderPass(PipelineConfig& config) {
 
 void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     QVector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-    m_shaderAnalytics->LoadShaders("/vs_test.spv", "/fs_test.spv");
+    m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");
     VkPipelineShaderStageCreateInfo shaderCreateInfo;
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
