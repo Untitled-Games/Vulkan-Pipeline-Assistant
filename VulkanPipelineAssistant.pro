@@ -19,13 +19,15 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     shaderanalytics.cpp \
+    vertexinput.cpp \
     vulkanmain.cpp \
     vulkanrenderer.cpp
 
 HEADERS += \
-    PipelineConfig.h \
     mainwindow.h \
+    pipelineconfig.h \
     shaderanalytics.h \
+    vertexinput.h \
     vulkanmain.h \
     vulkanrenderer.h
 
