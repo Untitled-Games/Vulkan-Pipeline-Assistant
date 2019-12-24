@@ -18,12 +18,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    shaderanalytics.cpp \
     vulkanmain.cpp \
     vulkanrenderer.cpp
 
 HEADERS += \
     PipelineConfig.h \
     mainwindow.h \
+    shaderanalytics.h \
     vulkanmain.h \
     vulkanrenderer.h
 
@@ -34,3 +36,69 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-core
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-core
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-core.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-core.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-core.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-core.lib
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-c
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-c
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-c.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-c.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-c.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-c.lib
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-cpp
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-cpp
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-cpp.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-cpp.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-cpp.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-cpp.lib
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-glsl
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-glsl
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-glsl.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-glsl.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-glsl.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-glsl.lib
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-reflect
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-reflect
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-reflect.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-reflect.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-reflect.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-reflect.lib
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross-util
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-util
+
+INCLUDEPATH += $$PWD/Lib/Debug
+DEPENDPATH += $$PWD/Lib/Debug
+
+win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-util.a
+else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-util.a
+else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-util.lib
+else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-util.lib

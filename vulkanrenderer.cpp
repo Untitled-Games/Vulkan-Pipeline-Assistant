@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QCoreApplication>
 #include "vulkanmain.h"
+#include "shaderanalytics.h"
 
 using namespace vpa;
 
@@ -24,28 +25,34 @@ static Vertex vertexData[] = {
     { 1, 1, 0, 1, 1, 1, 1}
 };
 
-VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main) : m_window(window), m_pipelineCache(VK_NULL_HANDLE) {
+VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main) : m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_initialised(false) {
     main->m_renderer = this;
     m_config = {};
 }
 
 void VulkanRenderer::initResources() {
     m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
+    m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device());
 }
 
 void VulkanRenderer::initSwapChainResources() {
-    CreateVertexBuffer();
-    CreateRenderPass(m_config);
+    if (!m_initialised) {
+        CreateVertexBuffer();
+        CreateRenderPass(m_config);
+        m_initialised = true;
+    }
 }
 
 void VulkanRenderer::releaseSwapChainResources() {
+}
+
+void VulkanRenderer::releaseResources() {
     m_deviceFuncs->vkDestroyPipeline(m_window->device(), m_pipeline, nullptr);
     m_deviceFuncs->vkDestroyPipelineLayout(m_window->device(), m_pipelineLayout, nullptr);
     //m_deviceFuncs->vkDestroyPipelineCache(m_window->device(), m_pipelineCache, nullptr);
     m_deviceFuncs->vkDestroyRenderPass(m_window->device(), m_renderPass, nullptr);
+    delete m_shaderAnalytics;
 }
-
-void VulkanRenderer::releaseResources() { }
 
 void VulkanRenderer::startNextFrame() {
 
@@ -247,14 +254,14 @@ void VulkanRenderer::CreateRenderPass(PipelineConfig& config) {
 }
 
 void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
-    // TODO configurable modules
-    VkShaderModule vertModule = CreateShader(QStringLiteral("/vs_test.spv"));
-    VkShaderModule fragModule = CreateShader(QStringLiteral("/fs_test.spv"));
     QVector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-    shaderStageInfos.push_back({VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
-        VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr });
-    shaderStageInfos.push_back({VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
-        VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", nullptr });
+    m_shaderAnalytics->LoadShaders("/vs_test.spv", "/fs_test.spv");
+    VkPipelineShaderStageCreateInfo shaderCreateInfo;
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_CONTROL, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_EVAL, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::GEOMETRY, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
 
     // TODO actual configurable layouts
     VkPushConstantRange pcRange = {};
