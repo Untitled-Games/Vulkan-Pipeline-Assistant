@@ -12,6 +12,7 @@
 
 namespace vpa {
     class VulkanMain;
+    class ShaderAnalytics;
     class VulkanRenderer : public QVulkanWindowRenderer {
         struct Image {
             QString name;
@@ -47,6 +48,7 @@ namespace vpa {
         VkShaderModule CreateShader(const QString& name);
         Image CreateImage(const QString& name, VkFormat format, VkImageUsageFlags usage, uint32_t width, uint32_t height);
 
+        bool m_initialised;
         QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;
 
@@ -54,6 +56,7 @@ namespace vpa {
         VkPipeline m_pipeline;
         VkPipelineLayout m_pipelineLayout;
         VkPipelineCache m_pipelineCache;
+        ShaderAnalytics* m_shaderAnalytics;
 
         QVector<VkFramebuffer> m_frameBuffers;
         QVector<Image> m_attachmentImages;
