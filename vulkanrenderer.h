@@ -8,7 +8,7 @@
 #define VULKANRENDERER_H
 
 #include <QVulkanWindowRenderer>
-#include "PipelineConfig.h"
+#include "pipelineconfig.h"
 
 namespace vpa {
     class VulkanMain;

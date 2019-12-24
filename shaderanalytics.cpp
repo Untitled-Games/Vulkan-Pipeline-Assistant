@@ -11,14 +11,12 @@
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
-ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device) : m_deviceFuncs(deviceFuncs), m_device(device) {
-}
+ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device) : m_deviceFuncs(deviceFuncs), m_device(device) { }
 
 ShaderAnalytics::~ShaderAnalytics() {
     for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
-        if (m_modules[i] != VK_NULL_HANDLE) {
-            m_deviceFuncs->vkDestroyShaderModule(m_device, m_modules[i], nullptr);
-        }
+        if (m_modules[i] != VK_NULL_HANDLE) m_deviceFuncs->vkDestroyShaderModule(m_device, m_modules[i], nullptr);
+        if (m_compilers[i] != nullptr) delete m_compilers[i];
     }
 }
 
@@ -77,7 +75,7 @@ DescriptorLayoutMap& ShaderAnalytics::DescriptorLayoutMap() {
     return m_descriptorLayoutMap;
 }
 
-SPIRV_CROSS_NAMESPACE::SmallVector<SPIRV_CROSS_NAMESPACE::Resource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
+SmallVector<Resource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
     return m_modules[size_t(stage)] != VK_NULL_HANDLE ? m_resources[size_t(stage)].push_constant_buffers : SmallVector<Resource>();
 }
 
