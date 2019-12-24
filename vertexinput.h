@@ -7,6 +7,7 @@
 #define VERTEXINPUT_H
 
 #include <QVulkanDeviceFunctions>
+#include <QString>
 #include <Lib/spirv-cross/spirv_cross.hpp>
 
 namespace vpa {
