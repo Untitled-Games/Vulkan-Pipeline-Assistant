@@ -18,12 +18,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    pipelineconfig.cpp \
     shaderanalytics.cpp \
     vertexinput.cpp \
     vulkanmain.cpp \
     vulkanrenderer.cpp
 
 HEADERS += \
+    filemanager.h \
     mainwindow.h \
     pipelineconfig.h \
     shaderanalytics.h \

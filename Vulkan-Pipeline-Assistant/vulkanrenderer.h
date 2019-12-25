@@ -39,6 +39,9 @@ namespace vpa {
 
         bool WritePipelineCache();
 
+        //todo: merge this -- Configuration Branch --
+        bool WritePipelineConfig(); 
+        bool ReadPipelineConfig();
     private:
         void CreateRenderPass(PipelineConfig& config);
         void CreatePipeline(PipelineConfig& config);

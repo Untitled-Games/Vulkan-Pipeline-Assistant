@@ -18,6 +18,7 @@ namespace vpa {
         VulkanMain(QWidget* parent);
         ~VulkanMain();
 
+        //todo: merge this -- Configuration Branch --
         void WritePipelineCache();
         PipelineConfig& GetConfig();
     private:

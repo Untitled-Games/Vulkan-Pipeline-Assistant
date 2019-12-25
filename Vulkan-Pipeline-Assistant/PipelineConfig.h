@@ -9,7 +9,10 @@
 
 #include <vulkan/vulkan.h>
 
+#include <iostream>
+
 namespace vpa {
+
     struct ColourAttachmentConfig {
         VkBool32 blendEnable = VK_TRUE;
         VkColorComponentFlags writeMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -22,6 +25,8 @@ namespace vpa {
     };
 
     struct PipelineConfig {
+
+        //todo: Note down the size of these shaders somewhere so that we can  serialize this into binary format
         // Shaders
         char* vertShader = nullptr;
         char* fragShader = nullptr;
@@ -32,6 +37,9 @@ namespace vpa {
         // Vertex input
         uint32_t vertexBindingCount = 0;
         uint32_t vertexAttribCount = 0;
+
+
+
         const VkVertexInputBindingDescription* vertexBindingDescriptions;
         const VkVertexInputAttributeDescription* vertexAttribDescriptions;
 
@@ -94,6 +102,9 @@ namespace vpa {
         uint32_t outputAttachmentIndex = 0;
         uint32_t attachmentCount = 0;
     };
+
+    std::ostream& operator<<(std::ostream& out, const PipelineConfig& config);
+    std::istream& operator>>(std::istream& in, PipelineConfig& config);
 }
 
 #endif // PIPELINECONFIG_H

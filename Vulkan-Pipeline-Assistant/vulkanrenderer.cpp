@@ -20,6 +20,9 @@
 #include "vulkanmain.h"
 #include "shaderanalytics.h"
 
+//todo: merge this -- Configuration Branch --
+#include <fstream>
+
 using namespace vpa;
 
 struct Vertex {
@@ -119,6 +122,23 @@ bool VulkanRenderer::WritePipelineCache() {
         }
         delete[] data;
     }
+    return success;
+}
+
+#include "filemanager.h"
+
+//todo: merge this -- Configuration Branch --
+bool VulkanRenderer::WritePipelineConfig() {
+    bool success = true;
+    FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
+    return success;
+}
+
+bool VulkanRenderer::ReadPipelineConfig()
+{
+    bool success = false;
+    FileManager<PipelineConfig>::Loader(m_config); //todo: return boolean
+    success = true;
     return success;
 }
 
