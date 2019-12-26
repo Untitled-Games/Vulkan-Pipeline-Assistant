@@ -15,6 +15,8 @@
 
 namespace vpa {
 
+struct PipelineConfig;
+
     enum class ShaderStage {
         VETREX, FRAGMENT, TESS_CONTROL, TESS_EVAL, GEOMETRY, count_
     };
@@ -68,6 +70,10 @@ namespace vpa {
         SPIRV_CROSS_NAMESPACE::ShaderResources m_resources[size_t(ShaderStage::count_)];
 
         vpa::DescriptorLayoutMap m_descriptorLayoutMap;
+
+    // ----- config branch ------ //
+    public:
+        PipelineConfig* m_pConfig;
     };
 }
 

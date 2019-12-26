@@ -45,6 +45,7 @@ win32:CONFIG(release, debug|release): LIBS += -L$$PWD/Lib/release/ -lspirv-cross
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/Lib/debug/ -lspirv-cross-core
 
 INCLUDEPATH += $$PWD/Lib/Debug
+
 DEPENDPATH += $$PWD/Lib/Debug
 
 win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/libspirv-cross-core.a

@@ -8,6 +8,9 @@
 #include <QFile>
 #include <QCoreApplication>
 
+// ----- config branch ------ //
+#include "PipelineConfig.h"
+
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
@@ -86,6 +89,7 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
         m_modules[size_t(stage)] = VK_NULL_HANDLE;
         return;
     }
+
     QByteArray blob = file.readAll();
     file.close();
 
@@ -109,6 +113,38 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     memcpy(spirvCrossBuf.data(), blob.data(), blob.size());
     m_compilers[size_t(stage)] = new Compiler(std::move(spirvCrossBuf));
     m_resources[size_t(stage)] = m_compilers[size_t(stage)]->get_shader_resources();
+
+    //TODO: Find a better way to do this
+    switch(stage)
+    {
+    case ShaderStage::VETREX:
+    {
+         m_pConfig->writablePipelineConfig.vertShaderBlob = blob;
+         break;
+    }
+    case ShaderStage::FRAGMENT:
+    {
+        m_pConfig->writablePipelineConfig.fragShaderBlob = blob;
+        break;
+    }
+    case ShaderStage::TESS_CONTROL:
+    {
+        m_pConfig->writablePipelineConfig.tescShaderBlob = blob;
+        break;
+    }
+    case ShaderStage::TESS_EVAL:
+    {
+        m_pConfig->writablePipelineConfig.teseShaderBlob = blob;
+        break;
+    }
+    case ShaderStage::GEOMETRY:
+    {
+        m_pConfig->writablePipelineConfig.geomShaderBlob = blob;
+        break;
+    }
+    default:
+        assert(false);
+    }
 }
 
 VkShaderStageFlagBits ShaderAnalytics::StageToVkStageFlag(ShaderStage stage) {

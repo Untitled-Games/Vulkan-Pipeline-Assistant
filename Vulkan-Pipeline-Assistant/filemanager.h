@@ -24,7 +24,6 @@ namespace vpa {
         //if (filename.empty())
             //throw Exceptions::InvalidFileException("File argument must not be empty!", __FILE__, __LINE__, __FUNCTION__);
 
-        std::string input;
         std::ifstream ifStream;
         ifStream.open(filename);
         if (!ifStream)
@@ -56,7 +55,6 @@ namespace vpa {
     template<typename T>
     void FileManager<T>::Writer(T& object, const std::string& filename)
     {
-        std::string input;
         std::ofstream fstream;
         fstream.open(filename);
         if(!fstream)
