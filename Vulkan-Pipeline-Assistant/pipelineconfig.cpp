@@ -157,13 +157,36 @@ typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
             // vertex shader
             int shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
             std::string shaderData = GetNextLine(&readPosition, &buffer);
-            assert(shaderSize ==  shaderData.size()); //TODO: turn this into an error catch
+            bool complete = false;
+            while(!complete)
+            {
+                if(shaderSize ==  shaderData.size())
+                    complete = true;
+                else
+                {
+                    shaderData += '|';
+                    shaderData += GetNextLine(&readPosition, &buffer);
+                }
+            }
+
             QByteArray blob(shaderData.data(), shaderData.size());
             writablePipelineConfig.vertShaderBlob = blob;
 
             // fragment shader
             shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
             shaderData = GetNextLine(&readPosition, &buffer);
+
+            complete = false;
+            while(!complete)
+            {
+                if(shaderSize ==  shaderData.size())
+                    complete = true;
+                else
+                {
+                    shaderData += '|';
+                    shaderData += GetNextLine(&readPosition, &buffer);
+                }
+            }
             QByteArray fragBlob(shaderData.data(), shaderData.size());
             writablePipelineConfig.fragShaderBlob = fragBlob;
 
