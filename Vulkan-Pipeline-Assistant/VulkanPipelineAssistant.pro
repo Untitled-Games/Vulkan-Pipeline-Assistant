@@ -18,6 +18,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    memoryallocator.cpp \
     shaderanalytics.cpp \
     vertexinput.cpp \
     vulkanmain.cpp \
@@ -25,8 +26,11 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
+    memoryallocator.h \
     pipelineconfig.h \
     shaderanalytics.h \
+    spirvresource.h \
+    tiny_obj_loader.h \
     vertexinput.h \
     vulkanmain.h \
     vulkanrenderer.h

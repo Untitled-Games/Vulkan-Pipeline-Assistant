@@ -1,42 +1,57 @@
-/*
- * Author: Ralph Ridley
- * Date: 24/12/19
- * Calculate vertex attributes from configuration and prepare vertex and index buffer.
- */
 #ifndef VERTEXINPUT_H
 #define VERTEXINPUT_H
 
-#include <QVulkanDeviceFunctions>
-#include <QString>
-#include <Lib/spirv-cross/spirv_cross.hpp>
+#include "spirvresource.h"
+#include "memoryallocator.h"
 
+#include <QVector>
+
+class QVulkanDeviceFunctions;
+class QVulkanWindow;
 namespace vpa {
-    enum class VertexAttributes {
-        POSITION, TEX_COORD, NORMAL, COLOUR
+    enum class VertexAttribute {
+        POSITION,
+        TEX_COORD,
+        NORMAL,
+        RGBA_COLOUR,
+        count_
     };
 
-    struct Vec2 {
-        float x, y;
-    };
-
-    struct Vec3 {
-        float x, y, z;
-    };
-
-    struct Vec4 {
-        float x, y, z, w;
+    enum class SupportedFormats {
+        OBJ,
+        count_
     };
 
     class VertexInput {
     public:
-        VertexInput(QVulkanDeviceFunctions* deviceFuncs, SPIRV_CROSS_NAMESPACE::SmallVector<SPIRV_CROSS_NAMESPACE::Resource>& inputResources, QString meshName, bool isIndexed);
+        VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, QVector<SpirvResource>& inputResources, QString meshName, bool isIndexed);
         ~VertexInput();
 
+        VkBuffer VertexBuffer() {
+            return m_vertexAllocation.buffer;
+        }
+
+        VkBuffer IndexBuffer() {
+            return m_indexAllocation.buffer;
+        }
+
+        void BindBuffers(VkCommandBuffer& cmdBuffer);
+
+        VkVertexInputBindingDescription InputBindingDescription();
+        QVector<VkVertexInputAttributeDescription> InputAttribDescription();
+
     private:
-        void CalculateData(SPIRV_CROSS_NAMESPACE::SmallVector<SPIRV_CROSS_NAMESPACE::Resource>& inputResources);
+        void AssignDefaultMeaning(QVector<SpirvResource>& inputResources);
+        void LoadMesh(QString& meshName, SupportedFormats format);
+        void CalculateData(QVector<SpirvResource>& inputResources);
+        uint32_t CalculateStride();
+
+        bool m_indexed;
         QVulkanDeviceFunctions* m_deviceFuncs;
-        VkBuffer m_vertexBuffer;
-        VkBuffer m_indexBuffer;
+        QVector<VertexAttribute> m_attributes; // mapped by input location
+        Allocation m_vertexAllocation;
+        Allocation m_indexAllocation;
+        MemoryAllocator m_allocator;
     };
 }
 
