@@ -86,6 +86,9 @@ namespace vpa {
 
     struct PipelineConfig {
 
+        //TODO: can a pipeline config can have multiple writables?
+        bool LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
+
         //todo: Note down the size of these shaders somewhere so that we can  serialize this into binary format
         // Shaders
         char* vertShader = nullptr;
@@ -120,7 +123,6 @@ namespace vpa {
 
     std::ostream& operator<<(std::ostream& out, const WritablePipelineConfig& config);
     std::ostream& operator<<(std::ostream& out, const PipelineConfig& config);
-    std::istream& operator>>(std::istream& in, PipelineConfig& config);
-}
 
+}
 #endif // PIPELINECONFIG_H

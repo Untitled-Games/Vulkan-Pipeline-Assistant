@@ -2,13 +2,14 @@
 
 #include <QFile> // used for qMessages (Remove me)
 
-#define WRITE_FILE_LINE(x) out << x << "\n"
+#define WRITE_FILE_LINE(x) out << x << "|\n"
 
 #include <fstream>
 #include <string>
 
 //TODO: Move this to some utility class
 #include <sstream>
+
 template <typename T>
 std::string FloatToString(const T a_value, const int n = 2)
 {
@@ -21,14 +22,14 @@ std::string FloatToString(const T a_value, const int n = 2)
 namespace vpa {
     std::ostream& WritablePipelineConfig::WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const
     {
-        out << byteArray->size() << "\n";
+        out << byteArray->size() << "|";
         const char* data = byteArray->data();
         for(int i = 0; i < byteArray->size(); i++)
         {
             out << *data;
             ++data;
         }
-        out << "\n";
+        out << "|\n";
         return out;
     }
 
@@ -38,7 +39,7 @@ namespace vpa {
         ///////////////////////////////////////////////////////
         //// START OF CONFIG
         ///////////////////////////////////////////////////////
-        out <<  "VPA_CONFIG_BEGIN\n";
+        WRITE_FILE_LINE("VPA_CONFIG_BEGIN");
 
         ///////////////////////////////////////////////////////
         //// SHADER DATA
@@ -67,7 +68,7 @@ namespace vpa {
         }
         for(int i = config.writablePipelineConfig.numAttribDescriptions; i < 4; i++)
         {
-            WRITE_FILE_LINE('0');
+            WRITE_FILE_LINE('-');
         }
 
         // vertex input assembly
@@ -121,59 +122,63 @@ namespace vpa {
         ///////////////////////////////////////////////////////
         //// END OF CONFIG
         ///////////////////////////////////////////////////////
-        out << "VPA_CONFIG_END\n";
+        WRITE_FILE_LINE("VPA_CONFIG_END");
         return out;
     }
 
-    std::istream& operator>>(std::istream& in, PipelineConfig& config) {
-        qDebug("Reading file from PipelineConfig.");
 
-        std::string line = "";
-        std::string lineResult = "";
 
-        ///////////////////////////////////////////////////////
-        //// START OF CONFIG
-        ///////////////////////////////////////////////////////
-        std::getline(in, line);
-        if(line != "VPA_CONFIG_BEGIN")
+#include <algorithm>
+typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
+
+    std::string GetNextLine(FILE_ITERATOR* iterator, std::vector<char>* buffer)
+    {
+        std::vector<char>::iterator it = std::find(*iterator, (*buffer).end(), '|');
+        std::string data(*iterator, it);
+        *iterator = it + 1;
+        return data;
+    }
+
+    bool PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize)
+    {
+        qDebug("Buffer Size: %i", bufferSize);
+        // Keep a reference to the current position we are reading from
+        auto readPosition = buffer.begin();
+        std::string firstLine = GetNextLine(&readPosition, &buffer);
+        if(!(firstLine == "VPA_CONFIG_BEGIN"))
         {
             qCritical("VPA_CONFIG_BEGIN format invalid, missing object header.");
-            return in; //TODO: Empty the stream
+            return false;
         }
-        static const int TEST_MULTI = 1;
-
-        int vsbSize = 0;
-        in >> vsbSize;
-        //vsbSize = 96; // byte 97 kills the stream
-
-        //TODO: Abstract into a function which reads all shaders' data.
-        // Read in vertex shader data
-        char* data = new char[TEST_MULTI * vsbSize];
-        in.read(data, TEST_MULTI * vsbSize);
-
-        if(in.fail())
+        try
         {
-            qDebug("Stream Failed!");
+            // loop these for all shaders
+
+            // vertex shader
+            int shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
+            std::string shaderData = GetNextLine(&readPosition, &buffer);
+            assert(shaderSize ==  shaderData.size()); //TODO: turn this into an error catch
+            QByteArray blob(shaderData.data(), shaderData.size());
+            writablePipelineConfig.vertShaderBlob = blob;
+
+            // fragment shader
+            shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
+            shaderData = GetNextLine(&readPosition, &buffer);
+            QByteArray fragBlob(shaderData.data(), shaderData.size());
+            writablePipelineConfig.fragShaderBlob = fragBlob;
+
         }
-
-        QByteArray blob(data, TEST_MULTI * vsbSize);
-        config.writablePipelineConfig.vertShaderBlob = blob;
-
-        std::ofstream fstream;
-        fstream.open("test.1");
-        config.writablePipelineConfig.WriteShaderDataToFile(fstream, &(config.writablePipelineConfig.vertShaderBlob));
-        fstream.close();
-
-        int vertexBindingCount = 10;
-        in >> vertexBindingCount;
-        qDebug("%i", vertexBindingCount);
-
-
-        if(line == "VPA_CONFIG_END")
+        catch (std::invalid_argument const &e)
         {
-            return in;
+            qCritical("Bad input: std::invalid_argument was thrown");
+        }
+        catch (std::out_of_range const &e)
+        {
+            qCritical("Data Overflow: std::out_of_range was thrown");
         }
 
-        return in;
+        // load in the rest of the data
+        return true;
     }
+
 }
