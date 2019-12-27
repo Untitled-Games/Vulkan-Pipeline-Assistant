@@ -108,3 +108,5 @@ win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/li
 else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/libspirv-cross-util.a
 else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/Lib/release/spirv-cross-util.lib
 else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/Lib/debug/spirv-cross-util.lib
+
+DISTFILES +=
