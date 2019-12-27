@@ -131,7 +131,7 @@ bool VulkanRenderer::WritePipelineCache() {
 //todo: merge this -- Configuration Branch --
 bool VulkanRenderer::WritePipelineConfig() {
     bool success = true;
-    FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
+    //FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
     return success;
 }
 

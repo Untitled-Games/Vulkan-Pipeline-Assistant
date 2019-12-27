@@ -165,6 +165,11 @@ typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
                 else
                 {
                     shaderData += '|';
+                    if(shaderSize ==  shaderData.size())
+                    {
+                        complete = true;
+                        break;
+                    }
                     shaderData += GetNextLine(&readPosition, &buffer);
                 }
             }
@@ -184,6 +189,11 @@ typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
                 else
                 {
                     shaderData += '|';
+                    if(shaderSize ==  shaderData.size())
+                    {
+                        complete = true;
+                        break;
+                    }
                     shaderData += GetNextLine(&readPosition, &buffer);
                 }
             }
