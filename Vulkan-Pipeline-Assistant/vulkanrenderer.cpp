@@ -1,6 +1,15 @@
 /*
  * Author: Ralph Ridley
  * Date: 20/12/19
+ * Modified By: Ori Lazar
+     .---.
+   .'_:___".
+   |__ --==|
+   [  ]  :[|
+   |__| I=[|
+   / / ____|
+  |-/.____.'
+ /___\ /___\
  */
 
 #include "vulkanrenderer.h"

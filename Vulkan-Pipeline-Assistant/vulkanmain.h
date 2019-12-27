@@ -15,7 +15,6 @@ class QWidget;
 namespace vpa {
     class VulkanRenderer;
     class MemoryAllocator;
-
     class VulkanMain {
         friend class VulkanRenderer;
     public:
