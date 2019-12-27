@@ -171,7 +171,8 @@ void ShaderAnalytics::AnalyseDescriptorLayout() {
                 for (auto& resource : descriptorResources[k]) {
                     uint32_t set = m_compilers[i]->get_decoration(resource.id, spv::DecorationDescriptorSet);
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
-                    SpirvResource res = { QString::fromStdString(m_compilers[i]->get_name(resource.id)), CalculateResourceSize(m_compilers[i], resource), types[k], resource };
+                    SpirvResource res = { QString::fromStdString(m_compilers[i]->get_name(resource.id)), CalculateResourceSize(m_compilers[i], resource), types[k],
+                                          resource, m_compilers[i] };
                     auto key = QPair<uint32_t, uint32_t>(set, binding);
                     if (m_descriptorLayoutMap.contains(key) && res != m_descriptorLayoutMap[key]) {
                         qWarning("Duplicate set and binding found, but with different values. Shaders are not compatible.");

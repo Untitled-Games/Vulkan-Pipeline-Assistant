@@ -6,6 +6,7 @@
 #include "vulkanmain.h"
 #include "vulkanrenderer.h"
 
+#include <QVulkanWindow>
 #include <QWidget>
 #include <QLayout>
 #include <QMessageBox>
