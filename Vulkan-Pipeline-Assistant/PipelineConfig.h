@@ -41,7 +41,7 @@ namespace vpa {
         uint32_t vertexBindingCount = 0;
         uint32_t vertexAttribCount = 0;
 
-        VkVertexInputBindingDescription vertexBindingDescriptions;
+        VkVertexInputBindingDescription vertexBindingDescriptions = {2, 5, VK_VERTEX_INPUT_RATE_MAX_ENUM};
         int numAttribDescriptions = 1;
         VkVertexInputAttributeDescription vertexAttribDescriptions[4];
 
