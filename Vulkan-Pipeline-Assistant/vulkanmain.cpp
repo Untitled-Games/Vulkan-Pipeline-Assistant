@@ -53,7 +53,7 @@ void VulkanMain::CreateVkInstance() {
         qFatal("Could not create Vulkan Instance %d", m_instance.errorCode());
     }
 }
-//todo: merge this -- Configuration Branch --
+
 void VulkanMain::WritePipelineCache() {
     if (m_renderer->WritePipelineCache()) {
         QMessageBox::information(m_container, "VulkanPipelineAssistant", "Pipeline cache has been written to test.vpac");

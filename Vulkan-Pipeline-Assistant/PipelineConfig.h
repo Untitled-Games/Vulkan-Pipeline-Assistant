@@ -25,8 +25,7 @@ namespace vpa {
         VkBlendFactor dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     };
 
-    struct WritablePipelineConfig
-    {
+    struct WritablePipelineConfig {
         //TODO: Move me for good coding practice
         std::ostream& WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const;
 

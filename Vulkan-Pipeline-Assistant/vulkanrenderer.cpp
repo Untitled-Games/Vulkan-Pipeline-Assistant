@@ -19,9 +19,7 @@
 #include <QCoreApplication>
 #include "vulkanmain.h"
 #include "shaderanalytics.h"
-
-//todo: merge this -- Configuration Branch --
-#include <fstream>
+#include "filemanager.h"
 
 using namespace vpa;
 
@@ -125,9 +123,6 @@ bool VulkanRenderer::WritePipelineCache() {
     }
     return success;
 }
-
-//todo: merge this -- Configuration Branch --
-#include "filemanager.h"
 
 bool VulkanRenderer::WritePipelineConfig() {
     bool success = true;
