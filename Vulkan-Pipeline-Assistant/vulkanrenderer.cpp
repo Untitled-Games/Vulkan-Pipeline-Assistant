@@ -126,9 +126,9 @@ bool VulkanRenderer::WritePipelineCache() {
     return success;
 }
 
+//todo: merge this -- Configuration Branch --
 #include "filemanager.h"
 
-//todo: merge this -- Configuration Branch --
 bool VulkanRenderer::WritePipelineConfig() {
     bool success = true;
     FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean

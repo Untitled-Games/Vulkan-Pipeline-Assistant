@@ -8,6 +8,7 @@
 #define VULKANRENDERER_H
 
 #include <QVulkanWindowRenderer>
+
 #include "pipelineconfig.h"
 
 namespace vpa {
@@ -39,8 +40,8 @@ namespace vpa {
 
         bool WritePipelineCache();
 
-        //todo: merge this -- Configuration Branch --
-        bool WritePipelineConfig(); 
+        //TODO: move this to a more organized location
+        bool WritePipelineConfig();
         bool ReadPipelineConfig();
     private:
         void CreateRenderPass(PipelineConfig& config);

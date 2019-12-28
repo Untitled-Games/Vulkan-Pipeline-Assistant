@@ -71,7 +71,7 @@ struct PipelineConfig;
 
         vpa::DescriptorLayoutMap m_descriptorLayoutMap;
 
-    // ----- config branch ------ //
+    //TODO: move this to a more organized location
     public:
         PipelineConfig* m_pConfig;
     };

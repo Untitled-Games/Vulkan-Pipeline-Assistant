@@ -1,11 +1,14 @@
 #include "PipelineConfig.h"
 
-#include <QFile> // used for qMessages (Remove me)
+#include <QFile>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <algorithm>
 
+namespace vpa {
+
+//TODO: Move some of these templates to a more organized location
 typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
 #define WRITE_FILE_LINE(x) out << x << "|\n"
 #define FLOAT_DECIMAL_PLACES 8
@@ -18,8 +21,6 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
     out << std::fixed << a_value;
     return out.str();
 }
-
-namespace vpa {
     std::ostream& WritablePipelineConfig::WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const
     {
         out << byteArray->size() << "|";
@@ -325,7 +326,6 @@ namespace vpa {
             qDebug(e.what());
 
         }
-        //TODO: Catch stoi/f exceptions
 
         activeData = GetNextLine(&readPosition, &buffer);
         if(!(activeData == "VPA_CONFIG_END" || activeData == "\rVPA_CONFIG_END"))
