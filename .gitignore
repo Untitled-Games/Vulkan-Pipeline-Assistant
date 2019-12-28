@@ -53,4 +53,12 @@ compile_commands.json
 
 # Build Directory 
 Build/
+
+# Shaders other than the test ones
+*.frag
+!fs_test.frag
+*.vert
+!vs_test.vert
+
+# Editor-specific files
 .vscode/

@@ -108,7 +108,7 @@ void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
     field->setReadOnly(true);
 
     QPushButton* dialogBtn = new QPushButton(container);
-    dialogBtn->setIcon(QIcon("file_dialog.svg"));
+    dialogBtn->setIcon(QIcon(IMAGEDIR"file_dialog.svg"));
 
     QHBoxLayout* layout = new QHBoxLayout(container);
     layout->addWidget(label);

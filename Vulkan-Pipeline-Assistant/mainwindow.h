@@ -7,6 +7,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#define IMAGEDIR "../../Resources/Images/"
+
 #include <QMainWindow>
 #include <QPushButton>
 #include <QFileDialog>
