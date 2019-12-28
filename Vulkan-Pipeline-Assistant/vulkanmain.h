@@ -7,11 +7,14 @@
 #ifndef VULKANMAIN_H
 #define VULKANMAIN_H
 
-#include <QVulkanWindow>
+#include <QVulkanInstance>
 #include "pipelineconfig.h"
 
+class QVulkanWindow;
+class QWidget;
 namespace vpa {
     class VulkanRenderer;
+    class MemoryAllocator;
     class VulkanMain {
         friend class VulkanRenderer;
     public:

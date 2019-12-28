@@ -7,15 +7,16 @@
 #ifndef SHADER_H
 #define SHADER_H
 
+#include "spirvresource.h"
+
 #include <QString>
 #include <QPair>
 #include <QHash>
 #include <QVulkanDeviceFunctions>
-#include <Lib/spirv-cross/spirv_cross.hpp>
 
 namespace vpa {
 
-struct PipelineConfig;
+    struct PipelineConfig;
 
     enum class ShaderStage {
         VETREX, FRAGMENT, TESS_CONTROL, TESS_EVAL, GEOMETRY, count_
@@ -38,6 +39,7 @@ struct PipelineConfig;
             return !operator==(other);
         }
     };
+
 
     using DescriptorLayoutMap = QHash<QPair<uint32_t, uint32_t>, SpirvResource>;
 

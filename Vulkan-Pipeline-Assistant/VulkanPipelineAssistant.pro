@@ -19,6 +19,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     pipelineconfig.cpp \
+    memoryallocator.cpp \
     shaderanalytics.cpp \
     vertexinput.cpp \
     vulkanmain.cpp \
@@ -27,8 +28,11 @@ SOURCES += \
 HEADERS += \
     filemanager.h \
     mainwindow.h \
+    memoryallocator.h \
     pipelineconfig.h \
     shaderanalytics.h \
+    spirvresource.h \
+    tiny_obj_loader.h \
     vertexinput.h \
     vulkanmain.h \
     vulkanrenderer.h
