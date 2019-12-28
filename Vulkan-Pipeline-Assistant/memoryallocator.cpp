@@ -5,9 +5,42 @@
 
 using namespace vpa;
 
-MemoryAllocator::MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window) : m_deviceFuncs(deviceFuncs), m_window(window) { }
+MemoryAllocator::MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window) : m_deviceFuncs(deviceFuncs), m_window(window) {
+    VkQueueFamilyProperties queueProperties;
+    QVulkanFunctions* funcs = window->vulkanInstance()->functions();
+    uint32_t queueCount = 0;
+    funcs->vkGetPhysicalDeviceQueueFamilyProperties(window->physicalDevice(), &queueCount, nullptr);
+    QVector<VkQueueFamilyProperties> queueFamilies(queueCount);
+    funcs->vkGetPhysicalDeviceQueueFamilyProperties(window->physicalDevice(), &queueCount, queueFamilies.data());
+    for (uint32_t i = 0; i < queueFamilies.size(); ++i) {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+            m_transferQueueIdx = i;
+            break;
+        }
+    }
+    deviceFuncs->vkGetDeviceQueue(window->device(), m_transferQueueIdx, 0, &m_transferQueue);
 
-MemoryAllocator::~MemoryAllocator() { }
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = m_transferQueueIdx;
+    poolInfo.flags = 0;
+
+    VkResult result = m_deviceFuncs->vkCreateCommandPool(window->device(), &poolInfo, nullptr, &m_commandPool);
+    if (result != VK_SUCCESS) qFatal("Failed to allocate command pool for memory allocator!");
+
+    VkCommandBufferAllocateInfo allocInfo = {};//m_commandBuffer
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    result = m_deviceFuncs->vkAllocateCommandBuffers(window->device(), &allocInfo, &m_commandBuffer);
+    if (result != VK_SUCCESS) qFatal("Failed to allocate command buffer for transfer!");
+}
+
+MemoryAllocator::~MemoryAllocator() {
+    m_deviceFuncs->vkDestroyCommandPool(m_window->device(), m_commandPool, nullptr);
+}
 
 unsigned char* MemoryAllocator::MapMemory(Allocation& allocation) {
     unsigned char* dataPtr = nullptr;
@@ -30,6 +63,8 @@ Allocation MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usage
     bufInfo.size = size;
     bufInfo.usage = usageFlags;
 
+    const VkPhysicalDeviceLimits& deviceLimits = m_window->physicalDeviceProperties()->limits;
+
     VkResult result;
     result = m_deviceFuncs->vkCreateBuffer(m_window->device(), &bufInfo, nullptr, &allocation.buffer);
     if (result != VK_SUCCESS) qWarning("Failed to create buffer, code %i", result);
@@ -41,6 +76,9 @@ Allocation MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usage
 
     result = m_deviceFuncs->vkAllocateMemory(m_window->device(), &memAllocInfo, nullptr, &allocation.memory);
     if (result != VK_SUCCESS) qWarning("Failed to allocate memory for buffer, code %i", result);
+
+    result = m_deviceFuncs->vkBindBufferMemory(m_window->device(), allocation.buffer, allocation.memory, 0);
+    if (result != VK_SUCCESS) qWarning("Failed to bind buffer to memory, code %i", result);
 
     return allocation;
 }

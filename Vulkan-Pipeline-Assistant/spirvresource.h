@@ -1,9 +1,12 @@
 #ifndef SPIRVRESOURCE_H
 #define SPIRVRESOURCE_H
 
-#include <Lib/spirv-cross/spirv_cross.hpp>
 #include <QString>
 
+namespace spirv_cross {
+    struct Resource;
+    class Compiler;
+}
 namespace vpa {
     enum class ShaderStage {
         VETREX, FRAGMENT, TESS_CONTROL, TESS_EVAL, GEOMETRY, count_
@@ -17,8 +20,8 @@ namespace vpa {
         QString name;
         size_t size;
         SpirvResourceType resourceType;
-        SPIRV_CROSS_NAMESPACE::Resource spirvResource;
-        SPIRV_CROSS_NAMESPACE::Compiler* compiler;
+        spirv_cross::Resource* spirvResource;
+        spirv_cross::Compiler* compiler;
 
         bool operator==(const SpirvResource& other) {
             return name == other.name && size == other.size && resourceType == other.resourceType;

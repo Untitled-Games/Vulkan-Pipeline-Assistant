@@ -8,6 +8,7 @@
 #define SHADER_H
 
 #include "spirvresource.h"
+#include <Lib/spirv-cross/spirv_cross.hpp>
 
 #include <QString>
 #include <QPair>
@@ -30,23 +31,23 @@ namespace vpa {
         VkShaderModule GetModule(ShaderStage stage);
         void SetShader(ShaderStage stage, const QString& name);
 
-        SPIRV_CROSS_NAMESPACE::SmallVector<SPIRV_CROSS_NAMESPACE::Resource> InputAttributes();
+        QVector<SpirvResource> InputAttributes();
         size_t NumColourAttachments();
         DescriptorLayoutMap& DescriptorLayoutMap();
-        SPIRV_CROSS_NAMESPACE::SmallVector<SPIRV_CROSS_NAMESPACE::Resource> PushConstantRange(ShaderStage stage);
+        QVector<SpirvResource> PushConstantRange(ShaderStage stage);
 
     private:
         void CreateModule(ShaderStage stage, const QString& name);
         VkShaderStageFlagBits StageToVkStageFlag(ShaderStage stage);
-        size_t CalculateResourceSize(SPIRV_CROSS_NAMESPACE::Compiler* compiler, SPIRV_CROSS_NAMESPACE::Resource& res);
+        size_t CalculateResourceSize(spirv_cross::Compiler* compiler, spirv_cross::Resource* res);
         void AnalyseDescriptorLayout();
 
         QVulkanDeviceFunctions* m_deviceFuncs;
         VkDevice m_device;
 
         VkShaderModule m_modules[size_t(ShaderStage::count_)];
-        SPIRV_CROSS_NAMESPACE::Compiler* m_compilers[size_t(ShaderStage::count_)];
-        SPIRV_CROSS_NAMESPACE::ShaderResources m_resources[size_t(ShaderStage::count_)];
+        spirv_cross::Compiler* m_compilers[size_t(ShaderStage::count_)];
+        spirv_cross::ShaderResources m_resources[size_t(ShaderStage::count_)];
 
         vpa::DescriptorLayoutMap m_descriptorLayoutMap;
 

@@ -66,8 +66,18 @@ void ShaderAnalytics::SetShader(ShaderStage stage, const QString& name) {
     CreateModule(stage, name);
 }
 
-SmallVector<Resource> ShaderAnalytics::InputAttributes() {
-    return m_resources[size_t(ShaderStage::VETREX)].stage_inputs;
+QVector<SpirvResource> ShaderAnalytics::InputAttributes() {
+    size_t vertexIdx = size_t(ShaderStage::VETREX);
+    SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
+    QVector<SpirvResource> attribs(stageInputs.size());
+    for (size_t i = 0; i < stageInputs.size(); ++i) {
+        attribs[i].name = QString::fromStdString(stageInputs[i].name);
+        attribs[i].resourceType = SpirvResourceType::INPUT_ATTRIBUTE;
+        attribs[i].spirvResource = &stageInputs[i];
+        attribs[i].compiler = m_compilers[vertexIdx];
+        attribs[i].size = CalculateResourceSize(attribs[i].compiler, attribs[i].spirvResource);
+    }
+    return attribs;
 }
 
 size_t ShaderAnalytics::NumColourAttachments() {
@@ -78,8 +88,23 @@ DescriptorLayoutMap& ShaderAnalytics::DescriptorLayoutMap() {
     return m_descriptorLayoutMap;
 }
 
-SmallVector<Resource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
-    return m_modules[size_t(stage)] != VK_NULL_HANDLE ? m_resources[size_t(stage)].push_constant_buffers : SmallVector<Resource>();
+QVector<SpirvResource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
+    if (m_modules[size_t(stage)] != VK_NULL_HANDLE) {
+        size_t stageIdx = size_t(stage);
+        SmallVector<Resource>& pushConstantsBuffers = m_resources[stageIdx].push_constant_buffers;
+        QVector<SpirvResource> resources(pushConstantsBuffers.size());
+        for (size_t i = 0; i < pushConstantsBuffers.size(); ++i) {
+            resources[i].name = QString::fromStdString(pushConstantsBuffers[i].name);
+            resources[i].resourceType = SpirvResourceType::PUSH_CONSTANT;
+            resources[i].spirvResource = &pushConstantsBuffers[i];
+            resources[i].compiler = m_compilers[stageIdx];
+            resources[i].size = CalculateResourceSize(resources[i].compiler, resources[i].spirvResource);
+        }
+        return resources;
+    }
+    else {
+        return { };
+    }
 }
 
 void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
@@ -164,8 +189,8 @@ VkShaderStageFlagBits ShaderAnalytics::StageToVkStageFlag(ShaderStage stage) {
     }
 }
 
-size_t ShaderAnalytics::CalculateResourceSize(Compiler* compiler, Resource& res) {
-    SPIRType type = compiler->get_type(res.base_type_id);
+size_t ShaderAnalytics::CalculateResourceSize(Compiler* compiler, Resource* res) {
+    SPIRType type = compiler->get_type(res->base_type_id);
     if (type.basetype == SPIRType::Struct) {
         return compiler->get_declared_struct_size(type);
     }
@@ -207,8 +232,8 @@ void ShaderAnalytics::AnalyseDescriptorLayout() {
                 for (auto& resource : descriptorResources[k]) {
                     uint32_t set = m_compilers[i]->get_decoration(resource.id, spv::DecorationDescriptorSet);
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
-                    SpirvResource res = { QString::fromStdString(m_compilers[i]->get_name(resource.id)), CalculateResourceSize(m_compilers[i], resource), types[k],
-                                          resource, m_compilers[i] };
+                    SpirvResource res = { QString::fromStdString(m_compilers[i]->get_name(resource.id)), CalculateResourceSize(m_compilers[i], &resource), types[k],
+                                          &resource, m_compilers[i] };
                     auto key = QPair<uint32_t, uint32_t>(set, binding);
                     if (m_descriptorLayoutMap.contains(key) && res != m_descriptorLayoutMap[key]) {
                         qWarning("Duplicate set and binding found, but with different values. Shaders are not compatible.");

@@ -7,7 +7,8 @@
 #include "vulkanrenderer.h"
 
 #include <QVulkanWindow>
-#include <QWidget>
+#include <QVulkanFunctions>
+#include <QLoggingCategory>
 #include <QLayout>
 #include <QMessageBox>
 
@@ -44,14 +45,15 @@ void VulkanMain::CreateVkInstance() {
          << "VK_LAYER_GOOGLE_threading"
          << "VK_LAYER_LUNARG_parameter_validation"
          << "VK_LAYER_LUNARG_object_tracker"
-         << "VK_LAYER_LUNARG_core_validation"
+         << "VK_LAYER_LUNARG_standard_validation"
          << "VK_LAYER_LUNARG_image"
          << "VK_LAYER_LUNARG_swapchain"
          << "VK_LAYER_GOOGLE_unique_objects");
-
+    m_instance.setExtensions(QByteArrayList() << VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     if (!m_instance.create()) {
         qFatal("Could not create Vulkan Instance %d", m_instance.errorCode());
     }
+
 }
 
 void VulkanMain::WritePipelineCache() {
@@ -69,3 +71,4 @@ void VulkanMain::WritePipelineCache() {
 PipelineConfig& VulkanMain::GetConfig() {
     return m_renderer->GetConfig();
 }
+
