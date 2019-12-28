@@ -58,6 +58,12 @@ void VulkanMain::WritePipelineCache() {
     if (m_renderer->WritePipelineCache()) {
         QMessageBox::information(m_container, "VulkanPipelineAssistant", "Pipeline cache has been written to test.vpac");
     }
+    if (m_renderer->WritePipelineConfig()) {
+        QMessageBox::information(m_container, "VulkanPipelineAssistant", "Pipeline config has been written to config.vpa");
+    }
+    if (m_renderer->ReadPipelineConfig()) {
+        QMessageBox::information(m_container, "VulkanPipelineAssistant", "Pipeline config has been read from config.vpa");
+    }
 }
 
 PipelineConfig& VulkanMain::GetConfig() {

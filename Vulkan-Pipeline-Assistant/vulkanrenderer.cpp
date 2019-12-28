@@ -19,6 +19,7 @@
 #include <QCoreApplication>
 #include "vulkanmain.h"
 #include "shaderanalytics.h"
+#include "filemanager.h"
 
 using namespace vpa;
 
@@ -42,6 +43,7 @@ VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main) : m_wind
 void VulkanRenderer::initResources() {
     m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
     m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device());
+    m_shaderAnalytics->m_pConfig = &m_config; //TODO: Change the way these guys connect with eachother
 }
 
 void VulkanRenderer::initSwapChainResources() {
@@ -119,6 +121,21 @@ bool VulkanRenderer::WritePipelineCache() {
         }
         delete[] data;
     }
+    return success;
+}
+
+bool VulkanRenderer::WritePipelineConfig() {
+    bool success = true;
+    FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
+    return success;
+}
+
+bool VulkanRenderer::ReadPipelineConfig()
+{
+    bool success = false;
+    FileManager<PipelineConfig>::Loader(m_config); //todo: return boolean
+    FileManager<PipelineConfig>::Writer(m_config, "config_rewrite.vpa"); //todo: return boolean
+    success = true;
     return success;
 }
 
@@ -264,7 +281,7 @@ void VulkanRenderer::CreateRenderPass(PipelineConfig& config) {
 
 void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     QVector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-    m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");
+    m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
     VkPipelineShaderStageCreateInfo shaderCreateInfo;
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
@@ -314,8 +331,8 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = config.topology;
-    inputAssembly.primitiveRestartEnable = config.primitiveRestartEnable;
+    inputAssembly.topology = config.writablePipelineConfig.topology;
+    inputAssembly.primitiveRestartEnable = config.writablePipelineConfig.primitiveRestartEnable;
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
@@ -338,49 +355,49 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = config.depthClampEnable;
-    rasterizer.rasterizerDiscardEnable = config.rasterizerDiscardEnable;
-    rasterizer.polygonMode = config.polygonMode;
-    rasterizer.lineWidth = config.lineWidth;
-    rasterizer.cullMode = config.cullMode;
-    rasterizer.frontFace = config.frontFace;
-    rasterizer.depthBiasEnable = config.depthBiasEnable;
+    rasterizer.depthClampEnable = config.writablePipelineConfig.depthClampEnable;
+    rasterizer.rasterizerDiscardEnable = config.writablePipelineConfig.rasterizerDiscardEnable;
+    rasterizer.polygonMode = config.writablePipelineConfig.polygonMode;
+    rasterizer.lineWidth = config.writablePipelineConfig.lineWidth;
+    rasterizer.cullMode = config.writablePipelineConfig.cullMode;
+    rasterizer.frontFace = config.writablePipelineConfig.frontFace;
+    rasterizer.depthBiasEnable = config.writablePipelineConfig.depthBiasEnable;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = config.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
-    multisampling.rasterizationSamples = config.msaaSamples;
-    multisampling.minSampleShading = config.minSampleShading;
+    multisampling.sampleShadingEnable = config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples = config.writablePipelineConfig.msaaSamples;
+    multisampling.minSampleShading = config.writablePipelineConfig.minSampleShading;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = config.depthTestEnable;
-    depthStencil.depthWriteEnable = config.depthWriteEnable;
-    depthStencil.depthCompareOp = config.depthCompareOp;
-    depthStencil.depthBoundsTestEnable = config.depthBoundsTest;
-    depthStencil.stencilTestEnable = config.stencilTestEnable;
+    depthStencil.depthTestEnable = config.writablePipelineConfig.depthTestEnable;
+    depthStencil.depthWriteEnable = config.writablePipelineConfig.depthWriteEnable;
+    depthStencil.depthCompareOp = config.writablePipelineConfig.depthCompareOp;
+    depthStencil.depthBoundsTestEnable = config.writablePipelineConfig.depthBoundsTest;
+    depthStencil.stencilTestEnable = config.writablePipelineConfig.stencilTestEnable;
 
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
     for (size_t i = 0; i < 1; ++i) {
         VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = config.attachments.blendEnable;
-        colorBlendAttachment.alphaBlendOp = config.attachments.alphaBlendOp;
-        colorBlendAttachment.srcAlphaBlendFactor = config.attachments.srcAlphaBlendFactor;
-        colorBlendAttachment.dstAlphaBlendFactor = config.attachments.dstAlphaBlendFactor;
-        colorBlendAttachment.colorBlendOp = config.attachments.colourBlendOp;
-        colorBlendAttachment.srcColorBlendFactor = config.attachments.srcColourBlendFactor;
-        colorBlendAttachment.dstColorBlendFactor = config.attachments.dstColourBlendFactor;
+        colorBlendAttachment.blendEnable = config.writablePipelineConfig.attachments.blendEnable;
+        colorBlendAttachment.alphaBlendOp = config.writablePipelineConfig.attachments.alphaBlendOp;
+        colorBlendAttachment.srcAlphaBlendFactor = config.writablePipelineConfig.attachments.srcAlphaBlendFactor;
+        colorBlendAttachment.dstAlphaBlendFactor = config.writablePipelineConfig.attachments.dstAlphaBlendFactor;
+        colorBlendAttachment.colorBlendOp = config.writablePipelineConfig.attachments.colourBlendOp;
+        colorBlendAttachment.srcColorBlendFactor = config.writablePipelineConfig.attachments.srcColourBlendFactor;
+        colorBlendAttachment.dstColorBlendFactor = config.writablePipelineConfig.attachments.dstColourBlendFactor;
         colorBlendAttachments.push_back(colorBlendAttachment);
     }
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = config.logicOpEnable;
-    colorBlending.logicOp = config.logicOp;
+    colorBlending.logicOpEnable = config.writablePipelineConfig.logicOpEnable;
+    colorBlending.logicOp = config.writablePipelineConfig.logicOp;
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = colorBlendAttachments.data();
-    memcpy(colorBlending.blendConstants, config.blendConstants, 4 * sizeof(float));
+    memcpy(colorBlending.blendConstants, config.writablePipelineConfig.blendConstants, 4 * sizeof(float));
 
     if (m_deviceFuncs->vkCreatePipelineLayout(m_window->device(), &layoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
         qFatal("Failed to create pipeline layout");

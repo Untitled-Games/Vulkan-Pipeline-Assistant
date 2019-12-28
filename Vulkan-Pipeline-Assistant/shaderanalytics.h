@@ -15,6 +15,9 @@
 #include <QVulkanDeviceFunctions>
 
 namespace vpa {
+
+    struct PipelineConfig;
+
     using DescriptorLayoutMap = QHash<QPair<uint32_t, uint32_t>, SpirvResource>;
 
     class ShaderAnalytics {
@@ -46,6 +49,10 @@ namespace vpa {
         SPIRV_CROSS_NAMESPACE::ShaderResources m_resources[size_t(ShaderStage::count_)];
 
         vpa::DescriptorLayoutMap m_descriptorLayoutMap;
+
+    //TODO: move this to a more organized location
+    public:
+        PipelineConfig* m_pConfig;
     };
 }
 
