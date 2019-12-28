@@ -19,6 +19,8 @@
 #include <QVulkanDeviceFunctions>
 #include <QFile>
 #include <QCoreApplication>
+#include <QMatrix4x4>
+
 #include "vulkanmain.h"
 #include "shaderanalytics.h"
 #include "filemanager.h"
@@ -26,20 +28,8 @@
 
 using namespace vpa;
 
-struct Vertex {
-    float x, y, z;
-    float r, g, b, a;
-};
-
-static Vertex vertexData[] = {
-    { -1, -1, 0, 1, 0, 0, 1 },
-    {-1, 1, 0, 0, 1, 0, 1 },
-    { 1, -1, 0, 0, 0, 1, 1},
-    { 1, 1, 0, 1, 1, 1, 1}
-};
-
 VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
-    : m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_initialised(false), m_vertexInput(nullptr){
+    : m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_initialised(false), m_vertexInput(nullptr) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -53,7 +43,6 @@ void VulkanRenderer::initResources() {
 
 void VulkanRenderer::initSwapChainResources() {
     if (!m_initialised) {
-        CreateVertexBuffer();
         CreateRenderPass(m_config);
         m_initialised = true;
     }
@@ -69,7 +58,6 @@ void VulkanRenderer::releaseResources() {
     m_deviceFuncs->vkDestroyRenderPass(m_window->device(), m_renderPass, nullptr);
     delete m_shaderAnalytics;
     if (m_vertexInput) delete m_vertexInput;
-    m_allocator->Deallocate(m_vertexAllocation);
     delete m_allocator;
 }
 
@@ -82,7 +70,7 @@ void VulkanRenderer::startNextFrame() {
     VkRenderPassBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     beginInfo.renderPass = m_renderPass;
-    beginInfo.framebuffer = m_window->currentFramebuffer();//
+    beginInfo.framebuffer = m_window->currentFramebuffer();
 
     const QSize imageSize = m_window->swapChainImageSize();
     beginInfo.renderArea.extent.width = imageSize.width();
@@ -93,16 +81,25 @@ void VulkanRenderer::startNextFrame() {
     VkCommandBuffer cmdBuf = m_window->currentCommandBuffer();
     m_deviceFuncs->vkCmdBeginRenderPass(cmdBuf, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    VkDeviceSize offset = 0;
-    m_deviceFuncs->vkCmdBindVertexBuffers(cmdBuf, 0, 1, &m_vertexAllocation.buffer, &offset);
-    //m_vertexInput->BindBuffers(cmdBuf);
+    QMatrix4x4 model;
+    QMatrix4x4 view;
+    QMatrix4x4 projection;
+    model.setToIdentity();
+    model.scale(0.1, 0.1, 0.1);
+    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
+    projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
+    projection.data()[5] *= -1;
+    QMatrix4x4 mvp = projection * view * model;
+    m_deviceFuncs->vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), mvp.data());
+
+    m_vertexInput->BindBuffers(cmdBuf);
     m_deviceFuncs->vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-    //if (m_vertexInput->IsIndexed()) {
-    //    m_deviceFuncs->vkCmdDrawIndexed(cmdBuf, m_vertexInput->IndexCount(), 1, 0, 0, 0);
-    //}
-    //else {
+    if (m_vertexInput->IsIndexed()) {
+        m_deviceFuncs->vkCmdDrawIndexed(cmdBuf, m_vertexInput->IndexCount(), 1, 0, 0, 0);
+    }
+    else {
         m_deviceFuncs->vkCmdDraw(cmdBuf, 4, 1, 0, 0);
-    //}
+    }
     m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
 
     m_window->frameReady();
@@ -263,37 +260,17 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     layoutInfo.pPushConstantRanges = &pcRange;
 
     if (m_vertexInput) delete m_vertexInput;
-    //m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
+    m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
 
-    VkVertexInputBindingDescription bindingDesc = {
-       0,
-       7 * sizeof(float),
-       VK_VERTEX_INPUT_RATE_VERTEX
-    };
-    VkVertexInputAttributeDescription attribDescs[] = {
-       {
-           0,
-           0,
-           VK_FORMAT_R32G32B32_SFLOAT,
-           0
-       },
-       { // colour
-           1,
-           0,
-           VK_FORMAT_R32G32B32A32_SFLOAT,
-           3 * sizeof(float)
-       }
-    };
-
-    //auto bindingDesc = m_vertexInput->InputBindingDescription();
-    //auto attribDescs = m_vertexInput->InputAttribDescription();
+    auto bindingDesc = m_vertexInput->InputBindingDescription();
+    auto attribDescs = m_vertexInput->InputAttribDescription();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = 2;//attribDescs.size();
+    vertexInputInfo.vertexAttributeDescriptionCount = attribDescs.size();
     vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
-    vertexInputInfo.pVertexAttributeDescriptions = attribDescs;//.data();
+    vertexInputInfo.pVertexAttributeDescriptions = attribDescs.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -395,11 +372,4 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     if(m_deviceFuncs->vkCreateGraphicsPipelines(m_window->device(), m_pipelineCache, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
         qFatal("Failed to create pipeline");
     }
-}
-
-void VulkanRenderer::CreateVertexBuffer() {
-    m_vertexAllocation = m_allocator->Allocate(sizeof(vertexData), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    unsigned char* dataPtr = m_allocator->MapMemory(m_vertexAllocation);
-    memcpy(dataPtr, vertexData, sizeof(vertexData));
-    m_allocator->UnmapMemory(m_vertexAllocation);
 }

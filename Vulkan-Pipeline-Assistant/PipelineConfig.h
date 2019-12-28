@@ -45,7 +45,7 @@ namespace vpa {
         VkVertexInputAttributeDescription vertexAttribDescriptions[4];
 
         // Vertex input assmebly
-        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkBool32 primitiveRestartEnable = VK_FALSE;
 
         // Tessellation state

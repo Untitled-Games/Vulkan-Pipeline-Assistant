@@ -58,13 +58,12 @@ namespace vpa {
         VkPipeline m_pipeline;
         VkPipelineLayout m_pipelineLayout;
         VkPipelineCache m_pipelineCache;
+
         ShaderAnalytics* m_shaderAnalytics;
+        MemoryAllocator* m_allocator;
         VertexInput* m_vertexInput;
 
         QVector<VkFramebuffer> m_frameBuffers;
-
-        MemoryAllocator* m_allocator;
-        Allocation m_vertexAllocation;
 
         PipelineConfig m_config;
     };

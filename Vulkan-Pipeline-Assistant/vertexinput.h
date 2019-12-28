@@ -24,7 +24,8 @@ namespace vpa {
 
     class VertexInput {
     public:
-        VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, QVector<SpirvResource> inputResources, QString meshName, bool isIndexed);
+        VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+                    QVector<SpirvResource> inputResources, QString meshName, bool isIndexed);
         ~VertexInput();
 
         VkBuffer VertexBuffer() const {
@@ -60,7 +61,7 @@ namespace vpa {
         QVector<VertexAttribute> m_attributes;
         Allocation m_vertexAllocation;
         Allocation m_indexAllocation;
-        MemoryAllocator m_allocator;
+        MemoryAllocator* m_allocator;
     };
 }
 
