@@ -36,7 +36,7 @@ VPA is a tool Designed to help create Vulkan graphics pipelines.
 You can clone this repository to your local destination using git:
 
 ```
-git clone https://github.com/Untitled-Games/Vulkan-Pipeline-Assistant`
+git clone https://github.com/Untitled-Games/Vulkan-Pipeline-Assistant
 ```
 
 After cloning, go to [Shaders](Vulkan-Pipeline-Assistant/Shaders) and double click the .bat file to compile the temporary (i.e, these will be removed eventually) shaders.
