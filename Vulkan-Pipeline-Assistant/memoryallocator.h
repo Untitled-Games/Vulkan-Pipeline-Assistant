@@ -34,7 +34,10 @@ namespace vpa {
     private:
         QVulkanDeviceFunctions* m_deviceFuncs;
         QVulkanWindow* m_window;
-        VkDeviceMemory m_deviceMemory;
+        VkCommandPool m_commandPool;
+        VkCommandBuffer m_commandBuffer;
+        uint32_t m_transferQueueIdx;
+        VkQueue m_transferQueue;
     };
 }
 

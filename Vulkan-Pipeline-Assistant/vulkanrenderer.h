@@ -10,20 +10,13 @@
 #include <QVulkanWindowRenderer>
 
 #include "pipelineconfig.h"
+#include "memoryallocator.h"
 
 namespace vpa {
     class VulkanMain;
     class ShaderAnalytics;
+    class VertexInput;
     class VulkanRenderer : public QVulkanWindowRenderer {
-        struct Image {
-            QString name;
-            VkImage image;
-            VkImageView view;
-            VkDeviceMemory memory;
-            uint32_t width;
-            uint32_t height;
-        };
-
     public:
         VulkanRenderer(QVulkanWindow* window, VulkanMain* main);
 
@@ -50,7 +43,12 @@ namespace vpa {
         void CreateVertexBuffer();
 
         VkShaderModule CreateShader(const QString& name);
-        Image CreateImage(const QString& name, VkFormat format, VkImageUsageFlags usage, uint32_t width, uint32_t height);
+        VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
+            VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
+        VkSubpassDescription makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences,
+            VkAttachmentReference* depthReference, VkAttachmentReference* resolve);
+        VkSubpassDependency makeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
+            VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
 
         bool m_initialised;
         QVulkanWindow* m_window;
@@ -60,16 +58,12 @@ namespace vpa {
         VkPipeline m_pipeline;
         VkPipelineLayout m_pipelineLayout;
         VkPipelineCache m_pipelineCache;
+
         ShaderAnalytics* m_shaderAnalytics;
+        MemoryAllocator* m_allocator;
+        VertexInput* m_vertexInput;
 
         QVector<VkFramebuffer> m_frameBuffers;
-        QVector<Image> m_attachmentImages;
-
-        VkBuffer m_vertexBuffer;
-        VkDeviceMemory m_vertexMemory;
-        VkBuffer m_indexBuffer;
-
-        Image m_texture;
 
         PipelineConfig m_config;
     };

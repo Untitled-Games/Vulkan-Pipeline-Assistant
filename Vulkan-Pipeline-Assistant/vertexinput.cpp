@@ -2,22 +2,25 @@
 #include "vertexinput.h"
 #include "tiny_obj_loader.h"
 
+#include <Lib/spirv-cross/spirv_cross.hpp>
 #include <QCoreApplication>
 #include <QVulkanDeviceFunctions>
+#include <QMap>
 
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
-VertexInput::VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, QVector<SpirvResource>& inputResources, QString meshName, bool isIndexed)
-    : m_deviceFuncs(deviceFuncs), m_allocator(deviceFuncs, window), m_indexed(isIndexed) {
+VertexInput::VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+                         QVector<SpirvResource> inputResources, QString meshName, bool isIndexed)
+     : m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_indexed(isIndexed), m_indexCount(0) {
     CalculateData(inputResources);
     LoadMesh(meshName, SupportedFormats::OBJ);
 }
 
 VertexInput::~VertexInput() {
-    m_allocator.Deallocate(m_vertexAllocation);
+    m_allocator->Deallocate(m_vertexAllocation);
     if (m_indexed) {
-        m_allocator.Deallocate(m_indexAllocation);
+        m_allocator->Deallocate(m_indexAllocation);
     }
 }
 
@@ -36,13 +39,14 @@ void VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
     std::string err;
     std::string warn;
     // TODO change loading based on format
-    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (QCoreApplication::applicationDirPath() + meshName + ".obj").toLatin1().data());
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (meshName + ".obj").toLatin1().data());
     if (!warn.empty()) qWarning("%s", warn.c_str());
     if (!err.empty())  qWarning("%s", err.c_str());
 
     QVector<uint32_t> indices;
     QVector<float> verts;
     uint32_t count = 0;
+    srand(time(NULL));
 
     for (const auto& shape : shapes) {
         for (const auto& index : shape.mesh.indices) {
@@ -72,39 +76,49 @@ void VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
         }
     }
 
-    m_vertexAllocation = m_allocator.Allocate(verts.size() * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    unsigned char* data = m_allocator.MapMemory(m_vertexAllocation);
+    m_vertexAllocation = m_allocator->Allocate(verts.size() * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    unsigned char* data = m_allocator->MapMemory(m_vertexAllocation);
     memcpy(data, verts.data(), verts.size() * sizeof(float));
-    m_allocator.UnmapMemory(m_vertexAllocation);
+    m_allocator->UnmapMemory(m_vertexAllocation);
 
     if (m_indexed) {
-        m_indexAllocation = m_allocator.Allocate(indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-        data = m_allocator.MapMemory(m_indexAllocation);
+        m_indexCount = indices.size();
+        m_indexAllocation = m_allocator->Allocate(m_indexCount * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        data = m_allocator->MapMemory(m_indexAllocation);
         memcpy(data, indices.data(), indices.size() * sizeof(uint32_t));
-        m_allocator.UnmapMemory(m_indexAllocation);
+        m_allocator->UnmapMemory(m_indexAllocation);
     }
+
+    qDebug("Loaded mesh %s.obj", qPrintable(meshName));
 }
 
 void VertexInput::CalculateData(QVector<SpirvResource>& inputResources) {
     bool usedPos = false;
-    m_attributes.resize(inputResources.size());
-    for (size_t i = 0; i < inputResources.size(); ++i) {
+    QMap<uint32_t, VertexAttribute> attribData;
+    for (int i = 0; i < inputResources.size(); ++i) {
         // TODO allow different attrib sizes than float
         auto& res = inputResources[i];
-        auto spvType = res.compiler->get_type(res.spirvResource.base_type_id);
+        uint32_t location = res.compiler->get_decoration(res.spirvResource->id, spv::DecorationLocation);
+        auto spvType = res.compiler->get_type(res.spirvResource->base_type_id);
         if (spvType.vecsize == 2) {
-            m_attributes[i] = VertexAttribute::TEX_COORD;
+            attribData[location] = VertexAttribute::TEX_COORD;
         }
         else if (spvType.vecsize == 3 && !usedPos) {
-            m_attributes[i] = VertexAttribute::POSITION;
+            attribData[location] = VertexAttribute::POSITION;
             usedPos = true;
         }
         else if (spvType.vecsize == 3) {
-            m_attributes[i] = VertexAttribute::NORMAL;
+            attribData[location] = VertexAttribute::NORMAL;
         }
         else if (spvType.vecsize == 4) {
-            m_attributes[i] = VertexAttribute::RGBA_COLOUR;
+            attribData[location] = VertexAttribute::RGBA_COLOUR;
         }
+    }
+
+    m_attributes.resize(inputResources.size());
+    int i = 0;
+    for (auto attrib : attribData) {
+        m_attributes[i++] = attrib;
     }
 }
 
@@ -148,13 +162,13 @@ uint32_t VertexInput::CalculateStride() {
     uint32_t stride = 0;
     for (size_t i = 0; i < m_attributes.size(); ++i) {
         if (m_attributes[i] == VertexAttribute::TEX_COORD) {
-            stride = 2 * sizeof(float);
+            stride += 2 * sizeof(float);
         }
         else if (m_attributes[i] == VertexAttribute::POSITION || m_attributes[i] == VertexAttribute::NORMAL) {
-            stride = 3 * sizeof(float);
+            stride += 3 * sizeof(float);
         }
         else {
-            stride = 4 * sizeof(float);
+            stride += 4 * sizeof(float);
         }
     }
     return stride;
