@@ -41,6 +41,7 @@ namespace vpa {
     private slots:
         void HandleShaderFileDialog(QLineEdit* field);
         void HandleConfigAreaChange(int toIdx);
+        void HandlePrimitiveRestartChange(QComboBox* box);
     private:
         void AddConfigButtons();
         void AddConfigBlocks();

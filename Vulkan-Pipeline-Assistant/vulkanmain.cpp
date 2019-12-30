@@ -63,6 +63,12 @@ void VulkanMain::WritePipelineCache() {
     }
 }
 
+void VulkanMain::WritePipelineConfig() {
+    if (m_renderer->WritePipelineConfig()) {
+        QMessageBox::information(m_container, "VulkanPipelineAssistant", "Pipeline config has been written to config.vpa");
+    }
+}
+
 PipelineConfig& VulkanMain::GetConfig() {
     return m_renderer->GetConfig();
 }

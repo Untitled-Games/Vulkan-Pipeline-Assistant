@@ -21,11 +21,14 @@ namespace vpa {
         ~VulkanMain();
 
         void WritePipelineCache();
+        void WritePipelineConfig();
         PipelineConfig& GetConfig();
+
+        //@TODO is this ok?
+         void Reload(const ReloadFlags flag);
+
     private:
         void CreateVkInstance();
-
-        void Reload(const ReloadFlags flag);
 
         QVulkanWindow* m_vkWindow;
         QVulkanInstance m_instance;
