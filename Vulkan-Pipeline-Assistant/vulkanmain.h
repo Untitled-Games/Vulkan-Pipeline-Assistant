@@ -7,6 +7,7 @@
 #define DEBUG_VKRESULT(result, name) if (result != VK_SUCCESS) qDebug("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
 #define WARNING_VKRESULT(result, name) if (result != VK_SUCCESS) qWarning("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
 #define FATAL_VKRESULT(result, name) if (result != VK_SUCCESS) qFatal("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
+#define DESTROY_HANDLE(device, handle, func) if (handle != VK_NULL_HANDLE) { func(device, handle, nullptr); handle = VK_NULL_HANDLE; }
 
 class QVulkanWindow;
 class QWidget;
@@ -23,10 +24,14 @@ namespace vpa {
         void WritePipelineCache();
         void WritePipelineConfig();
         PipelineConfig& GetConfig();
+<<<<<<< HEAD
 
         //@TODO is this ok?
          void Reload(const ReloadFlags flag);
 
+=======
+        void Reload(const ReloadFlags flag);
+>>>>>>> origin/Descriptors
     private:
         void CreateVkInstance();
 

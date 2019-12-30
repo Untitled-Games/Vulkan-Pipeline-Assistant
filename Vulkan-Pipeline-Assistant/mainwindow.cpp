@@ -4,6 +4,10 @@
 
 #include <QLineEdit>
 
+<<<<<<< HEAD
+=======
+#include "PipelineConfig.h"
+>>>>>>> origin/Descriptors
 
 using namespace vpa;
 
