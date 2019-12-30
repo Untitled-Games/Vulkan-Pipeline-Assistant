@@ -1,13 +1,5 @@
-/*
- * Author: Ralph Ridley
- * Date: 19/12/19
- * Functionality for the main window and UI.
- */
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
-#define IMAGEDIR "../../Resources/Images/"
 
 #include <QMainWindow>
 #include <QPushButton>
@@ -18,6 +10,8 @@
 #include <QComboBox>
 #include <QPair>
 #include "vulkanmain.h"
+
+#define IMAGEDIR "../../Resources/Images/"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

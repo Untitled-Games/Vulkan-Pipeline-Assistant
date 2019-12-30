@@ -1,8 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 19/12/19
- */
-
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -11,8 +6,7 @@
 using namespace vpa;
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0)
-{
+    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0) {
     m_ui->setupUi(this);
     m_layout = new QGridLayout();
     m_leftColumnContainer = new QWidget(this);

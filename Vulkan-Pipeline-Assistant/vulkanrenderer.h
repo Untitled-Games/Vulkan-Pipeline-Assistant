@@ -1,9 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 20/12/19
- * Functionality for rendering through the Vulkan API.
- */
-
 #ifndef VULKANRENDERER_H
 #define VULKANRENDERER_H
 
@@ -11,6 +5,7 @@
 
 #include "pipelineconfig.h"
 #include "memoryallocator.h"
+#include "reloadflags.h"
 
 namespace vpa {
     class VulkanMain;
@@ -36,13 +31,15 @@ namespace vpa {
         //TODO: move this to a more organized location
         bool WritePipelineConfig();
         bool ReadPipelineConfig();
+        void Reload(const ReloadFlags flag);
     private:
-        void CreateRenderPass(PipelineConfig& config);
-        void CreatePipeline(PipelineConfig& config);
+        void CreateRenderPass();
+        void CreatePipeline();
         void CreatePipelineCache();
-        void CreateVertexBuffer();
+        void CreateShaders();
+        void CreateDescriptors();
+        void UpdateDescriptorData();
 
-        VkShaderModule CreateShader(const QString& name);
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
         VkSubpassDescription makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences,
@@ -64,6 +61,7 @@ namespace vpa {
         VertexInput* m_vertexInput;
 
         QVector<VkFramebuffer> m_frameBuffers;
+        QVector<VkPipelineShaderStageCreateInfo> m_shaderStageInfos;
 
         PipelineConfig m_config;
     };

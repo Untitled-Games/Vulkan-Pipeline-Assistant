@@ -1,19 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 20/12/19
- * Modified By: Ori Lazar
-     .---.
-   .'_:___".
-   |__ --==|
-   [  ]  :[|
-   |__| I=[|
-   / / ____|
-  |-/.____.'
- /___\ /___\
- */
-
-#define MESHDIR "../../Resources/Meshes/"
-
 #include "vulkanrenderer.h"
 
 #include <QVulkanDeviceFunctions>
@@ -26,10 +10,12 @@
 #include "filemanager.h"
 #include "vertexinput.h"
 
+#define MESHDIR "../../Resources/Meshes/"
+
 using namespace vpa;
 
 VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
-    : m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_initialised(false), m_vertexInput(nullptr) {
+    : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_vertexInput(nullptr) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -37,13 +23,12 @@ VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
 void VulkanRenderer::initResources() {
     m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
     m_allocator = new MemoryAllocator(m_deviceFuncs, m_window);
-    m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device());
-    m_shaderAnalytics->m_pConfig = &m_config; //TODO: Change the way these guys connect with eachother
+    m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
 }
 
 void VulkanRenderer::initSwapChainResources() {
     if (!m_initialised) {
-        CreateRenderPass(m_config);
+        Reload(ReloadFlags::EVERYTHING);
         m_initialised = true;
     }
 }
@@ -64,7 +49,7 @@ void VulkanRenderer::releaseResources() {
 void VulkanRenderer::startNextFrame() {
 
     VkClearValue clearValues[2];
-    clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    clearValues[0].color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     VkRenderPassBeginInfo beginInfo = {};
@@ -73,8 +58,8 @@ void VulkanRenderer::startNextFrame() {
     beginInfo.framebuffer = m_window->currentFramebuffer();
 
     const QSize imageSize = m_window->swapChainImageSize();
-    beginInfo.renderArea.extent.width = imageSize.width();
-    beginInfo.renderArea.extent.height = imageSize.height();
+    beginInfo.renderArea.extent.width = uint32_t(imageSize.width());
+    beginInfo.renderArea.extent.height = uint32_t(imageSize.height());
     beginInfo.clearValueCount = 2;
     beginInfo.pClearValues = clearValues;
 
@@ -85,7 +70,7 @@ void VulkanRenderer::startNextFrame() {
     QMatrix4x4 view;
     QMatrix4x4 projection;
     model.setToIdentity();
-    model.scale(0.1, 0.1, 0.1);
+    model.scale(0.1f, 0.1f, 0.1f);
     view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
     projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
     projection.data()[5] *= -1;
@@ -150,6 +135,13 @@ bool VulkanRenderer::ReadPipelineConfig()
     return success;
 }
 
+void VulkanRenderer::Reload(const ReloadFlags flag) {
+    if (flag & ReloadFlags::DESCRIPTOR_VALUES) CreateRenderPass();
+    if (flag & ReloadFlags::RENDER_PASS) CreateShaders();
+    if (flag & ReloadFlags::SHADERS) CreateDescriptors();
+    if (flag & ReloadFlags::PIPELINE) CreatePipeline();
+}
+
 VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
     VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout) {
     VkAttachmentDescription attachment = {};
@@ -187,7 +179,7 @@ VkSubpassDependency VulkanRenderer::makeSubpassDependency(uint32_t srcIdx, uint3
     return dependency;
 }
 
-void VulkanRenderer::CreateRenderPass(PipelineConfig& config) {
+void VulkanRenderer::CreateRenderPass() {
     VkDevice device = m_window->device();
     m_deviceFuncs->vkDeviceWaitIdle(device);
 
@@ -232,20 +224,9 @@ void VulkanRenderer::CreateRenderPass(PipelineConfig& config) {
         qFatal("Failed to create render pass");
         return;
     }
-
-    CreatePipeline(config);
 }
 
-void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
-    QVector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-    m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
-    VkPipelineShaderStageCreateInfo shaderCreateInfo;
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_CONTROL, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_EVAL, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::GEOMETRY, shaderCreateInfo)) shaderStageInfos.push_back(shaderCreateInfo);
-
+void VulkanRenderer::CreatePipeline() {
     // TODO actual configurable layouts
     VkPushConstantRange pcRange = {};
     pcRange.size = 16 * sizeof(float);
@@ -259,9 +240,6 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     layoutInfo.pushConstantRangeCount = 1;
     layoutInfo.pPushConstantRanges = &pcRange;
 
-    if (m_vertexInput) delete m_vertexInput;
-    m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
-
     auto bindingDesc = m_vertexInput->InputBindingDescription();
     auto attribDescs = m_vertexInput->InputAttribDescription();
 
@@ -274,14 +252,14 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = config.writablePipelineConfig.topology;
-    inputAssembly.primitiveRestartEnable = config.writablePipelineConfig.primitiveRestartEnable;
+    inputAssembly.topology = m_config.writablePipelineConfig.topology;
+    inputAssembly.primitiveRestartEnable = m_config.writablePipelineConfig.primitiveRestartEnable;
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)m_window->swapChainImageSize().width();
-    viewport.height = (float)m_window->swapChainImageSize().height();
+    viewport.width = float(m_window->swapChainImageSize().width());
+    viewport.height = float(m_window->swapChainImageSize().height());
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -298,49 +276,49 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = config.writablePipelineConfig.depthClampEnable;
-    rasterizer.rasterizerDiscardEnable = config.writablePipelineConfig.rasterizerDiscardEnable;
-    rasterizer.polygonMode = config.writablePipelineConfig.polygonMode;
-    rasterizer.lineWidth = config.writablePipelineConfig.lineWidth;
-    rasterizer.cullMode = config.writablePipelineConfig.cullMode;
-    rasterizer.frontFace = config.writablePipelineConfig.frontFace;
-    rasterizer.depthBiasEnable = config.writablePipelineConfig.depthBiasEnable;
+    rasterizer.depthClampEnable = m_config.writablePipelineConfig.depthClampEnable;
+    rasterizer.rasterizerDiscardEnable = m_config.writablePipelineConfig.rasterizerDiscardEnable;
+    rasterizer.polygonMode = m_config.writablePipelineConfig.polygonMode;
+    rasterizer.lineWidth = m_config.writablePipelineConfig.lineWidth;
+    rasterizer.cullMode = m_config.writablePipelineConfig.cullMode;
+    rasterizer.frontFace = m_config.writablePipelineConfig.frontFace;
+    rasterizer.depthBiasEnable = m_config.writablePipelineConfig.depthBiasEnable;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
-    multisampling.rasterizationSamples = config.writablePipelineConfig.msaaSamples;
-    multisampling.minSampleShading = config.writablePipelineConfig.minSampleShading;
+    multisampling.sampleShadingEnable = m_config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
+    multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
+    multisampling.minSampleShading = m_config.writablePipelineConfig.minSampleShading;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = config.writablePipelineConfig.depthTestEnable;
-    depthStencil.depthWriteEnable = config.writablePipelineConfig.depthWriteEnable;
-    depthStencil.depthCompareOp = config.writablePipelineConfig.depthCompareOp;
-    depthStencil.depthBoundsTestEnable = config.writablePipelineConfig.depthBoundsTest;
-    depthStencil.stencilTestEnable = config.writablePipelineConfig.stencilTestEnable;
+    depthStencil.depthTestEnable = m_config.writablePipelineConfig.depthTestEnable;
+    depthStencil.depthWriteEnable = m_config.writablePipelineConfig.depthWriteEnable;
+    depthStencil.depthCompareOp = m_config.writablePipelineConfig.depthCompareOp;
+    depthStencil.depthBoundsTestEnable = m_config.writablePipelineConfig.depthBoundsTest;
+    depthStencil.stencilTestEnable = m_config.writablePipelineConfig.stencilTestEnable;
 
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
     for (size_t i = 0; i < 1; ++i) {
         VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        colorBlendAttachment.blendEnable = config.writablePipelineConfig.attachments.blendEnable;
-        colorBlendAttachment.alphaBlendOp = config.writablePipelineConfig.attachments.alphaBlendOp;
-        colorBlendAttachment.srcAlphaBlendFactor = config.writablePipelineConfig.attachments.srcAlphaBlendFactor;
-        colorBlendAttachment.dstAlphaBlendFactor = config.writablePipelineConfig.attachments.dstAlphaBlendFactor;
-        colorBlendAttachment.colorBlendOp = config.writablePipelineConfig.attachments.colourBlendOp;
-        colorBlendAttachment.srcColorBlendFactor = config.writablePipelineConfig.attachments.srcColourBlendFactor;
-        colorBlendAttachment.dstColorBlendFactor = config.writablePipelineConfig.attachments.dstColourBlendFactor;
+        colorBlendAttachment.blendEnable = m_config.writablePipelineConfig.attachments.blendEnable;
+        colorBlendAttachment.alphaBlendOp = m_config.writablePipelineConfig.attachments.alphaBlendOp;
+        colorBlendAttachment.srcAlphaBlendFactor = m_config.writablePipelineConfig.attachments.srcAlphaBlendFactor;
+        colorBlendAttachment.dstAlphaBlendFactor = m_config.writablePipelineConfig.attachments.dstAlphaBlendFactor;
+        colorBlendAttachment.colorBlendOp = m_config.writablePipelineConfig.attachments.colourBlendOp;
+        colorBlendAttachment.srcColorBlendFactor = m_config.writablePipelineConfig.attachments.srcColourBlendFactor;
+        colorBlendAttachment.dstColorBlendFactor = m_config.writablePipelineConfig.attachments.dstColourBlendFactor;
         colorBlendAttachments.push_back(colorBlendAttachment);
     }
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = config.writablePipelineConfig.logicOpEnable;
-    colorBlending.logicOp = config.writablePipelineConfig.logicOp;
+    colorBlending.logicOpEnable = m_config.writablePipelineConfig.logicOpEnable;
+    colorBlending.logicOp = m_config.writablePipelineConfig.logicOp;
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = colorBlendAttachments.data();
-    memcpy(colorBlending.blendConstants, config.writablePipelineConfig.blendConstants, 4 * sizeof(float));
+    memcpy(colorBlending.blendConstants, m_config.writablePipelineConfig.blendConstants, 4 * sizeof(float));
 
     if (m_deviceFuncs->vkCreatePipelineLayout(m_window->device(), &layoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
         qFatal("Failed to create pipeline layout");
@@ -348,8 +326,8 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
-    pipelineInfo.pStages = shaderStageInfos.data();
+    pipelineInfo.stageCount = uint32_t(m_shaderStageInfos.size());
+    pipelineInfo.pStages = m_shaderStageInfos.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -359,7 +337,7 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.layout = m_pipelineLayout;
     pipelineInfo.renderPass = m_renderPass;
-    pipelineInfo.subpass = config.subpassIdx;
+    pipelineInfo.subpass = m_config.subpassIdx;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     if (m_pipelineCache == VK_NULL_HANDLE) {
@@ -372,4 +350,28 @@ void VulkanRenderer::CreatePipeline(PipelineConfig& config) {
     if(m_deviceFuncs->vkCreateGraphicsPipelines(m_window->device(), m_pipelineCache, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
         qFatal("Failed to create pipeline");
     }
+}
+
+void VulkanRenderer::CreateShaders() {
+    // Load and analyse shaders
+    m_shaderStageInfos.clear();
+    m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
+    VkPipelineShaderStageCreateInfo shaderCreateInfo;
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_CONTROL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_EVAL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::GEOMETRY, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+
+    // Determine new vertex input
+    if (m_vertexInput) delete m_vertexInput;
+    m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
+}
+
+void VulkanRenderer::CreateDescriptors() {
+
+}
+
+void VulkanRenderer::UpdateDescriptorData() {
+
 }

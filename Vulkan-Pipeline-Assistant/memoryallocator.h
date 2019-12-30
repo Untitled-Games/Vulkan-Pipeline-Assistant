@@ -2,6 +2,7 @@
 #define MEMORYALLOCATOR_H
 
 #include <vulkan/vulkan.h>
+#include <QString>
 
 class QVulkanDeviceFunctions;
 class QVulkanWindow;
@@ -11,6 +12,7 @@ namespace vpa {
     };
 
     struct Allocation {
+        QString name;
         AllocationType type;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkDeviceSize size = 0;
@@ -27,8 +29,8 @@ namespace vpa {
 
         unsigned char* MapMemory(Allocation& allocation);
         void UnmapMemory(Allocation& allocation);
-        Allocation Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags);
-        Allocation Allocate(VkDeviceSize size, VkImageCreateInfo createInfo);
+        Allocation Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name);
+        Allocation Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name);
         void Deallocate(Allocation& allocation);
 
     private:

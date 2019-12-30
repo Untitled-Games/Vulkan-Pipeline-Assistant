@@ -6,27 +6,23 @@
 #include <sstream>
 #include <algorithm>
 
-namespace vpa {
-
-//TODO: Move some of these templates to a more organized location
-typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
 #define WRITE_FILE_LINE(x) out << x << "|\n"
 #define FLOAT_DECIMAL_PLACES 8
 
-template <typename T>
-std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
-{
-    std::ostringstream out;
-    out.precision(n);
-    out << std::fixed << a_value;
-    return out.str();
-}
-    std::ostream& WritablePipelineConfig::WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const
-    {
+namespace vpa {
+    typedef std::vector<char, std::allocator<char>>::iterator FILE_ITERATOR;
+
+    std::string FloatToString(const float a_value, const int n = FLOAT_DECIMAL_PLACES) {
+        std::ostringstream out;
+        out.precision(n);
+        out << std::fixed << a_value;
+        return out.str();
+    }
+
+    std::ostream& WritablePipelineConfig::WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const {
         out << byteArray->size() << "|";
         const char* data = byteArray->data();
-        for(int i = 0; i < byteArray->size(); i++)
-        {
+        for(int i = 0; i < byteArray->size(); i++) {
             out << *data;
             ++data;
         }
@@ -45,11 +41,11 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
         ///////////////////////////////////////////////////////
         //// SHADER DATA
         ///////////////////////////////////////////////////////
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.vertShaderBlob));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.fragShaderBlob));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.tescShaderBlob));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.teseShaderBlob));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.geomShaderBlob));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::VETREX)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::FRAGMENT)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_CONTROL)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_EVAL)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::GEOMETRY)]));
 
         ///////////////////////////////////////////////////////
         //// VERTEX INPUT
@@ -60,15 +56,13 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
                         << config.writablePipelineConfig.vertexBindingDescriptions.stride << ' '
                         << config.writablePipelineConfig.vertexBindingDescriptions.inputRate);
         WRITE_FILE_LINE(config.writablePipelineConfig.numAttribDescriptions);
-        for(int i = 0; i < config.writablePipelineConfig.numAttribDescriptions; i++)
-        {
+        for(int i = 0; i < config.writablePipelineConfig.numAttribDescriptions; i++) {
             WRITE_FILE_LINE(config.writablePipelineConfig.vertexAttribDescriptions[i].location << ' '
                             << config.writablePipelineConfig.vertexAttribDescriptions[i].binding << ' '
                             << config.writablePipelineConfig.vertexAttribDescriptions[i].format << ' '
                             << config.writablePipelineConfig.vertexAttribDescriptions[i].offset);
         }
-        for(int i = config.writablePipelineConfig.numAttribDescriptions; i < 4; i++)
-        {
+        for(int i = config.writablePipelineConfig.numAttribDescriptions; i < 4; i++) {
             WRITE_FILE_LINE('-');
         }
 
@@ -127,11 +121,9 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
         return out;
     }
 
-    std::string GetNextLine(FILE_ITERATOR* iterator, std::vector<char>* buffer)
-    {
+    std::string GetNextLine(FILE_ITERATOR* iterator, std::vector<char>* buffer) {
         std::vector<char>::iterator it = std::find(*iterator, (*buffer).end(), '|');
-        if(it != (*buffer).end())
-        {
+        if(it != (*buffer).end()) {
             std::string data(*iterator, it);
             *iterator = it + 1;
             return data;
@@ -140,8 +132,7 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
         return "";
     }
 
-    bool PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize)
-    {
+    bool PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize) {
         // Keep a reference to the current position we are reading from
         auto readPosition = buffer.begin();
 
@@ -149,30 +140,25 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
         //// START OF CONFIG
         ///////////////////////////////////////////////////////
         std::string activeData = GetNextLine(&readPosition, &buffer);
-        if(!(activeData == "VPA_CONFIG_BEGIN"))
-        {
+        if(!(activeData == "VPA_CONFIG_BEGIN")) {
             qCritical("VPA_CONFIG_BEGIN format invalid, missing object header.");
             return false;
         }
-        try
-        {
+        try {
             ///////////////////////////////////////////////////////
             //// SHADER DATA
             ///////////////////////////////////////////////////////
-            for(int i = 0; i < 5; i++)
-            {
+            for(size_t i = 0; i < size_t(ShaderStage::count_); i++) {
                 int shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
                 std::string shaderData = GetNextLine(&readPosition, &buffer);
                 bool complete = false;
-                while(!complete)
-                {
-                    if(shaderSize ==  shaderData.size())
+                while(!complete) {
+                    if(shaderSize ==  shaderData.size()) {
                         complete = true;
-                    else
-                    {
+                    }
+                    else {
                         shaderData += '|';
-                        if(shaderSize ==  shaderData.size())
-                        {
+                        if(shaderSize ==  shaderData.size()) {
                             complete = true;
                             break;
                         }
@@ -180,32 +166,7 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
                     }
                 }
                 QByteArray blob(shaderData.data(), shaderData.size());
-
-                switch(i)
-                {
-                    case 0:
-                    {
-                        writablePipelineConfig.vertShaderBlob = blob;
-                    }
-                    case 1:
-                    {
-                        writablePipelineConfig.fragShaderBlob = blob;
-                    }
-                    case 2:
-                    {
-                        writablePipelineConfig.tescShaderBlob = blob;
-                    }
-                    case 3:
-                    {
-                        writablePipelineConfig.teseShaderBlob = blob;
-                    }
-                    case 4:
-                    {
-                        writablePipelineConfig.geomShaderBlob = blob;
-                    }
-                    default:
-                        assert(true);
-                }
+                writablePipelineConfig.shaderBlobs[i] = blob;
             }
 
             ///////////////////////////////////////////////////////
@@ -229,8 +190,7 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
             assert(writablePipelineConfig.numAttribDescriptions >= 0 && writablePipelineConfig.numAttribDescriptions <= 4);
             
             // attribute descriptions
-            for(int i = 0; i < writablePipelineConfig.numAttribDescriptions; i++)
-            {
+            for(int i = 0; i < writablePipelineConfig.numAttribDescriptions; i++) {
                 activeData = GetNextLine(&readPosition, &buffer);
                 ss = std::stringstream(activeData);
                 ss >> bufferString;
@@ -244,8 +204,7 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
             }
 
             // read in rest of pipeline data in order to move the iterator position
-            for(int i = writablePipelineConfig.numAttribDescriptions; i < 4; i++)
-            {
+            for(int i = writablePipelineConfig.numAttribDescriptions; i < 4; i++) {
                 activeData = GetNextLine(&readPosition, &buffer);
             }
 
@@ -315,21 +274,18 @@ std::string FloatToString(const T a_value, const int n = FLOAT_DECIMAL_PLACES)
             ss >> bufferString;
             writablePipelineConfig.blendConstants[3] = std::stof(bufferString);
         }
-        catch (std::invalid_argument const &e)
-        {
+        catch (std::invalid_argument const &e) {
             qCritical("Bad input: std::invalid_argument was thrown");
             qDebug(e.what());
         }
-        catch (std::out_of_range const &e)
-        {
+        catch (std::out_of_range const &e) {
             qCritical("Data Overflow: std::out_of_range was thrown");
             qDebug(e.what());
 
         }
 
         activeData = GetNextLine(&readPosition, &buffer);
-        if(!(activeData == "VPA_CONFIG_END" || activeData == "\rVPA_CONFIG_END"))
-        {
+        if(!(activeData == "VPA_CONFIG_END" || activeData == "\rVPA_CONFIG_END")) {
             qCritical("VPA_CONFIG_END format invalid, missing object footer.");
             return false;
         }

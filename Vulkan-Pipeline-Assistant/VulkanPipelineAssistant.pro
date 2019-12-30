@@ -30,6 +30,7 @@ HEADERS += \
     mainwindow.h \
     memoryallocator.h \
     pipelineconfig.h \
+    reloadflags.h \
     shaderanalytics.h \
     spirvresource.h \
     tiny_obj_loader.h \

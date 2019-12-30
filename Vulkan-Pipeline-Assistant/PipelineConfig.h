@@ -1,9 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 19/12/19
- * Define all configuration options for a graphics pipeline.
- */
-
 #ifndef PIPELINECONFIG_H
 #define PIPELINECONFIG_H
 
@@ -11,6 +5,7 @@
 
 #include <iostream>
 #include <QFile>
+#include "spirvresource.h"
 
 namespace vpa {
 
@@ -30,11 +25,9 @@ namespace vpa {
         std::ostream& WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const;
 
         // Shader Data
-        QByteArray vertShaderBlob = QByteArray(1, '0');
-        QByteArray fragShaderBlob = QByteArray(1, '0');
-        QByteArray tescShaderBlob = QByteArray(1, '0');
-        QByteArray teseShaderBlob = QByteArray(1, '0');
-        QByteArray geomShaderBlob = QByteArray(1, '0');
+        QByteArray shaderBlobs[size_t(ShaderStage::count_)] = {
+                QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0')
+        };
 
         // Vertex input
         uint32_t vertexBindingCount = 0;

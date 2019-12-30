@@ -1,8 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 19/12/19
- */
-
 #include "mainwindow.h"
 
 #include <QApplication>
@@ -10,8 +5,7 @@
 
 using namespace vpa;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
     qDebug() << "App path: " << a.applicationDirPath();
     MainWindow w;
