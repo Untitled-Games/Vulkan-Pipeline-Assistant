@@ -1,18 +1,17 @@
-/*
- * Author: Ralph Ridley
- * Date: 20/12/19
- * Functionality for the Vulkan window.
- */
-
 #ifndef VULKANMAIN_H
 #define VULKANMAIN_H
 
 #include <QVulkanInstance>
-#include "pipelineconfig.h"
+#include "reloadflags.h"
+
+#define DEBUG_VKRESULT(result, name) if (result != VK_SUCCESS) qDebug("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
+#define WARNING_VKRESULT(result, name) if (result != VK_SUCCESS) qWarning("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
+#define FATAL_VKRESULT(result, name) if (result != VK_SUCCESS) qFatal("VkResult for %s, error code %i", name, qPrintable(QString::number(result, 16)))
 
 class QVulkanWindow;
 class QWidget;
 namespace vpa {
+    struct PipelineConfig;
     class VulkanRenderer;
     class MemoryAllocator;
     class VulkanMain {
@@ -26,7 +25,7 @@ namespace vpa {
     private:
         void CreateVkInstance();
 
-        void UpdatePipeline();
+        void Reload(const ReloadFlags flag);
 
         QVulkanWindow* m_vkWindow;
         QVulkanInstance m_instance;

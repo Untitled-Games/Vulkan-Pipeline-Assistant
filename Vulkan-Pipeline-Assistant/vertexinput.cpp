@@ -1,11 +1,12 @@
-#define TINYOBJLOADER_IMPLEMENTATION
 #include "vertexinput.h"
-#include "tiny_obj_loader.h"
 
 #include <Lib/spirv-cross/spirv_cross.hpp>
 #include <QCoreApplication>
 #include <QVulkanDeviceFunctions>
 #include <QMap>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
@@ -50,20 +51,20 @@ void VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
 
     for (const auto& shape : shapes) {
         for (const auto& index : shape.mesh.indices) {
-            for (size_t i = 0; i < m_attributes.size(); ++i) {
+            for (int i = 0; i < m_attributes.size(); ++i) {
                 if (m_attributes[i] == VertexAttribute::POSITION) {
-                    verts.push_back(attrib.vertices[3 * (size_t)index.vertex_index + 0]);
-                    verts.push_back(attrib.vertices[3 * (size_t)index.vertex_index + 1]);
-                    verts.push_back(attrib.vertices[3 * (size_t)index.vertex_index + 2]);
+                    verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 0]);
+                    verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 1]);
+                    verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 2]);
                 }
                 else if (attrib.texcoords.size() > 0 && m_attributes[i] == VertexAttribute::TEX_COORD) {
-                    verts.push_back(attrib.texcoords[2 * (size_t)index.texcoord_index + 0]);
-                    verts.push_back(1.0f - attrib.texcoords[2 * (size_t)index.texcoord_index + 1]);
+                    verts.push_back(attrib.texcoords[2 * size_t(index.texcoord_index) + 0]);
+                    verts.push_back(1.0f - attrib.texcoords[2 * size_t(index.texcoord_index) + 1]);
                 }
                 else if (attrib.normals.size() > 0 && m_attributes[i] == VertexAttribute::NORMAL) {
-                    verts.push_back(attrib.normals[3 * (size_t)index.normal_index + 0]);
-                    verts.push_back(attrib.normals[3 * (size_t)index.normal_index + 1]);
-                    verts.push_back(attrib.normals[3 * (size_t)index.normal_index + 2]);
+                    verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 0]);
+                    verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 1]);
+                    verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 2]);
                 }
                 else if (m_attributes[i] == VertexAttribute::RGBA_COLOUR) {
                     verts.push_back(rand() / (float)RAND_MAX);
@@ -76,14 +77,14 @@ void VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
         }
     }
 
-    m_vertexAllocation = m_allocator->Allocate(verts.size() * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    m_vertexAllocation = m_allocator->Allocate(verts.size() * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "Vertex buffer");
     unsigned char* data = m_allocator->MapMemory(m_vertexAllocation);
     memcpy(data, verts.data(), verts.size() * sizeof(float));
     m_allocator->UnmapMemory(m_vertexAllocation);
 
     if (m_indexed) {
         m_indexCount = indices.size();
-        m_indexAllocation = m_allocator->Allocate(m_indexCount * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        m_indexAllocation = m_allocator->Allocate(m_indexCount * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, "Index buffer");
         data = m_allocator->MapMemory(m_indexAllocation);
         memcpy(data, indices.data(), indices.size() * sizeof(uint32_t));
         m_allocator->UnmapMemory(m_indexAllocation);
@@ -134,7 +135,7 @@ QVector<VkVertexInputAttributeDescription> VertexInput::InputAttribDescription()
     QVector<VkVertexInputAttributeDescription> attribDescs(m_attributes.size());
     uint32_t location = 0;
     uint32_t offset = 0;
-    for (size_t i = 0; i < m_attributes.size(); ++i) {
+    for (int i = 0; i < m_attributes.size(); ++i) {
         VkFormat format;
         uint32_t tmpOffset;
         if (m_attributes[i] == VertexAttribute::TEX_COORD) {
@@ -160,7 +161,7 @@ QVector<VkVertexInputAttributeDescription> VertexInput::InputAttribDescription()
 
 uint32_t VertexInput::CalculateStride() {
     uint32_t stride = 0;
-    for (size_t i = 0; i < m_attributes.size(); ++i) {
+    for (int i = 0; i < m_attributes.size(); ++i) {
         if (m_attributes[i] == VertexAttribute::TEX_COORD) {
             stride += 2 * sizeof(float);
         }

@@ -1,31 +1,35 @@
 #include "shaderanalytics.h"
 
-/*
- * Author: Ralph Ridley
- * Date: 22/12/19
- */
-
 #include <QFile>
 #include <QCoreApplication>
 
-// ----- config branch ------ //
 #include "PipelineConfig.h"
+#include "vulkanmain.h"
 
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
-ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device) : m_deviceFuncs(deviceFuncs), m_device(device) { }
+ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config)
+    : m_deviceFuncs(deviceFuncs), m_device(device), m_config(config) {
+    memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
+    memset(m_compilers, NULL, sizeof(m_compilers));
+}
 
 ShaderAnalytics::~ShaderAnalytics() {
+    Destroy();
+}
+
+void ShaderAnalytics::Destroy() {
     for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
         if (m_modules[i] != VK_NULL_HANDLE) m_deviceFuncs->vkDestroyShaderModule(m_device, m_modules[i], nullptr);
         if (m_compilers[i] != nullptr) delete m_compilers[i];
     }
+    memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
+    memset(m_compilers, NULL, sizeof(m_compilers));
 }
 
 void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, const QString& tesc, const QString& tese, const QString& geom) {
-    memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
-    memset(m_compilers, NULL, sizeof(m_compilers));
+    Destroy();
     if (vert == "") {
         qWarning("No vertex shader provided, switch to default"); // TODO do it maybe
     }
@@ -70,7 +74,7 @@ QVector<SpirvResource> ShaderAnalytics::InputAttributes() {
     size_t vertexIdx = size_t(ShaderStage::VETREX);
     SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
     QVector<SpirvResource> attribs(stageInputs.size());
-    for (size_t i = 0; i < stageInputs.size(); ++i) {
+    for (int i = 0; i < stageInputs.size(); ++i) {
         attribs[i].name = QString::fromStdString(stageInputs[i].name);
         attribs[i].resourceType = SpirvResourceType::INPUT_ATTRIBUTE;
         attribs[i].spirvResource = &stageInputs[i];
@@ -124,10 +128,7 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     shaderInfo.codeSize = blob.size();
     shaderInfo.pCode = reinterpret_cast<const uint32_t *>(blob.constData());
     VkShaderModule shaderModule = VK_NULL_HANDLE;
-    VkResult err = m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &shaderModule);
-    if (err != VK_SUCCESS) {
-        qWarning("Failed to create shader module: %d", err);
-    }
+    WARNING_VKRESULT(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &shaderModule), "shader module creation");
 
     if (m_compilers[size_t(stage)] != nullptr) {
         delete m_compilers[size_t(stage)];
@@ -139,37 +140,7 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     m_compilers[size_t(stage)] = new Compiler(std::move(spirvCrossBuf));
     m_resources[size_t(stage)] = m_compilers[size_t(stage)]->get_shader_resources();
 
-    //TODO: Find a better way to do this
-    switch(stage)
-    {
-    case ShaderStage::VETREX:
-    {
-         m_pConfig->writablePipelineConfig.vertShaderBlob = blob;
-         break;
-    }
-    case ShaderStage::FRAGMENT:
-    {
-        m_pConfig->writablePipelineConfig.fragShaderBlob = blob;
-        break;
-    }
-    case ShaderStage::TESS_CONTROL:
-    {
-        m_pConfig->writablePipelineConfig.tescShaderBlob = blob;
-        break;
-    }
-    case ShaderStage::TESS_EVAL:
-    {
-        m_pConfig->writablePipelineConfig.teseShaderBlob = blob;
-        break;
-    }
-    case ShaderStage::GEOMETRY:
-    {
-        m_pConfig->writablePipelineConfig.geomShaderBlob = blob;
-        break;
-    }
-    default:
-        assert(false);
-    }
+    m_config->writablePipelineConfig.shaderBlobs[size_t(stage)] = blob;
 }
 
 VkShaderStageFlagBits ShaderAnalytics::StageToVkStageFlag(ShaderStage stage) {

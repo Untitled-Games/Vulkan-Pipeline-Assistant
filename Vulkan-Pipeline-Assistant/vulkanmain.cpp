@@ -1,8 +1,3 @@
-/*
- * Author: Ralph Ridley
- * Date: 20/12/19
- */
-
 #include "vulkanmain.h"
 #include "vulkanrenderer.h"
 
@@ -72,3 +67,6 @@ PipelineConfig& VulkanMain::GetConfig() {
     return m_renderer->GetConfig();
 }
 
+void VulkanMain::Reload(const ReloadFlags flag) {
+    m_renderer->Reload(flag);
+}
