@@ -15,7 +15,8 @@
 using namespace vpa;
 
 VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
-    : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_vertexInput(nullptr) {
+    : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE),
+      m_pipeline(VK_NULL_HANDLE), m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -37,10 +38,10 @@ void VulkanRenderer::releaseSwapChainResources() {
 }
 
 void VulkanRenderer::releaseResources() {
-    m_deviceFuncs->vkDestroyPipeline(m_window->device(), m_pipeline, nullptr);
-    m_deviceFuncs->vkDestroyPipelineLayout(m_window->device(), m_pipelineLayout, nullptr);
-    m_deviceFuncs->vkDestroyPipelineCache(m_window->device(), m_pipelineCache, nullptr);
-    m_deviceFuncs->vkDestroyRenderPass(m_window->device(), m_renderPass, nullptr);
+    DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline);
+    DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
+    DESTROY_HANDLE(m_window->device(), m_pipelineCache, m_deviceFuncs->vkDestroyPipelineCache);
+    DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass);
     delete m_shaderAnalytics;
     if (m_vertexInput) delete m_vertexInput;
     delete m_allocator;
@@ -136,10 +137,11 @@ bool VulkanRenderer::ReadPipelineConfig()
 }
 
 void VulkanRenderer::Reload(const ReloadFlags flag) {
-    if (flag & ReloadFlags::DESCRIPTOR_VALUES) CreateRenderPass();
-    if (flag & ReloadFlags::RENDER_PASS) CreateShaders();
-    if (flag & ReloadFlags::SHADERS) CreateDescriptors();
-    if (flag & ReloadFlags::PIPELINE) CreatePipeline();
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
+    if (flag & ReloadFlagBits::DESCRIPTOR_VALUES) UpdateDescriptorData();
+    if (flag & ReloadFlagBits::RENDER_PASS) CreateRenderPass();
+    if (flag & ReloadFlagBits::SHADERS) CreateShaders();
+    if (flag & ReloadFlagBits::PIPELINE) CreatePipeline();
 }
 
 VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
@@ -180,8 +182,7 @@ VkSubpassDependency VulkanRenderer::makeSubpassDependency(uint32_t srcIdx, uint3
 }
 
 void VulkanRenderer::CreateRenderPass() {
-    VkDevice device = m_window->device();
-    m_deviceFuncs->vkDeviceWaitIdle(device);
+    DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass);
 
     QVector<VkAttachmentDescription> attachments;
     QVector<VkSubpassDescription> subpasses;
@@ -220,14 +221,16 @@ void VulkanRenderer::CreateRenderPass() {
     renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
     renderPassInfo.pDependencies = dependencies.data();
 
-    if (m_deviceFuncs->vkCreateRenderPass(device, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+    if (m_deviceFuncs->vkCreateRenderPass(m_window->device(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
         qFatal("Failed to create render pass");
         return;
     }
 }
 
 void VulkanRenderer::CreatePipeline() {
-    // TODO actual configurable layouts
+    DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline);
+    DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
+
     VkPushConstantRange pcRange = {};
     pcRange.size = 16 * sizeof(float);
     pcRange.offset = 0;
@@ -265,7 +268,7 @@ void VulkanRenderer::CreatePipeline() {
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = { (uint32_t)m_window->swapChainImageSize().width(), (uint32_t)m_window->swapChainImageSize().height() };
+    scissor.extent = { uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()) };
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -366,6 +369,10 @@ void VulkanRenderer::CreateShaders() {
     // Determine new vertex input
     if (m_vertexInput) delete m_vertexInput;
     m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
+
+    // Determine new descriptor layout
+
+    // TODO Determine new colour attachment count
 }
 
 void VulkanRenderer::CreateDescriptors() {

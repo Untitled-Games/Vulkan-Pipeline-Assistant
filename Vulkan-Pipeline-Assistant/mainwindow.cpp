@@ -3,6 +3,8 @@
 
 #include <QLineEdit>
 
+#include "PipelineConfig.h"
+
 using namespace vpa;
 
 MainWindow::MainWindow(QWidget *parent)
