@@ -4,10 +4,7 @@
 
 #include <QLineEdit>
 
-<<<<<<< HEAD
-=======
 #include "PipelineConfig.h"
->>>>>>> origin/Descriptors
 
 using namespace vpa;
 
@@ -101,7 +98,7 @@ void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
 
 void MainWindow::HandlePrimitiveRestartChange(QComboBox* box) {
         QVariant value = box->currentData();
-        PipelineConfig config = this->m_vulkan->GetConfig();
+        PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.primitiveRestartEnable = value.convert(QMetaType::Bool);
         this->m_vulkan->WritePipelineConfig();
         //@TODO Only reload what needs reloading
@@ -132,12 +129,34 @@ void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
 
 // TODO expandable vertex inputs (max 16, although track for multiple such as with mat4)
 QWidget* MainWindow::MakeVertexInputBlock() {
+    std::map<QString, VkPrimitiveTopology> topologies;
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line List", VK_PRIMITIVE_TOPOLOGY_LINE_LIST));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line Strip", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle List", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Strip", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Fan", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line List With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle List With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY));
+    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Patch List", VK_PRIMITIVE_TOPOLOGY_PATCH_LIST));
+
     QWidget* parent = new QWidget(m_rightTopContainer);
     QLabel* topologyLabel = new QLabel("Topology", parent);
-    QComboBox* topologyBox = MakeComboBox(parent, {
-        "Point List", "Line List", "Line Strip", "Triangle List", "Triangle Strip", "Trangle Fan",
-        "Line List With Adjacency", "Line Strip With Adjacency", "Triangle List WIth Adjacency",
-        "Triangle Strip With Adjacency", "Patch List"});
+    QComboBox* topologyBox = MakeComboBox(parent, {});
+    std::map<QString, VkPrimitiveTopology>::iterator it;
+    for (it = topologies.begin(); it != topologies.end(); it++) {
+        topologyBox->addItem(it->first);
+    }
+
+    QObject::connect(topologyBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, topologyBox, topologies](int index) {
+        QString value = topologyBox->currentText();
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.topology = topologies.at(value);
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* primRestartLabel = new QLabel("Primitive Restart", parent);
     QComboBox* primRestartBox = MakeComboBox(parent, { "False", "True" });

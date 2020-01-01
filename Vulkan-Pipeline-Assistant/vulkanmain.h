@@ -24,14 +24,10 @@ namespace vpa {
         void WritePipelineCache();
         void WritePipelineConfig();
         PipelineConfig& GetConfig();
-<<<<<<< HEAD
 
         //@TODO is this ok?
          void Reload(const ReloadFlags flag);
 
-=======
-        void Reload(const ReloadFlags flag);
->>>>>>> origin/Descriptors
     private:
         void CreateVkInstance();
 
