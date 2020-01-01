@@ -42,10 +42,6 @@ namespace vpa {
         void HandleShaderFileDialog(QLineEdit* field);
         void HandleConfigAreaChange(int toIdx);
 
-        // @TODO remove this and replace with generic
-        void HandlePrimitiveRestartChange(QComboBox* box);
-
-
     private:
         void AddConfigButtons();
         void AddConfigBlocks();

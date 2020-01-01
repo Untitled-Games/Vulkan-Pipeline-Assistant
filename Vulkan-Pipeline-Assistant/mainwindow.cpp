@@ -96,15 +96,6 @@ void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
         tr("Open File"), ".", tr("Shader Files (*.spv)")));
 }
 
-void MainWindow::HandlePrimitiveRestartChange(QComboBox* box) {
-        QVariant value = box->currentData();
-        PipelineConfig& config = this->m_vulkan->GetConfig();
-        config.writablePipelineConfig.primitiveRestartEnable = value.convert(QMetaType::Bool);
-        this->m_vulkan->WritePipelineConfig();
-        //@TODO Only reload what needs reloading
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
-}
-
 void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
     QWidget* container = new QWidget(parent);
 
@@ -160,7 +151,15 @@ QWidget* MainWindow::MakeVertexInputBlock() {
 
     QLabel* primRestartLabel = new QLabel("Primitive Restart", parent);
     QComboBox* primRestartBox = MakeComboBox(parent, { "False", "True" });
-    QObject::connect(primRestartBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, primRestartBox](int index){ this->HandlePrimitiveRestartChange(primRestartBox); });
+    QObject::connect(primRestartBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, primRestartBox](int index){
+        QString text = primRestartBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.primitiveRestartEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        //@TODO Only reload what needs reloading
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
     QLabel* patchPointsLabel = new QLabel("Patch Point Count", parent);
     QLineEdit* patchPointsBox = new QLineEdit("0", parent);
     patchPointsBox->setValidator(new QIntValidator(0, 9, this));
