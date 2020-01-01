@@ -27,6 +27,10 @@ namespace vpa {
             return m_config;
         }
 
+        Descriptors* GetDescriptors() {
+            return m_descriptors;
+        }
+
         bool WritePipelineCache();
 
         //TODO: move this to a more organized location

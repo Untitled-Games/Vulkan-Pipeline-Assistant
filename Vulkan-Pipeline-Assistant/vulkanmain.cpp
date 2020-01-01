@@ -67,6 +67,10 @@ PipelineConfig& VulkanMain::GetConfig() {
     return m_renderer->GetConfig();
 }
 
+Descriptors* VulkanMain::GetDescriptors() {
+    return m_renderer->GetDescriptors();
+}
+
 void VulkanMain::Reload(const ReloadFlags flag) {
     m_renderer->Reload(flag);
 }

@@ -15,6 +15,7 @@ namespace vpa {
     struct PipelineConfig;
     class VulkanRenderer;
     class MemoryAllocator;
+    class Descriptors;
     class VulkanMain {
         friend class VulkanRenderer;
     public:
@@ -23,6 +24,7 @@ namespace vpa {
 
         void WritePipelineCache();
         PipelineConfig& GetConfig();
+        Descriptors* GetDescriptors();
         void Reload(const ReloadFlags flag);
     private:
         void CreateVkInstance();
