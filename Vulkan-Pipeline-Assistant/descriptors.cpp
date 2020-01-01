@@ -149,7 +149,7 @@ void Descriptors::WriteBufferData(uint32_t set, int index, size_t size, size_t o
     if (data != nullptr) {
         unsigned char* dataPtr = m_allocator->MapMemory(allocation);
         memcpy((dataPtr + offset), data, size);
-        m_allocator->Deallocate(allocation);
+        m_allocator->UnmapMemory(allocation);
     }
 }
 
