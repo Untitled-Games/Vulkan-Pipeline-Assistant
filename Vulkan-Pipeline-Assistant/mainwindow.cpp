@@ -157,12 +157,20 @@ QWidget* MainWindow::MakeVertexInputBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.primitiveRestartEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        //@TODO Only reload what needs reloading
         this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
     });
+
     QLabel* patchPointsLabel = new QLabel("Patch Point Count", parent);
     QLineEdit* patchPointsBox = new QLineEdit("0", parent);
     patchPointsBox->setValidator(new QIntValidator(0, 9, this));
+    QObject::connect(patchPointsBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, patchPointsBox](int index) {
+       QString text = patchPointsBox->text();
+       uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+       PipelineConfig& config = this->m_vulkan->GetConfig();
+       config.writablePipelineConfig.patchControlPoints = value;
+       this->m_vulkan->WritePipelineConfig();
+       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QGridLayout* layout = new QGridLayout(parent);
     parent->setLayout(layout);
