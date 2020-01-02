@@ -6,6 +6,7 @@
 
 class QVulkanDeviceFunctions;
 class QVulkanWindow;
+class QImage;
 namespace vpa {
     enum class AllocationType {
         BUFFER, IMAGE
@@ -32,6 +33,7 @@ namespace vpa {
         Allocation Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name);
         Allocation Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name);
         void Deallocate(Allocation& allocation);
+        void TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image);
 
     private:
         QVulkanDeviceFunctions* m_deviceFuncs;

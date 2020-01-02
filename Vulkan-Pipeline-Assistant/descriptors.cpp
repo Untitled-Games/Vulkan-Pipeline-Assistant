@@ -6,6 +6,8 @@
 
 #include "vulkanmain.h"
 
+#define TEXDIR "../../Resources/Textures/"
+
 using namespace vpa;
 
 Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator, DescriptorLayoutMap& layoutMap, QVector<SpirvResource> pushConstants)
@@ -14,7 +16,7 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
     QVector<VkDescriptorPoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1},
-        {VK_DESCRIPTOR_TYPE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
     };
 
     for (auto key : layoutMap.keys()) {
@@ -34,7 +36,11 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
             }
         }
         else if (descriptor.type == SpirvResourceType::SAMPLER_IMAGE || descriptor.type == SpirvResourceType::STORAGE_IMAGE) {
-            m_images[key.first].push_back(CreateImage(descriptor, layoutMap[key]));
+            ImageInfo info = {};
+            info.descriptor = descriptor;
+            info.resource = layoutMap[key];
+            CreateImage(info, "default.png");
+            m_images[key.first].push_back(info);
             if (descriptor.type == SpirvResourceType::SAMPLER_IMAGE) {
                 poolSizes[4].descriptorCount++;
             }
@@ -58,7 +64,7 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.flags = 0;
     poolInfo.pNext = nullptr;
-    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.poolSizeCount = uint32_t(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = uint32_t(sets.size());
 
@@ -134,7 +140,7 @@ Descriptors::~Descriptors() {
     }
     for (auto images : m_images) {
         for (ImageInfo& image : images) {
-            m_allocator->Deallocate(image.descriptor.allocation);
+            DestroyImage(image);
         }
     }
     for (auto& layout : m_descriptorLayouts) {
@@ -153,9 +159,10 @@ void Descriptors::WriteBufferData(uint32_t set, int index, size_t size, size_t o
     }
 }
 
-void Descriptors::LoadImage(int index, QString name) {
-    // TODO create image, image view, and resuse sampler.
-    // Load image data from file. Supported formats will be png (stb) and dds (nv_dds).
+void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
+    ImageInfo& imageInfo = m_images[set][index];
+    DestroyImage(imageInfo);
+    CreateImage(imageInfo, name);
 }
 
 void Descriptors::WritePushConstantData(ShaderStage stage, size_t size, void* data) {
@@ -171,8 +178,8 @@ void Descriptors::CmdPushConstants(VkCommandBuffer cmdBuf, VkPipelineLayout pipe
     // Map stores stages in order, therefore offset assumes later stages data is always offset by earlier stages. TODO consider arbitrary order.
     uint32_t offset = 0;
     for (auto& pushConstant : m_pushConstants) {
-        m_deviceFuncs->vkCmdPushConstants(cmdBuf, pipelineLayout, StageToVkStageFlag(pushConstant.stage), offset, pushConstant.data.size(), pushConstant.data.data());
-        offset += pushConstant.data.size();
+        m_deviceFuncs->vkCmdPushConstants(cmdBuf, pipelineLayout, StageToVkStageFlag(pushConstant.stage), offset, uint32_t(pushConstant.data.size()), pushConstant.data.data());
+        offset += uint32_t(pushConstant.data.size());
     }
 }
 
@@ -206,21 +213,22 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, SpirvResource resour
     return info;
 }
 
-ImageInfo Descriptors::CreateImage(DescriptorInfo& dinfo, SpirvResource resource) {
-    ImageInfo info = {};
-    info.descriptor = dinfo;
+void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
+    QImage image(TEXDIR + name);
+    if (image.isNull()) qWarning("Failed to load image %s", qPrintable(name));
+    image = image.convertToFormat(QImage::Format_RGBA8888);
 
      // TODO allow better customisation for images
     VkImageCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    createInfo.usage = dinfo.type == SpirvResourceType::SAMPLER_IMAGE ? VK_IMAGE_USAGE_SAMPLED_BIT : VK_IMAGE_USAGE_STORAGE_BIT;
+    createInfo.usage = imageInfo.descriptor.type == SpirvResourceType::SAMPLER_IMAGE ? VK_IMAGE_USAGE_SAMPLED_BIT : VK_IMAGE_USAGE_STORAGE_BIT;
     createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.flags = 0;
     createInfo.pNext = nullptr;
 
-    createInfo.extent = {2, 2, 1}; // TODO width, height, depth
-    createInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    createInfo.extent = { uint32_t(image.width()), uint32_t(image.height()), 1 };
+    createInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    createInfo.tiling = VK_IMAGE_TILING_LINEAR;
     createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     createInfo.imageType = VK_IMAGE_TYPE_2D;
     createInfo.mipLevels = 1;
@@ -228,14 +236,63 @@ ImageInfo Descriptors::CreateImage(DescriptorInfo& dinfo, SpirvResource resource
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    info.descriptor.allocation = m_allocator->Allocate(resource.size, createInfo, resource.name);
-    return info;
+    size_t size = size_t(image.width()) * size_t(image.height()) * 4;
+    imageInfo.descriptor.allocation = m_allocator->Allocate(size, createInfo, imageInfo.resource.name);
+
+    m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image);
+
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = imageInfo.descriptor.allocation.image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = createInfo.format;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = createInfo.mipLevels;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = createInfo.arrayLayers;
+    WARNING_VKRESULT(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &imageInfo.view),
+                     qPrintable("create image view for allocation '" + imageInfo.descriptor.allocation.name + "'"));
+
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 0.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+    WARNING_VKRESULT(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &imageInfo.sampler),
+                     qPrintable("create sampler for allocation '" + imageInfo.descriptor.allocation.name + "'"));
+
+    imageInfo.imageInfo = {};
+    imageInfo.imageInfo.imageView = imageInfo.view;
+    imageInfo.imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageInfo.sampler = imageInfo.sampler;
+
+    imageInfo.descriptor.layoutBinding = {};
+    imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
+    imageInfo.descriptor.layoutBinding.descriptorCount = 1;
+    imageInfo.descriptor.layoutBinding.descriptorType = imageInfo.descriptor.type == SpirvResourceType::SAMPLER_IMAGE ?
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
+    imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
+    imageInfo.descriptor.layoutBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 }
 
 PushConstantInfo Descriptors::CreatePushConstant(SpirvResource& resource) {
     PushConstantInfo info = {};
     info.stage = resource.stage;
-    info.data.resize(resource.size);
+    info.data.resize(int(resource.size));
     return info;
 }
 
@@ -243,10 +300,16 @@ void Descriptors::BuildPushConstantRanges() {
     uint32_t offset = 0;
     for (auto& pushConstant : m_pushConstants) {
         VkPushConstantRange range = {};
-        range.size = pushConstant.data.size();
+        range.size = uint32_t(pushConstant.data.size());
         range.offset = offset;
         range.stageFlags = StageToVkStageFlag(pushConstant.stage);
-        offset += pushConstant.data.size();
+        offset += uint32_t(pushConstant.data.size());
         m_pushConstantRanges.push_back(range);
     }
+}
+
+void Descriptors::DestroyImage(ImageInfo& imageInfo) {
+    DESTROY_HANDLE(m_window->device(), imageInfo.sampler, m_deviceFuncs->vkDestroySampler);
+    DESTROY_HANDLE(m_window->device(), imageInfo.view, m_deviceFuncs->vkDestroyImageView);
+    m_allocator->Deallocate(imageInfo.descriptor.allocation);
 }

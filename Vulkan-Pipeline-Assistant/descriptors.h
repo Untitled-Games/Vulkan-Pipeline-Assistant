@@ -28,6 +28,8 @@ namespace vpa {
     struct ImageInfo {
         VkDescriptorImageInfo imageInfo;
         VkImageView view;
+        VkSampler sampler;
+        SpirvResource resource;
         DescriptorInfo descriptor;
     };
 
@@ -51,7 +53,7 @@ namespace vpa {
         const QMap<ShaderStage, PushConstantInfo>& PushConstants() const { return m_pushConstants; }
 
         void WriteBufferData(uint32_t set, int index, size_t size, size_t offset, void* data);
-        void LoadImage(int index, QString name);
+        void LoadImage(const uint32_t set, const int index, const QString name);
         void WritePushConstantData(ShaderStage stage, size_t size, void* data);
 
         void CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;
@@ -62,9 +64,11 @@ namespace vpa {
 
     private:
         BufferInfo CreateBuffer(DescriptorInfo& descriptor, SpirvResource resource);
-        ImageInfo CreateImage(DescriptorInfo& descriptor, SpirvResource resource);
+        void CreateImage(ImageInfo& imageInfo, const QString& name);
         PushConstantInfo CreatePushConstant(SpirvResource& resource);
         void BuildPushConstantRanges();
+
+        void DestroyImage(ImageInfo& imageInfo);
 
         QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;
