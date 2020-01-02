@@ -11,11 +11,11 @@ out gl_PerVertex {
 	vec4 gl_Position;
 };
 
-layout(push_constant) uniform PushConstants {
+layout(set = 0, binding = 0) uniform MVPBuffer {
 	mat4 mvp;
-} PC;
+};
 
 void main() {
-	gl_Position = PC.mvp * vec4(inPosition, 1.0);
+	gl_Position = mvp * vec4(inPosition, 1.0);
 	outColour = inColour;
 }

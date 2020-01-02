@@ -9,13 +9,15 @@
 #include "shaderanalytics.h"
 #include "filemanager.h"
 #include "vertexinput.h"
+#include "descriptors.h"
 
 #define MESHDIR "../../Resources/Meshes/"
 
 using namespace vpa;
 
 VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
-    : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_vertexInput(nullptr) {
+    : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
+      m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr), m_descriptors(nullptr) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -37,17 +39,17 @@ void VulkanRenderer::releaseSwapChainResources() {
 }
 
 void VulkanRenderer::releaseResources() {
-    m_deviceFuncs->vkDestroyPipeline(m_window->device(), m_pipeline, nullptr);
-    m_deviceFuncs->vkDestroyPipelineLayout(m_window->device(), m_pipelineLayout, nullptr);
-    m_deviceFuncs->vkDestroyPipelineCache(m_window->device(), m_pipelineCache, nullptr);
-    m_deviceFuncs->vkDestroyRenderPass(m_window->device(), m_renderPass, nullptr);
+    DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline);
+    DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
+    DESTROY_HANDLE(m_window->device(), m_pipelineCache, m_deviceFuncs->vkDestroyPipelineCache);
+    DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass);
     delete m_shaderAnalytics;
     if (m_vertexInput) delete m_vertexInput;
+    if (m_descriptors) delete m_descriptors;
     delete m_allocator;
 }
 
 void VulkanRenderer::startNextFrame() {
-
     VkClearValue clearValues[2];
     clearValues[0].color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
     clearValues[1].depthStencil = { 1.0f, 0 };
@@ -66,17 +68,8 @@ void VulkanRenderer::startNextFrame() {
     VkCommandBuffer cmdBuf = m_window->currentCommandBuffer();
     m_deviceFuncs->vkCmdBeginRenderPass(cmdBuf, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    QMatrix4x4 model;
-    QMatrix4x4 view;
-    QMatrix4x4 projection;
-    model.setToIdentity();
-    model.scale(0.1f, 0.1f, 0.1f);
-    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
-    projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
-    projection.data()[5] *= -1;
-    QMatrix4x4 mvp = projection * view * model;
-    m_deviceFuncs->vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), mvp.data());
-
+    m_descriptors->CmdPushConstants(cmdBuf, m_pipelineLayout);
+    m_descriptors->CmdBindSets(cmdBuf, m_pipelineLayout);
     m_vertexInput->BindBuffers(cmdBuf);
     m_deviceFuncs->vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
     if (m_vertexInput->IsIndexed()) {
@@ -136,10 +129,11 @@ bool VulkanRenderer::ReadPipelineConfig()
 }
 
 void VulkanRenderer::Reload(const ReloadFlags flag) {
-    if (flag & ReloadFlags::DESCRIPTOR_VALUES) CreateRenderPass();
-    if (flag & ReloadFlags::RENDER_PASS) CreateShaders();
-    if (flag & ReloadFlags::SHADERS) CreateDescriptors();
-    if (flag & ReloadFlags::PIPELINE) CreatePipeline();
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
+    if (flag & ReloadFlagBits::DESCRIPTOR_VALUES) UpdateDescriptorData();
+    if (flag & ReloadFlagBits::RENDER_PASS) CreateRenderPass();
+    if (flag & ReloadFlagBits::SHADERS) CreateShaders();
+    if (flag & ReloadFlagBits::PIPELINE) CreatePipeline();
 }
 
 VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
@@ -180,8 +174,7 @@ VkSubpassDependency VulkanRenderer::makeSubpassDependency(uint32_t srcIdx, uint3
 }
 
 void VulkanRenderer::CreateRenderPass() {
-    VkDevice device = m_window->device();
-    m_deviceFuncs->vkDeviceWaitIdle(device);
+    DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass);
 
     QVector<VkAttachmentDescription> attachments;
     QVector<VkSubpassDescription> subpasses;
@@ -220,25 +213,22 @@ void VulkanRenderer::CreateRenderPass() {
     renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
     renderPassInfo.pDependencies = dependencies.data();
 
-    if (m_deviceFuncs->vkCreateRenderPass(device, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+    if (m_deviceFuncs->vkCreateRenderPass(m_window->device(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
         qFatal("Failed to create render pass");
         return;
     }
 }
 
 void VulkanRenderer::CreatePipeline() {
-    // TODO actual configurable layouts
-    VkPushConstantRange pcRange = {};
-    pcRange.size = 16 * sizeof(float);
-    pcRange.offset = 0;
-    pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline);
+    DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
 
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = 0;
-    layoutInfo.pSetLayouts = nullptr;
-    layoutInfo.pushConstantRangeCount = 1;
-    layoutInfo.pPushConstantRanges = &pcRange;
+    layoutInfo.setLayoutCount = m_descriptors->DescriptorSetLayouts().size();
+    layoutInfo.pSetLayouts = m_descriptors->DescriptorSetLayouts().data();
+    layoutInfo.pushConstantRangeCount = m_descriptors->PushConstantRanges().size();
+    layoutInfo.pPushConstantRanges = m_descriptors->PushConstantRanges().data();
 
     auto bindingDesc = m_vertexInput->InputBindingDescription();
     auto attribDescs = m_vertexInput->InputAttribDescription();
@@ -265,7 +255,7 @@ void VulkanRenderer::CreatePipeline() {
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = { (uint32_t)m_window->swapChainImageSize().width(), (uint32_t)m_window->swapChainImageSize().height() };
+    scissor.extent = { uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()) };
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -357,7 +347,7 @@ void VulkanRenderer::CreateShaders() {
     m_shaderStageInfos.clear();
     m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv");//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
     VkPipelineShaderStageCreateInfo shaderCreateInfo;
-    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VETREX, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+    if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VERTEX, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_CONTROL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
     if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_EVAL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
@@ -366,12 +356,33 @@ void VulkanRenderer::CreateShaders() {
     // Determine new vertex input
     if (m_vertexInput) delete m_vertexInput;
     m_vertexInput = new VertexInput(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true);
-}
 
-void VulkanRenderer::CreateDescriptors() {
+    // Determine new descriptor layout
+    if (m_descriptors) delete m_descriptors;
+    QVector<SpirvResource> allPushConstants;
+    for (int i = 0; i < int(ShaderStage::count_); ++i) {
+        allPushConstants.append(m_shaderAnalytics->PushConstantRange(ShaderStage(i)));
+    }
+    m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), allPushConstants);
 
+    // ------- Test data TODO remove when interface complete ------
+    QMatrix4x4 model;
+    QMatrix4x4 view;
+    QMatrix4x4 projection;
+    model.setToIdentity();
+    model.scale(0.1f, 0.1f, 0.1f);
+    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
+    projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
+    projection.data()[5] *= -1;
+    QMatrix4x4 mvp = projection * view * model;
+    m_descriptors->WriteBufferData(0, 0, 16 * sizeof(float), 0, mvp.data());
+
+    float colourMask[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask);
+
+    // TODO Determine new colour attachment count
 }
 
 void VulkanRenderer::UpdateDescriptorData() {
-
+    // TODO link up to descriptor update functions
 }

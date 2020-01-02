@@ -34,7 +34,7 @@ void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, cons
         qWarning("No vertex shader provided, switch to default"); // TODO do it maybe
     }
     else {
-        CreateModule(ShaderStage::VETREX, vert);
+        CreateModule(ShaderStage::VERTEX, vert);
     }
 
     if (tesc != "" || tese != "") {
@@ -71,11 +71,12 @@ void ShaderAnalytics::SetShader(ShaderStage stage, const QString& name) {
 }
 
 QVector<SpirvResource> ShaderAnalytics::InputAttributes() {
-    size_t vertexIdx = size_t(ShaderStage::VETREX);
+    size_t vertexIdx = size_t(ShaderStage::VERTEX);
     SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
     QVector<SpirvResource> attribs(stageInputs.size());
     for (int i = 0; i < stageInputs.size(); ++i) {
         attribs[i].name = QString::fromStdString(stageInputs[i].name);
+        attribs[i].stage = ShaderStage::VERTEX;
         attribs[i].resourceType = SpirvResourceType::INPUT_ATTRIBUTE;
         attribs[i].spirvResource = &stageInputs[i];
         attribs[i].compiler = m_compilers[vertexIdx];
@@ -99,6 +100,7 @@ QVector<SpirvResource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
         QVector<SpirvResource> resources(pushConstantsBuffers.size());
         for (size_t i = 0; i < pushConstantsBuffers.size(); ++i) {
             resources[i].name = QString::fromStdString(pushConstantsBuffers[i].name);
+            resources[i].stage = stage;
             resources[i].resourceType = SpirvResourceType::PUSH_CONSTANT;
             resources[i].spirvResource = &pushConstantsBuffers[i];
             resources[i].compiler = m_compilers[stageIdx];
@@ -141,23 +143,6 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     m_resources[size_t(stage)] = m_compilers[size_t(stage)]->get_shader_resources();
 
     m_config->writablePipelineConfig.shaderBlobs[size_t(stage)] = blob;
-}
-
-VkShaderStageFlagBits ShaderAnalytics::StageToVkStageFlag(ShaderStage stage) {
-    switch (stage) {
-    case ShaderStage::VETREX:
-        return VK_SHADER_STAGE_VERTEX_BIT;
-    case ShaderStage::FRAGMENT:
-        return VK_SHADER_STAGE_FRAGMENT_BIT;
-    case ShaderStage::TESS_CONTROL:
-        return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    case ShaderStage::TESS_EVAL:
-        return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    case ShaderStage::GEOMETRY:
-        return VK_SHADER_STAGE_GEOMETRY_BIT;
-    default:
-        assert(false);
-    }
 }
 
 size_t ShaderAnalytics::CalculateResourceSize(Compiler* compiler, Resource* res) {
@@ -203,8 +188,14 @@ void ShaderAnalytics::AnalyseDescriptorLayout() {
                 for (auto& resource : descriptorResources[k]) {
                     uint32_t set = m_compilers[i]->get_decoration(resource.id, spv::DecorationDescriptorSet);
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
-                    SpirvResource res = { QString::fromStdString(m_compilers[i]->get_name(resource.id)), CalculateResourceSize(m_compilers[i], &resource), types[k],
-                                          &resource, m_compilers[i] };
+                    SpirvResource res = {
+                        QString::fromStdString(m_compilers[i]->get_name(resource.id)),
+                        CalculateResourceSize(m_compilers[i], &resource),
+                        ShaderStage(i),
+                        types[k],
+                        &resource,
+                        m_compilers[i]
+                    };
                     auto key = QPair<uint32_t, uint32_t>(set, binding);
                     if (m_descriptorLayoutMap.contains(key) && res != m_descriptorLayoutMap[key]) {
                         qWarning("Duplicate set and binding found, but with different values. Shaders are not compatible.");

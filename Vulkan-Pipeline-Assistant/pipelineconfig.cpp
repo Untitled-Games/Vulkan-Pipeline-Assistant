@@ -41,7 +41,7 @@ namespace vpa {
         ///////////////////////////////////////////////////////
         //// SHADER DATA
         ///////////////////////////////////////////////////////
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::VETREX)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::VERTEX)]));
         config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::FRAGMENT)]));
         config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_CONTROL)]));
         config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_EVAL)]));
