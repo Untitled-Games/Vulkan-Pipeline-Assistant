@@ -100,23 +100,23 @@ void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
 void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
     PipelineConfig& config = this->m_vulkan->GetConfig();
     VkViewport& viewport = config.viewports[0];
-    viewport.x = std::atof(v.at(0)->text().toStdString().c_str());
-    viewport.y = std::atof(v.at(1)->text().toStdString().c_str());
-    viewport.width = std::atof(v.at(2)->text().toStdString().c_str());
-    viewport.height = std::atof(v.at(3)->text().toStdString().c_str());
-    viewport.minDepth = std::atof(v.at(4)->text().toStdString().c_str());
-    viewport.maxDepth = std::atof(v.at(5)->text().toStdString().c_str());
+    viewport.x = float(std::atof(v.at(0)->text().toStdString().c_str()));
+    viewport.y = float(std::atof(v.at(1)->text().toStdString().c_str()));
+    viewport.width = float(std::atof(v.at(2)->text().toStdString().c_str()));
+    viewport.height = float(std::atof(v.at(3)->text().toStdString().c_str()));
+    viewport.minDepth = float(std::atof(v.at(4)->text().toStdString().c_str()));
+    viewport.maxDepth = float(std::atof(v.at(5)->text().toStdString().c_str()));
 }
 
 void MainWindow::HandleViewChangeReset(QVector<QLineEdit*> v) {
     PipelineConfig& config = this->m_vulkan->GetConfig();
     VkViewport viewport = config.viewports[0];
-    v.at(0)->setText(QString::number(viewport.x));
-    v.at(1)->setText(QString::number(viewport.y));
-    v.at(2)->setText(QString::number(viewport.width));
-    v.at(3)->setText(QString::number(viewport.height));
-    v.at(4)->setText(QString::number(viewport.minDepth));
-    v.at(5)->setText(QString::number(viewport.maxDepth));
+    v.at(0)->setText(QString::number(double(viewport.x)));
+    v.at(1)->setText(QString::number(double(viewport.y)));
+    v.at(2)->setText(QString::number(double(viewport.width)));
+    v.at(3)->setText(QString::number(double(viewport.height)));
+    v.at(4)->setText(QString::number(double(viewport.minDepth)));
+    v.at(5)->setText(QString::number(double(viewport.maxDepth)));
 }
 
 void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
