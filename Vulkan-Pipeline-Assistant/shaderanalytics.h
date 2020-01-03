@@ -10,10 +10,7 @@
 #include <QVulkanDeviceFunctions>
 
 namespace vpa {
-
     struct PipelineConfig;
-
-    using DescriptorLayoutMap = QHash<QPair<uint32_t, uint32_t>, SpirvResource>;
 
     class ShaderAnalytics {
     public:
@@ -32,7 +29,6 @@ namespace vpa {
 
     private:
         void CreateModule(ShaderStage stage, const QString& name);
-        VkShaderStageFlagBits StageToVkStageFlag(ShaderStage stage);
         size_t CalculateResourceSize(spirv_cross::Compiler* compiler, spirv_cross::Resource* res);
         void AnalyseDescriptorLayout();
         void Destroy();

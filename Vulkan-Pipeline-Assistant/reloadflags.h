@@ -17,11 +17,11 @@ namespace vpa {
     // Actual combinations specifying all parts that need reloaded for a particular part.
     enum class ReloadFlags : size_t {
         PIPELINE = size_t(ReloadFlagBits::PIPELINE), // 0001
-        RENDER_PASS = size_t(ReloadFlagBits::RENDER_PASS) | size_t(ReloadFlagBits::PIPELINE), // 0011
-        SHADERS = size_t(ReloadFlagBits::SHADERS) | size_t(ReloadFlagBits::PIPELINE), // 0101
+        RENDER_PASS = ReloadFlagBits::RENDER_PASS | ReloadFlagBits::PIPELINE, // 0011
+        SHADERS = ReloadFlagBits::SHADERS | ReloadFlagBits::PIPELINE, // 0101
         DESCRIPTOR_VALUES = size_t(ReloadFlagBits::DESCRIPTOR_VALUES), // 1000
-        EVERYTHING = size_t(ReloadFlagBits::DESCRIPTOR_VALUES) | size_t(ReloadFlagBits::SHADERS) |
-            size_t(ReloadFlagBits::RENDER_PASS) | size_t(ReloadFlagBits::PIPELINE) // 1111
+        EVERYTHING = (ReloadFlagBits::DESCRIPTOR_VALUES | ReloadFlagBits::SHADERS) |
+            (ReloadFlagBits::RENDER_PASS | ReloadFlagBits::PIPELINE) // 1111
     };
 
     inline constexpr bool operator&(const ReloadFlags& f0, const ReloadFlagBits& f1) {

@@ -15,6 +15,7 @@ namespace vpa {
     struct PipelineConfig;
     class VulkanRenderer;
     class MemoryAllocator;
+    class Descriptors;
     class VulkanMain {
         friend class VulkanRenderer;
     public:
@@ -25,8 +26,9 @@ namespace vpa {
         void WritePipelineConfig();
         PipelineConfig& GetConfig();
 
-        //@TODO is this ok?
          void Reload(const ReloadFlags flag);
+
+        Descriptors* GetDescriptors();
 
     private:
         void CreateVkInstance();

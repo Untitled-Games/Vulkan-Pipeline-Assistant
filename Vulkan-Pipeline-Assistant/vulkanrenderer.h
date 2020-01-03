@@ -11,6 +11,7 @@ namespace vpa {
     class VulkanMain;
     class ShaderAnalytics;
     class VertexInput;
+    class Descriptors;
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
         VulkanRenderer(QVulkanWindow* window, VulkanMain* main);
@@ -26,6 +27,10 @@ namespace vpa {
             return m_config;
         }
 
+        Descriptors* GetDescriptors() {
+            return m_descriptors;
+        }
+
         bool WritePipelineCache();
 
         //TODO: move this to a more organized location
@@ -37,7 +42,6 @@ namespace vpa {
         void CreatePipeline();
         void CreatePipelineCache();
         void CreateShaders();
-        void CreateDescriptors();
         void UpdateDescriptorData();
 
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
@@ -59,6 +63,7 @@ namespace vpa {
         ShaderAnalytics* m_shaderAnalytics;
         MemoryAllocator* m_allocator;
         VertexInput* m_vertexInput;
+        Descriptors* m_descriptors;
 
         QVector<VkFramebuffer> m_frameBuffers;
         QVector<VkPipelineShaderStageCreateInfo> m_shaderStageInfos;
