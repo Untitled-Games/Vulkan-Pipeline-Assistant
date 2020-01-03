@@ -143,31 +143,31 @@ void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
 
 // TODO expandable vertex inputs (max 16, although track for multiple such as with mat4)
 QWidget* MainWindow::MakeVertexInputBlock() {
-    std::map<QString, VkPrimitiveTopology> topologies;
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line List", VK_PRIMITIVE_TOPOLOGY_LINE_LIST));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line Strip", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle List", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Strip", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Fan", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line List With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Line Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle List With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Triangle Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY));
-    topologies.insert(std::pair<QString, VkPrimitiveTopology>("Patch List", VK_PRIMITIVE_TOPOLOGY_PATCH_LIST));
+    QMap<QString, VkPrimitiveTopology> topologies;
+    topologies.insert("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
+    topologies.insert("Line List", VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+    topologies.insert("Line Strip", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
+    topologies.insert("Triangle List", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    topologies.insert("Triangle Strip", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+    topologies.insert("Triangle Fan", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+    topologies.insert("Line List With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY);
+    topologies.insert("Line Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY);
+    topologies.insert("Triangle List With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY);
+    topologies.insert("Triangle Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY);
+    topologies.insert("Patch List", VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
 
     QWidget* parent = new QWidget(m_rightTopContainer);
     QLabel* topologyLabel = new QLabel("Topology", parent);
     QComboBox* topologyBox = MakeComboBox(parent, {});
-    std::map<QString, VkPrimitiveTopology>::iterator it;
+    QMap<QString, VkPrimitiveTopology>::iterator it;
     for (it = topologies.begin(); it != topologies.end(); it++) {
-        topologyBox->addItem(it->first);
+        topologyBox->addItem(it.key());
     }
 
     QObject::connect(topologyBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, topologyBox, topologies](int index) {
-        QString value = topologyBox->currentText();
+        QString topologyname = topologyBox->currentText();
         PipelineConfig& config = this->m_vulkan->GetConfig();
-        config.writablePipelineConfig.topology = topologies.at(value);
+        config.writablePipelineConfig.topology = topologies.value(topologyname);
         this->m_vulkan->WritePipelineConfig();
         this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
     });
@@ -296,6 +296,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
     QWidget* container = new QWidget(m_rightTopContainer);
     QLabel* polygonModeLabel = new QLabel("Polygon Mode");
     QComboBox* polygonModeBox = MakeComboBox(container, {"Fill", "Line", "Point"});
+
 
     QLabel* rasterizerDiscardLabel = new QLabel("Discard Enable");
     QComboBox* rasterizerDiscardBox = MakeComboBox(container, {"False", "True"});
