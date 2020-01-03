@@ -41,6 +41,8 @@ namespace vpa {
     private slots:
         void HandleShaderFileDialog(QLineEdit* field);
         void HandleConfigAreaChange(int toIdx);
+        void HandleViewChangeReset(QVector<QLineEdit*> v);
+        void HandleViewChangeApply(QVector<QLineEdit*> v);
 
     private:
         void AddConfigButtons();

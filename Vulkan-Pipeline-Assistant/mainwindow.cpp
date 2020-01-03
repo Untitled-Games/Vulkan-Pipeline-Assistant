@@ -96,6 +96,29 @@ void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
         tr("Open File"), ".", tr("Shader Files (*.spv)")));
 }
 
+//TODO allow multiple viewports
+void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
+    PipelineConfig& config = this->m_vulkan->GetConfig();
+    VkViewport& viewport = config.viewports[0];
+    viewport.x = std::atof(v.at(0)->text().toStdString().c_str());
+    viewport.y = std::atof(v.at(1)->text().toStdString().c_str());
+    viewport.width = std::atof(v.at(2)->text().toStdString().c_str());
+    viewport.height = std::atof(v.at(3)->text().toStdString().c_str());
+    viewport.minDepth = std::atof(v.at(4)->text().toStdString().c_str());
+    viewport.maxDepth = std::atof(v.at(5)->text().toStdString().c_str());
+}
+
+void MainWindow::HandleViewChangeReset(QVector<QLineEdit*> v) {
+    PipelineConfig& config = this->m_vulkan->GetConfig();
+    VkViewport viewport = config.viewports[0];
+    v.at(0)->setText(QString::number(viewport.x));
+    v.at(1)->setText(QString::number(viewport.y));
+    v.at(2)->setText(QString::number(viewport.width));
+    v.at(3)->setText(QString::number(viewport.height));
+    v.at(4)->setText(QString::number(viewport.minDepth));
+    v.at(5)->setText(QString::number(viewport.maxDepth));
+}
+
 void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
     QWidget* container = new QWidget(parent);
 
@@ -208,6 +231,23 @@ QWidget* MainWindow::MakeViewportStateBlock() {
     QLineEdit* maxDepthBox = new QLineEdit(container);
     maxDepthBox->setValidator(new QDoubleValidator(0.0, 10000.0, 2, container));
 
+    QVector<QLineEdit*> viewportBoxes;
+    viewportBoxes.push_back(xBox);
+    viewportBoxes.push_back(yBox);
+    viewportBoxes.push_back(widthBox);
+    viewportBoxes.push_back(heightBox);
+    viewportBoxes.push_back(minDepthBox);
+    viewportBoxes.push_back(maxDepthBox);
+
+    QPushButton* resetViewChangeButton = new QPushButton("Reset Changes", container);
+    QObject::connect(resetViewChangeButton, &QPushButton::released, [this, viewportBoxes] {
+        this->HandleViewChangeReset(viewportBoxes);
+    });
+    QPushButton* applyViewChangeButton = new QPushButton("Apply Changes", container);
+    QObject::connect(applyViewChangeButton, &QPushButton::released, [this, viewportBoxes] {
+        this->HandleViewChangeApply(viewportBoxes);
+    });
+
     QGridLayout* layout = new QGridLayout(container);
     container->setLayout(layout);
 
@@ -223,6 +263,8 @@ QWidget* MainWindow::MakeViewportStateBlock() {
     layout->addWidget(minDepthBox, 3, 1);
     layout->addWidget(maxDepthLabel, 2, 2);
     layout->addWidget(maxDepthBox, 3, 2);
+    layout->addWidget(resetViewChangeButton, 6, 2);
+    layout->addWidget(applyViewChangeButton, 6, 3);
 
     // Scissor
     QLabel* scissorXLabel = new QLabel("Scissor X", container);
