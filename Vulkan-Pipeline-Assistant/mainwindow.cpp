@@ -293,40 +293,129 @@ QWidget* MainWindow::MakeViewportStateBlock() {
 }
 
 QWidget* MainWindow::MakeRasterizerBlock() {
+    QMap<QString, VkPolygonMode> polygonModes;
+    polygonModes.insert("Fill", VK_POLYGON_MODE_FILL);
+    polygonModes.insert("Line", VK_POLYGON_MODE_LINE);
+    polygonModes.insert("Point", VK_POLYGON_MODE_POINT);
+
     QWidget* container = new QWidget(m_rightTopContainer);
     QLabel* polygonModeLabel = new QLabel("Polygon Mode");
     QComboBox* polygonModeBox = MakeComboBox(container, {"Fill", "Line", "Point"});
-
+    QObject::connect(polygonModeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, polygonModeBox, polygonModes](int index){
+        QString text = polygonModeBox->currentText();
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.polygonMode = polygonModes.value(text);
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* rasterizerDiscardLabel = new QLabel("Discard Enable");
     QComboBox* rasterizerDiscardBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(rasterizerDiscardBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, rasterizerDiscardBox](int index){
+        QString text = rasterizerDiscardBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.rasterizerDiscardEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* lineWidthLabel = new QLabel("Line Width");
     QLineEdit* lineWidthBox = new QLineEdit("1.0", container);
+    QObject::connect(lineWidthBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, lineWidthBox](int index) {
+       QString text = lineWidthBox->text();
+       uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+       PipelineConfig& config = this->m_vulkan->GetConfig();
+       config.writablePipelineConfig.lineWidth = value;
+       this->m_vulkan->WritePipelineConfig();
+       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
+
+    //TODO move this maybe?
+    QMap<QString, VkCullModeFlagBits> cullModes;
+    cullModes.insert("None", VK_CULL_MODE_NONE);
+    cullModes.insert("Front", VK_CULL_MODE_FRONT_BIT);
+    cullModes.insert("Back", VK_CULL_MODE_BACK_BIT);
+    cullModes.insert("Front and Back", VK_CULL_MODE_FRONT_AND_BACK);
 
     QLabel* cullModeLabel = new QLabel("Cull Mode");
     QComboBox* cullModeBox = MakeComboBox(container, {"None", "Front", "Back", "Front and Back"});
+    QObject::connect(cullModeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, cullModeBox, cullModes](int index){
+        QString text = cullModeBox->currentText();
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.cullMode = cullModes.value(text);
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* frontFaceLabel = new QLabel("Front Face");
     QComboBox* frontFaceBox = MakeComboBox(container, {"Counter Clockwise", "Clockwise"});
+    QObject::connect(frontFaceBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, frontFaceBox](int index){
+        QString text = frontFaceBox->currentText();
+        VkFrontFace direction = text == "Clockwise" ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.frontFace = direction;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* depthClampLabel = new QLabel("Depth Clamp Enable");
     QComboBox* depthClampBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(depthClampBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, depthClampBox](int index){
+        QString text = depthClampBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthClampEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* depthBiasLabel = new QLabel("Depth Bias Enable");
     QComboBox* depthBiasBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(depthBiasBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, depthBiasBox](int index){
+        QString text = depthBiasBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthBiasEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* depthBiasConstLabel = new QLabel("Depth Bias Constant");
     QLineEdit* depthBiasConstBox = new QLineEdit("1.0", container);
     depthBiasConstBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
+    QObject::connect(depthBiasConstBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasConstBox](int index) {
+       QString text = depthBiasConstBox->text();
+       uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+       PipelineConfig& config = this->m_vulkan->GetConfig();
+       config.writablePipelineConfig.depthBiasConstantFactor = value;
+       this->m_vulkan->WritePipelineConfig();
+       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* depthBiasClampLabel = new QLabel("Depth Bias Clamp");
     QLineEdit* depthBiasClampBox = new QLineEdit("1.0", container);
-    depthBiasConstBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
+    depthBiasClampBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
+    QObject::connect(depthBiasClampBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasClampBox](int index) {
+       QString text = depthBiasClampBox->text();
+       uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+       PipelineConfig& config = this->m_vulkan->GetConfig();
+       config.writablePipelineConfig.depthBiasClamp = value;
+       this->m_vulkan->WritePipelineConfig();
+       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* depthBiasSlopeLabel = new QLabel("Depth Bias Slope");
     QLineEdit* depthBiasSlopeBox = new QLineEdit("1.0", container);
-    depthBiasConstBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
+    depthBiasSlopeBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
+    QObject::connect(depthBiasSlopeBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasSlopeBox](int index) {
+       QString text = depthBiasSlopeBox->text();
+       uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+       PipelineConfig& config = this->m_vulkan->GetConfig();
+       config.writablePipelineConfig.depthBiasSlopeFactor = value;
+       this->m_vulkan->WritePipelineConfig();
+       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QGridLayout* layout = new QGridLayout(container);
     container->setLayout(layout);
