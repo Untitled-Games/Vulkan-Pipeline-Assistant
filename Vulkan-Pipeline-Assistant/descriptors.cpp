@@ -10,8 +10,9 @@
 
 using namespace vpa;
 
-Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator, DescriptorLayoutMap& layoutMap, QVector<SpirvResource> pushConstants)
-    : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator) {
+Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+                         const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants)
+    : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
     QSet<uint32_t> sets;
     QVector<VkDescriptorPoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
@@ -19,117 +20,86 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
     };
 
-    for (auto key : layoutMap.keys()) {
-        DescriptorInfo descriptor = {};
-        descriptor.set = key.first;
-        descriptor.binding = key.second;
-        descriptor.type = layoutMap[key].resourceType;
-        if (descriptor.type == SpirvResourceType::UNIFORM_BUFFER || descriptor.type == SpirvResourceType::STORAGE_BUFFER) {
-            m_buffers[key.first].push_back(CreateBuffer(descriptor, layoutMap[key]));
-            if (descriptor.type == SpirvResourceType::UNIFORM_BUFFER) {
-                poolSizes[0].descriptorCount++;
-                poolSizes[1].descriptorCount++;
-            }
-            else {
-                poolSizes[2].descriptorCount++;
-                poolSizes[3].descriptorCount++;
-            }
-        }
-        else if (descriptor.type == SpirvResourceType::SAMPLER_IMAGE || descriptor.type == SpirvResourceType::STORAGE_IMAGE) {
-            ImageInfo info = {};
-            info.descriptor = descriptor;
-            info.resource = layoutMap[key];
-            CreateImage(info, "default.png");
-            m_images[key.first].push_back(info);
-            if (descriptor.type == SpirvResourceType::SAMPLER_IMAGE) {
-                poolSizes[4].descriptorCount++;
-            }
-            else {
-                poolSizes[5].descriptorCount++;
-            }
-        }
-        else {
-            qWarning("Unsupported resource in shader.");
-        }
-        sets.insert(key.first);
+    if (!layoutMap.empty()) {
+        BuildDescriptors(sets, poolSizes, layoutMap);
     }
-
     for (auto res : pushConstants) {
-        m_pushConstants[res.stage] = CreatePushConstant(res);
+        m_pushConstants[((SpvPushConstantGroup*)res->group)->stage] = CreatePushConstant(res);
     }
-
     BuildPushConstantRanges();
 
-    VkDescriptorPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.flags = 0;
-    poolInfo.pNext = nullptr;
-    poolInfo.poolSizeCount = uint32_t(poolSizes.size());
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = uint32_t(sets.size());
+    if (!sets.empty()) {
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.flags = 0;
+        poolInfo.pNext = nullptr;
+        poolInfo.poolSizeCount = uint32_t(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = uint32_t(sets.size());
 
-    FATAL_VKRESULT(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool");
+        FATAL_VKRESULT(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool");
 
-    m_descriptorSets.resize(sets.size());
-    m_descriptorLayouts.resize(sets.size());
-    for (int i = 0; i < sets.size(); ++i) {
-        uint32_t set = *(sets.begin() + i);
-        QVector<VkDescriptorSetLayoutBinding> bindings;
-        for (auto& buf : m_buffers[set]) {
-            bindings.push_back(buf.descriptor.layoutBinding);
-            buf.descriptor.descriptorSet = &m_descriptorSets[i];
+        m_descriptorSets.resize(sets.size());
+        m_descriptorLayouts.resize(sets.size());
+        for (int i = 0; i < sets.size(); ++i) {
+            uint32_t set = *(sets.begin() + i);
+            QVector<VkDescriptorSetLayoutBinding> bindings;
+            for (auto& buf : m_buffers[set]) {
+                bindings.push_back(buf.descriptor.layoutBinding);
+                buf.descriptor.descriptorSet = &m_descriptorSets[i];
+            }
+            for (auto& img : m_images[set]) {
+                bindings.push_back(img.descriptor.layoutBinding);
+                img.descriptor.descriptorSet = &m_descriptorSets[i];
+            }
+
+            VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layoutInfo.bindingCount = uint32_t(bindings.size());
+            layoutInfo.pBindings = bindings.data();
+            layoutInfo.pNext = nullptr;
+            FATAL_VKRESULT(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[i]), qPrintable("create descriptor set layout for set " + QString(set)));
         }
-        for (auto& img : m_images[set]) {
-            bindings.push_back(img.descriptor.layoutBinding);
-            img.descriptor.descriptorSet = &m_descriptorSets[i];
+
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_descriptorPool;
+        allocInfo.descriptorSetCount = uint32_t(m_descriptorLayouts.size());
+        allocInfo.pSetLayouts = m_descriptorLayouts.data();
+
+        FATAL_VKRESULT(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate all descriptor sets");
+
+        QVector<VkWriteDescriptorSet> writes;
+        for (auto& buffers : m_buffers) {
+            for (BufferInfo& buffer : buffers) {
+                buffer.descriptor.writeSet = {};
+                buffer.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                buffer.descriptor.writeSet.dstSet = *buffer.descriptor.descriptorSet;
+                buffer.descriptor.writeSet.dstBinding = buffer.descriptor.binding;
+                buffer.descriptor.writeSet.dstArrayElement = 0;
+                buffer.descriptor.writeSet.descriptorType = buffer.descriptor.layoutBinding.descriptorType;
+                buffer.descriptor.writeSet.descriptorCount = 1;
+                buffer.descriptor.writeSet.pBufferInfo = &buffer.bufferInfo;
+                writes.push_back(buffer.descriptor.writeSet);
+            }
         }
 
-        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = uint32_t(bindings.size());
-        layoutInfo.pBindings = bindings.data();
-        layoutInfo.pNext = nullptr;
-        FATAL_VKRESULT(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[i]), qPrintable("create descriptor set layout for set " + QString(set)));
+        for (auto& images : m_images) {
+            for (ImageInfo& image : images) {
+                image.descriptor.writeSet = {};
+                image.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                image.descriptor.writeSet.dstSet = *image.descriptor.descriptorSet;
+                image.descriptor.writeSet.dstBinding = image.descriptor.binding;
+                image.descriptor.writeSet.dstArrayElement = 0;
+                image.descriptor.writeSet.descriptorType = image.descriptor.layoutBinding.descriptorType;
+                image.descriptor.writeSet.descriptorCount = 1;
+                image.descriptor.writeSet.pImageInfo = &image.imageInfo;
+                writes.push_back(image.descriptor.writeSet);
+            }
+        }
+
+        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
     }
-
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_descriptorPool;
-    allocInfo.descriptorSetCount = uint32_t(m_descriptorLayouts.size());
-    allocInfo.pSetLayouts = m_descriptorLayouts.data();
-
-    FATAL_VKRESULT(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate all descriptor sets");
-
-    QVector<VkWriteDescriptorSet> writes;
-    for (auto& buffers : m_buffers) {
-        for (BufferInfo& buffer : buffers) {
-            buffer.descriptor.writeSet = {};
-            buffer.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            buffer.descriptor.writeSet.dstSet = *buffer.descriptor.descriptorSet;
-            buffer.descriptor.writeSet.dstBinding = buffer.descriptor.binding;
-            buffer.descriptor.writeSet.dstArrayElement = 0;
-            buffer.descriptor.writeSet.descriptorType = buffer.descriptor.layoutBinding.descriptorType;
-            buffer.descriptor.writeSet.descriptorCount = 1;
-            buffer.descriptor.writeSet.pBufferInfo = &buffer.bufferInfo;
-            writes.push_back(buffer.descriptor.writeSet);
-        }
-    }
-
-    for (auto& images : m_images) {
-        for (ImageInfo& image : images) {
-            image.descriptor.writeSet = {};
-            image.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            image.descriptor.writeSet.dstSet = *image.descriptor.descriptorSet;
-            image.descriptor.writeSet.dstBinding = image.descriptor.binding;
-            image.descriptor.writeSet.dstArrayElement = 0;
-            image.descriptor.writeSet.descriptorType = image.descriptor.layoutBinding.descriptorType;
-            image.descriptor.writeSet.descriptorCount = 1;
-            image.descriptor.writeSet.pImageInfo = &image.imageInfo;
-            writes.push_back(image.descriptor.writeSet);
-        }
-    }
-
-    m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
 }
 
 Descriptors::~Descriptors() {
@@ -191,11 +161,48 @@ const QVector<VkPushConstantRange>& Descriptors::PushConstantRanges() const {
     return m_pushConstantRanges;
 }
 
-BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, SpirvResource resource) {
+void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap) {
+    for (auto key : layoutMap.keys()) {
+        DescriptorInfo descriptor = {};
+        descriptor.set = key.first;
+        descriptor.binding = key.second;
+        descriptor.resource = layoutMap[key];
+        descriptor.type = layoutMap[key]->group->Group();
+        if (descriptor.type == SpvGroupname::UNIFORM_BUFFER || descriptor.type == SpvGroupname::STORAGE_BUFFER) {
+            m_buffers[key.first].push_back(CreateBuffer(descriptor, layoutMap[key]));
+            if (descriptor.type == SpvGroupname::UNIFORM_BUFFER) {
+                poolSizes[0].descriptorCount++;
+                poolSizes[1].descriptorCount++;
+            }
+            else {
+                poolSizes[2].descriptorCount++;
+                poolSizes[3].descriptorCount++;
+            }
+        }
+        else if (descriptor.type == SpvGroupname::IMAGE) {
+            ImageInfo info = {};
+            info.descriptor = descriptor;
+            CreateImage(info, "default.png");
+            m_images[key.first].push_back(info);
+            if (descriptor.type == SpvGroupname::SAMPLER_IMAGE) {
+                poolSizes[4].descriptorCount++;
+            }
+            else {
+                poolSizes[5].descriptorCount++;
+            }
+        }
+        else {
+            qWarning("Unsupported resource in shader.");
+        }
+        sets.insert(key.first);
+    }
+}
+
+BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* resource) {
     BufferInfo info = {};
-    info.usage = dinfo.type == SpirvResourceType::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    info.usage = dinfo.type == SpvGroupname::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     info.descriptor = dinfo;
-    info.descriptor.allocation = m_allocator->Allocate(resource.size, info.usage, resource.name);
+    info.descriptor.allocation = m_allocator->Allocate(((SpvStructType*)resource->type)->size, info.usage, resource->name);
 
     info.bufferInfo = {};
     info.bufferInfo.buffer = info.descriptor.allocation.buffer;
@@ -205,7 +212,7 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, SpirvResource resour
     info.descriptor.layoutBinding = {};
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.descriptorCount = 1;
-    info.descriptor.layoutBinding.descriptorType = dinfo.type == SpirvResourceType::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    info.descriptor.layoutBinding.descriptorType = dinfo.type == SpvGroupname::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     info.descriptor.layoutBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
@@ -221,7 +228,8 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
      // TODO allow better customisation for images
     VkImageCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    createInfo.usage = imageInfo.descriptor.type == SpirvResourceType::SAMPLER_IMAGE ? VK_IMAGE_USAGE_SAMPLED_BIT : VK_IMAGE_USAGE_STORAGE_BIT;
+    createInfo.usage = ((SpvImageType*)imageInfo.descriptor.resource->type)->sampled ?
+                VK_IMAGE_USAGE_SAMPLED_BIT : VK_IMAGE_USAGE_STORAGE_BIT;
     createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.flags = 0;
     createInfo.pNext = nullptr;
@@ -237,7 +245,7 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     size_t size = size_t(image.width()) * size_t(image.height()) * 4;
-    imageInfo.descriptor.allocation = m_allocator->Allocate(size, createInfo, imageInfo.resource.name);
+    imageInfo.descriptor.allocation = m_allocator->Allocate(size, createInfo, imageInfo.descriptor.resource->name);
 
     m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image);
 
@@ -282,17 +290,18 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
     imageInfo.descriptor.layoutBinding = {};
     imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
     imageInfo.descriptor.layoutBinding.descriptorCount = 1;
-    imageInfo.descriptor.layoutBinding.descriptorType = imageInfo.descriptor.type == SpirvResourceType::SAMPLER_IMAGE ?
+    imageInfo.descriptor.layoutBinding.descriptorType = ((SpvImageType*)imageInfo.descriptor.resource->type)->sampled ?
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
     imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     imageInfo.descriptor.layoutBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 }
 
-PushConstantInfo Descriptors::CreatePushConstant(SpirvResource& resource) {
+PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {
     PushConstantInfo info = {};
-    info.stage = resource.stage;
-    info.data.resize(int(resource.size));
+    info.stage = ((SpvPushConstantGroup*)resource->group)->stage;
+    info.data.resize(int(((SpvStructType*)resource->type)->size));
+    info.resource = resource;
     return info;
 }
 

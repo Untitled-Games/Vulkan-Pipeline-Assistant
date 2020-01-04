@@ -3,7 +3,7 @@
 #include <QFile>
 #include <QCoreApplication>
 
-#include "PipelineConfig.h"
+#include "pipelineconfig.h"
 #include "vulkanmain.h"
 
 using namespace vpa;
@@ -26,6 +26,16 @@ void ShaderAnalytics::Destroy() {
     }
     memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
     memset(m_compilers, NULL, sizeof(m_compilers));
+
+    for (SpvResource* resource : m_inputAttributes) {
+        delete resource;
+    }
+    for (SpvResource* resource : m_pushConstants) {
+        delete resource;
+    }
+    for (SpvResource* resource : m_descriptorLayoutMap.values()) {
+        delete resource;
+    }
 }
 
 void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, const QString& tesc, const QString& tese, const QString& geom) {
@@ -46,7 +56,9 @@ void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, cons
     if (tese != "") CreateModule(ShaderStage::TESS_EVAL, tese);
     if (geom != "") CreateModule(ShaderStage::GEOMETRY, geom);
 
-    AnalyseDescriptorLayout();
+    BuildPushConstants();
+    BuildInputAttributes();
+    BuildDescriptorLayoutMap();
     qDebug("Loaded shaders.");
 }
 
@@ -70,47 +82,8 @@ void ShaderAnalytics::SetShader(ShaderStage stage, const QString& name) {
     CreateModule(stage, name);
 }
 
-QVector<SpirvResource> ShaderAnalytics::InputAttributes() {
-    size_t vertexIdx = size_t(ShaderStage::VERTEX);
-    SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
-    QVector<SpirvResource> attribs(stageInputs.size());
-    for (int i = 0; i < stageInputs.size(); ++i) {
-        attribs[i].name = QString::fromStdString(stageInputs[i].name);
-        attribs[i].stage = ShaderStage::VERTEX;
-        attribs[i].resourceType = SpirvResourceType::INPUT_ATTRIBUTE;
-        attribs[i].spirvResource = &stageInputs[i];
-        attribs[i].compiler = m_compilers[vertexIdx];
-        attribs[i].size = CalculateResourceSize(attribs[i].compiler, attribs[i].spirvResource);
-    }
-    return attribs;
-}
-
-size_t ShaderAnalytics::NumColourAttachments() {
+size_t ShaderAnalytics::NumColourAttachments() const {
     return m_modules[size_t(ShaderStage::FRAGMENT)] != VK_NULL_HANDLE ? m_resources[size_t(ShaderStage::FRAGMENT)].stage_outputs.size() : 0;
-}
-
-DescriptorLayoutMap& ShaderAnalytics::DescriptorLayoutMap() {
-    return m_descriptorLayoutMap;
-}
-
-QVector<SpirvResource> ShaderAnalytics::PushConstantRange(ShaderStage stage) {
-    if (m_modules[size_t(stage)] != VK_NULL_HANDLE) {
-        size_t stageIdx = size_t(stage);
-        SmallVector<Resource>& pushConstantsBuffers = m_resources[stageIdx].push_constant_buffers;
-        QVector<SpirvResource> resources(pushConstantsBuffers.size());
-        for (size_t i = 0; i < pushConstantsBuffers.size(); ++i) {
-            resources[i].name = QString::fromStdString(pushConstantsBuffers[i].name);
-            resources[i].stage = stage;
-            resources[i].resourceType = SpirvResourceType::PUSH_CONSTANT;
-            resources[i].spirvResource = &pushConstantsBuffers[i];
-            resources[i].compiler = m_compilers[stageIdx];
-            resources[i].size = CalculateResourceSize(resources[i].compiler, resources[i].spirvResource);
-        }
-        return resources;
-    }
-    else {
-        return { };
-    }
 }
 
 void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
@@ -128,7 +101,7 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     memset(&shaderInfo, 0, sizeof(shaderInfo));
     shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shaderInfo.codeSize = blob.size();
-    shaderInfo.pCode = reinterpret_cast<const uint32_t *>(blob.constData());
+    shaderInfo.pCode = reinterpret_cast<const uint32_t*>(blob.constData());
     VkShaderModule shaderModule = VK_NULL_HANDLE;
     WARNING_VKRESULT(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &shaderModule), "shader module creation");
 
@@ -145,63 +118,173 @@ void ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
     m_config->writablePipelineConfig.shaderBlobs[size_t(stage)] = blob;
 }
 
-size_t ShaderAnalytics::CalculateResourceSize(Compiler* compiler, Resource* res) {
-    SPIRType type = compiler->get_type(res->base_type_id);
-    if (type.basetype == SPIRType::Struct) {
-        return compiler->get_declared_struct_size(type);
+size_t ShaderAnalytics::GetComponentSize(const SPIRType& spirType) {
+    if (spirType.basetype == SPIRType::Boolean || spirType.basetype == SPIRType::Int || spirType.basetype == SPIRType::UInt ||
+            spirType.basetype == SPIRType::Float) {
+        return sizeof(uint32_t);
+    }
+    else if(spirType.basetype == SPIRType::Int64 || spirType.basetype == SPIRType::UInt64 || spirType.basetype == SPIRType::Double) {
+        return sizeof(uint64_t);
+    }
+    else if(spirType.basetype == SPIRType::Short || spirType.basetype == SPIRType::UShort || spirType.basetype == SPIRType::Half) {
+        return sizeof(uint16_t);
+    }
+    else if (spirType.basetype == SPIRType::SByte || spirType.basetype == SPIRType::UByte) {
+        return sizeof(uint8_t);
     }
     else {
-        size_t size = 0;
-        if (type.basetype == SPIRType::Boolean || type.basetype == SPIRType::Int || type.basetype == SPIRType::UInt ||
-                type.basetype == SPIRType::Float) {
-            size = sizeof(uint32_t);
-        }
-        else if(type.basetype == SPIRType::Int64 || type.basetype == SPIRType::UInt64 || type.basetype == SPIRType::Double) {
-            size = sizeof(uint64_t);
-        }
-        else if(type.basetype == SPIRType::Short || type.basetype == SPIRType::UShort || type.basetype == SPIRType::Half) {
-            size = sizeof(uint16_t);
-        }
-        else {
-            return 0; // For Unknown, Void, SByte, UByte, AtomicCounter, Image, SampledImage, Sampler, AccelerationStructureNV
-        }
-        size *= type.vecsize;
-        size *= type.columns;
-        //size *= type.width;
-        for (size_t i = 0; i < type.array.size(); ++i) {
-            if (type.array_size_literal[i]) size *= type.array[i];
-            else qWarning("Unsized array, size is unknown and shader cannot be used.");
-        }
-        return size;
+        return 0; // For Unknown, Void, AtomicCounter, Sampler, AccelerationStructureNV
     }
 }
 
-void ShaderAnalytics::AnalyseDescriptorLayout() {
+SpvType* ShaderAnalytics::CreateVectorType(const SPIRType& spirType) {
+    SpvVectorType* type = new SpvVectorType();
+    type->length = spirType.vecsize;
+    type->size = GetComponentSize(spirType) * spirType.vecsize;
+    return type;
+}
+
+SpvType* ShaderAnalytics::CreateMatrixType(const SPIRType& spirType) {
+    SpvMatrixType* type = new SpvMatrixType();
+    type->columns = spirType.columns;
+    type->rows = spirType.vecsize;
+    type->size = GetComponentSize(spirType) * type->columns * type->rows;
+    return type;
+}
+
+SpvType* ShaderAnalytics::CreateImageType(const SPIRType& spirType) {
+    SpvImageType* type = new SpvImageType();
+    type->size = 0;
+    type->imageTypename = spirType.image.dim == spv::Dim1D ? SpvImageTypename::TEX1D :
+                                           spirType.image.dim == spv::Dim2D ? SpvImageTypename::TEX2D :
+                                           spirType.image.dim == spv::Dim3D ? SpvImageTypename::TEX3D :
+                                           spirType.image.dim == spv::DimCube ? SpvImageTypename::TEX_CUBE :
+                                           SpvImageTypename::TEX_UNKNOWN;
+    type->isDepth = spirType.image.depth;
+    type->isArrayed = spirType.image.arrayed;
+    type->sampled = spirType.image.sampled == 1;
+    type->multisampled = spirType.image.ms;
+    type->format = VkFormat::VK_FORMAT_UNDEFINED; // TODO conversions from spirv cross image format to VkFormat
+    return type;
+}
+
+SpvType* ShaderAnalytics::CreateArrayType(spirv_cross::Compiler* compiler, const SPIRType& spirType) {
+    SpvArrayType* type = new SpvArrayType();
+    for (size_t i = 0; i < spirType.array.size(); ++i) {
+        if (spirType.array_size_literal[i]) { // TODO test unsized arrays
+            type->lengths[i] = spirType.array[i];
+        }
+        else {
+            type->lengths[i] = 1; // Unsized and specialisation constant arrays set as 1
+        }
+    }
+    type->subtype = CreateType(compiler, spirType, true);
+    type->size = type->subtype->size;
+    for (int i = 0; i < type->lengths.size(); ++i){
+        type->size *= type->lengths[i];
+    }
+
+    return type;
+}
+
+SpvType* ShaderAnalytics::CreateStructType(spirv_cross::Compiler* compiler, const SPIRType& spirType) {
+    SpvStructType* type = new SpvStructType();
+    type->size = compiler->get_declared_struct_size(spirType);
+
+    uint32_t memberCount = uint32_t(spirType.member_types.size());
+    type->members.resize(int(memberCount));
+    type->memberOffsets.resize(int(memberCount));
+    for (uint32_t i = 0; i < memberCount; ++i) {
+        type->members[i] = CreateType(compiler, compiler->get_type(spirType.member_types[i]));
+        type->members[i]->name = QString::fromStdString(compiler->get_member_name(spirType.self, i));
+        type->members[i]->size = compiler->get_declared_struct_member_size(spirType, i);
+        type->memberOffsets[i] = compiler->type_struct_member_offset(spirType, i);
+    } // TODO test structs of structs
+    return type;
+}
+
+SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, spirv_cross::Resource& res) {
+    return CreateType(compiler, compiler->get_type(res.base_type_id));
+}
+
+SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, const spirv_cross::SPIRType& spirType, bool ignoreArray) {
+    SpvType* type;
+    if (spirType.basetype == SPIRType::Image || spirType.basetype == SPIRType::SampledImage) {
+        type = CreateImageType(spirType);
+    }
+    else if (spirType.basetype == SPIRType::Struct) {
+        type = CreateStructType(compiler, spirType);
+    }
+    else if (!spirType.array.empty() && !ignoreArray) {
+        type = CreateArrayType(compiler, spirType);
+    }
+    else if (spirType.columns > 1) {
+        type = CreateMatrixType(spirType);
+    }
+    else {
+        type = CreateVectorType(spirType);
+    }
+    // TODO test, is it possible to have columns = 0? e.g. with just a uniform { float f }
+    type->name = "";
+    return type;
+}
+
+void ShaderAnalytics::BuildPushConstants() {
+    for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
+        if (m_modules[i] != VK_NULL_HANDLE) {
+            SmallVector<Resource>& pushConstantsBuffers = m_resources[i].push_constant_buffers;
+            for (size_t j = 0; j < pushConstantsBuffers.size(); ++j) {
+                SpvResource* resource = new SpvResource();
+                resource->name = QString::fromStdString(pushConstantsBuffers[j].name);
+                resource->group = new SpvPushConstantGroup(ShaderStage(i));
+                resource->type = CreateType(m_compilers[i], pushConstantsBuffers[j]);
+                m_pushConstants.push_back(resource);
+            }
+        }
+    }
+}
+
+void ShaderAnalytics::BuildInputAttributes() {
+    size_t vertexIdx = size_t(ShaderStage::VERTEX);
+    SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
+    m_inputAttributes.resize(int(stageInputs.size()));
+    for (size_t i = 0; i < stageInputs.size(); ++i) {
+        m_inputAttributes[i] = new SpvResource();
+        m_inputAttributes[i]->name = QString::fromStdString(stageInputs[i].name);
+        m_inputAttributes[i]->group = new SpvInputAttribGroup(m_compilers[vertexIdx]->get_decoration(stageInputs[i].id, spv::DecorationLocation));
+        m_inputAttributes[i]->type = CreateType(m_compilers[vertexIdx], stageInputs[i]); // TODO need something to calculate the type and put it here
+    }
+}
+
+void ShaderAnalytics::BuildDescriptorLayoutMap() {
     for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
         if (m_modules[i] != VK_NULL_HANDLE) {
             // Use binding and set as key and add to map. If key exists and the resources are different then the shaders are not compatible.
             QVector<SmallVector<Resource>> descriptorResources = { m_resources[i].sampled_images, m_resources[i].storage_images,
                                                                    m_resources[i].storage_buffers, m_resources[i].uniform_buffers };
-            QVector<SpirvResourceType> types = { SpirvResourceType::SAMPLER_IMAGE, SpirvResourceType::STORAGE_IMAGE,
-                                                 SpirvResourceType::STORAGE_BUFFER, SpirvResourceType::UNIFORM_BUFFER };
+            QVector<SpvGroupname> groups = { SpvGroupname::IMAGE, SpvGroupname::IMAGE,
+                                             SpvGroupname::STORAGE_BUFFER, SpvGroupname::UNIFORM_BUFFER };
+
             for (size_t k = 0 ; k < descriptorResources.size(); ++k) {
                 for (auto& resource : descriptorResources[k]) {
                     uint32_t set = m_compilers[i]->get_decoration(resource.id, spv::DecorationDescriptorSet);
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
-                    SpirvResource res = {
-                        QString::fromStdString(m_compilers[i]->get_name(resource.id)),
-                        CalculateResourceSize(m_compilers[i], &resource),
-                        ShaderStage(i),
-                        types[k],
-                        &resource,
-                        m_compilers[i]
-                    };
+                    SpvResource* res = new SpvResource();
+                    res->name = QString::fromStdString(m_compilers[i]->get_name(resource.id));
+                    res->group = new SpvDescriptorGroup(set, binding, StageToVkStageFlag(ShaderStage(i)), groups[k]);
+                    res->type = CreateType(m_compilers[i], resource);
+
                     auto key = QPair<uint32_t, uint32_t>(set, binding);
-                    if (m_descriptorLayoutMap.contains(key) && res != m_descriptorLayoutMap[key]) {
-                        qWarning("Duplicate set and binding found, but with different values. Shaders are not compatible.");
+                    if (m_descriptorLayoutMap.contains(key)) {
+                        if (res != m_descriptorLayoutMap[key]) {
+                            qFatal("Duplicate set and binding found, but with different values. Shaders are not compatible.");
+                        }
+                        else {
+                            // TODO add stage flag to existing
+                        }
                     }
                     else {
-                        m_descriptorLayoutMap[key] = res;
+                        m_descriptorLayoutMap.insert(key, res);
                     }
                 }
             }

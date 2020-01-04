@@ -14,8 +14,9 @@ namespace vpa {
         uint32_t binding;
         VkDescriptorSetLayoutBinding layoutBinding;
         VkWriteDescriptorSet writeSet;
-        SpirvResourceType type;
+        SpvGroupname type;
         Allocation allocation;
+        SpvResource* resource;
         VkDescriptorSet* descriptorSet;
     };
 
@@ -29,19 +30,19 @@ namespace vpa {
         VkDescriptorImageInfo imageInfo;
         VkImageView view;
         VkSampler sampler;
-        SpirvResource resource;
         DescriptorInfo descriptor;
     };
 
     struct PushConstantInfo {
         ShaderStage stage;
+        SpvResource* resource;
         QVector<unsigned char> data;
     };
 
     class Descriptors {
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    DescriptorLayoutMap& layoutMap, QVector<SpirvResource> pushConstants);
+                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
         ~Descriptors();
 
         int BufferCount() { return m_buffers.size(); }
@@ -63,9 +64,10 @@ namespace vpa {
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
 
     private:
-        BufferInfo CreateBuffer(DescriptorInfo& descriptor, SpirvResource resource);
+        void BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
+        BufferInfo CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource);
         void CreateImage(ImageInfo& imageInfo, const QString& name);
-        PushConstantInfo CreatePushConstant(SpirvResource& resource);
+        PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
 
         void DestroyImage(ImageInfo& imageInfo);

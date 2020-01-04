@@ -359,11 +359,7 @@ void VulkanRenderer::CreateShaders() {
 
     // Determine new descriptor layout
     if (m_descriptors) delete m_descriptors;
-    QVector<SpirvResource> allPushConstants;
-    for (int i = 0; i < int(ShaderStage::count_); ++i) {
-        allPushConstants.append(m_shaderAnalytics->PushConstantRange(ShaderStage(i)));
-    }
-    m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), allPushConstants);
+    m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges());
 
     // ------- Test data TODO remove when interface complete ------
     QMatrix4x4 model;
