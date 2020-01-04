@@ -12,7 +12,7 @@ using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
 VertexInput::VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                         QVector<SpirvResource> inputResources, QString meshName, bool isIndexed)
+                         QVector<SpvResource*> inputResources, QString meshName, bool isIndexed)
      : m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_indexed(isIndexed), m_indexCount(0) {
     CalculateData(inputResources);
     LoadMesh(meshName, SupportedFormats::OBJ);
@@ -93,25 +93,25 @@ void VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
     qDebug("Loaded mesh %s.obj", qPrintable(meshName));
 }
 
-void VertexInput::CalculateData(QVector<SpirvResource>& inputResources) {
+void VertexInput::CalculateData(QVector<SpvResource*>& inputResources) {
     bool usedPos = false;
     QMap<uint32_t, VertexAttribute> attribData;
     for (int i = 0; i < inputResources.size(); ++i) {
         // TODO allow different attrib sizes than float
         auto& res = inputResources[i];
-        uint32_t location = res.compiler->get_decoration(res.spirvResource->id, spv::DecorationLocation);
-        auto spvType = res.compiler->get_type(res.spirvResource->base_type_id);
-        if (spvType.vecsize == 2) {
+        uint32_t location = ((SpvInputAttribGroup*)inputResources[i]->group)->location;
+        SpvVectorType* type = ((SpvVectorType*)inputResources[i]->type); // TODO deal with other types
+        if (type->length == 2) {
             attribData[location] = VertexAttribute::TEX_COORD;
         }
-        else if (spvType.vecsize == 3 && !usedPos) {
+        else if (type->length == 3 && !usedPos) {
             attribData[location] = VertexAttribute::POSITION;
             usedPos = true;
         }
-        else if (spvType.vecsize == 3) {
+        else if (type->length == 3) {
             attribData[location] = VertexAttribute::NORMAL;
         }
-        else if (spvType.vecsize == 4) {
+        else if (type->length == 4) {
             attribData[location] = VertexAttribute::RGBA_COLOUR;
         }
     }

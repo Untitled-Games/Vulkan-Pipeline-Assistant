@@ -153,7 +153,7 @@ VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSample
 VkSubpassDescription VulkanRenderer::makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences, VkAttachmentReference* depthReference, VkAttachmentReference* resolve) {
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = static_cast<uint32_t>(colourReferences.size());
+    subpass.colorAttachmentCount = uint32_t(colourReferences.size());
     subpass.pColorAttachments = colourReferences.data();
     subpass.pDepthStencilAttachment = depthReference;
     subpass.pResolveAttachments = resolve;
@@ -359,11 +359,7 @@ void VulkanRenderer::CreateShaders() {
 
     // Determine new descriptor layout
     if (m_descriptors) delete m_descriptors;
-    QVector<SpirvResource> allPushConstants;
-    for (int i = 0; i < int(ShaderStage::count_); ++i) {
-        allPushConstants.append(m_shaderAnalytics->PushConstantRange(ShaderStage(i)));
-    }
-    m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), allPushConstants);
+    m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges());
 
     // ------- Test data TODO remove when interface complete ------
     QMatrix4x4 model;
