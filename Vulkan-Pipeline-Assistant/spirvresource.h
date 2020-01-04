@@ -31,15 +31,15 @@ namespace vpa {
         }
     }
 
-    enum class SpvGroupname {
+    enum class SpvGroupName {
         INPUT_ATTRIBUTE, UNIFORM_BUFFER, STORAGE_BUFFER, PUSH_CONSTANT, IMAGE, count_
     };
 
-    extern const QString SpvGroupnameStrings[size_t(SpvGroupname::count_)];
+    extern const QString SpvGroupnameStrings[size_t(SpvGroupName::count_)];
 
     struct SpvGroup {
         virtual ~SpvGroup() { }
-        virtual SpvGroupname Group() const = 0;
+        virtual SpvGroupName Group() const = 0;
         virtual bool operator==(const SpvGroup* other) const = 0;
         virtual QDebug& Print(QDebug& stream) const = 0;
     };
@@ -48,8 +48,8 @@ namespace vpa {
         uint32_t location;
 
         SpvInputAttribGroup(uint32_t location) : location(location) { }
-        SpvGroupname Group() const override {
-            return SpvGroupname::INPUT_ATTRIBUTE;
+        SpvGroupName Group() const override {
+            return SpvGroupName::INPUT_ATTRIBUTE;
         }
         bool operator==(const SpvGroup* other) const override {
             return Group() == other->Group() &&
@@ -64,8 +64,8 @@ namespace vpa {
         ShaderStage stage;
 
         SpvPushConstantGroup(ShaderStage stage) : stage(stage) { }
-        SpvGroupname Group() const override {
-            return SpvGroupname::PUSH_CONSTANT;
+        SpvGroupName Group() const override {
+            return SpvGroupName::PUSH_CONSTANT;
         }
         bool operator==(const SpvGroup* other) const override {
             return Group() == other->Group() &&
@@ -80,12 +80,12 @@ namespace vpa {
         uint32_t set;
         uint32_t binding;
         VkShaderStageFlags stageFlags; // Can have multiple stages, so compress to a flag
-        SpvGroupname group;
+        SpvGroupName group;
 
-        SpvDescriptorGroup(uint32_t set, uint32_t binding, VkShaderStageFlags stageFlags, SpvGroupname group)
+        SpvDescriptorGroup(uint32_t set, uint32_t binding, VkShaderStageFlags stageFlags, SpvGroupName group)
             : set(set), binding(binding), stageFlags(stageFlags), group(group) { }
         void AddStageFlag(VkShaderStageFlagBits flag) { stageFlags |= flag; }
-        SpvGroupname Group() const override {
+        SpvGroupName Group() const override {
             return group;
         }
         bool operator==(const SpvGroup* other) const override {
@@ -103,37 +103,37 @@ namespace vpa {
         return stream;
     }
 
-    enum class SpvTypename {
+    enum class SpvTypeName {
         IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_
     };
 
-    enum class SpvImageTypename {
+    enum class SpvImageTypeName {
         TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN, count_ //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
     };
 
-    extern const QString SpvTypenameStrings[size_t(SpvTypename::count_)];
-    extern const QString SpvImageTypenameStrings[size_t(SpvImageTypename::count_)];
+    extern const QString SpvTypenameStrings[size_t(SpvTypeName::count_)];
+    extern const QString SpvImageTypenameStrings[size_t(SpvImageTypeName::count_)];
 
     struct SpvType {
         QString name;
         size_t size; // byte size
 
         virtual ~SpvType() { }
-        virtual SpvTypename Type() const = 0;
+        virtual SpvTypeName Type() const = 0;
         virtual bool operator==(const SpvType* other) const = 0;
         virtual QDebug& Print(QDebug& stream) const = 0;
     };
 
     struct SpvImageType : public SpvType {
-        SpvImageTypename imageTypename;
+        SpvImageTypeName imageTypename;
         bool multisampled;
         bool isDepth;
         bool isArrayed; // TODO deal with arrayed images
         bool sampled; // true is sampler/texture, false is image load/store
         VkFormat format; // Only matters for image load/store
 
-        SpvTypename Type() const override {
-            return SpvTypename::IMAGE;
+        SpvTypeName Type() const override {
+            return SpvTypeName::IMAGE;
         }
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&
@@ -157,8 +157,8 @@ namespace vpa {
         ~SpvArrayType() override {
             if (subtype) delete subtype;
         }
-        SpvTypename Type() const override {
-            return SpvTypename::ARRAY;
+        SpvTypeName Type() const override {
+            return SpvTypeName::ARRAY;
         }
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&
@@ -179,8 +179,8 @@ namespace vpa {
     struct SpvVectorType : public SpvType {
         size_t length; // number of elements
 
-        SpvTypename Type() const override {
-            return SpvTypename::VECTOR;
+        SpvTypeName Type() const override {
+            return SpvTypeName::VECTOR;
         }
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&
@@ -195,8 +195,8 @@ namespace vpa {
         size_t rows;
         size_t columns;
 
-        SpvTypename Type() const override {
-            return SpvTypename::MATRIX;
+        SpvTypeName Type() const override {
+            return SpvTypeName::MATRIX;
         }
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&
@@ -217,8 +217,8 @@ namespace vpa {
                 if (member) delete member;
             }
         }
-        SpvTypename Type() const override {
-            return SpvTypename::STRUCT;
+        SpvTypeName Type() const override {
+            return SpvTypeName::STRUCT;
         }
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&

@@ -14,7 +14,7 @@ namespace vpa {
         uint32_t binding;
         VkDescriptorSetLayoutBinding layoutBinding;
         VkWriteDescriptorSet writeSet;
-        SpvGroupname type;
+        SpvGroupName type;
         Allocation allocation;
         SpvResource* resource;
     };

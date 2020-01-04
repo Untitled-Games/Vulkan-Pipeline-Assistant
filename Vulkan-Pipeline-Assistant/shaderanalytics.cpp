@@ -10,15 +10,15 @@ using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
 const QString vpa::ShaderStageStrings[size_t(ShaderStage::count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
-const QString vpa::SpvGroupnameStrings[size_t(SpvGroupname::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
-const QString vpa::SpvTypenameStrings[size_t(SpvTypename::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
-const QString vpa::SpvImageTypenameStrings[size_t(SpvImageTypename::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+const QString vpa::SpvGroupnameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
+const QString vpa::SpvTypenameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
+const QString vpa::SpvImageTypenameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
 
-enum class SpvTypename {
+enum class SpvTypeName {
     IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_
 };
 
-enum class SpvImageTypename {
+enum class SpvImageTypeName {
     TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN, count_ //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
 };
 ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config)
@@ -179,11 +179,11 @@ SpvType* ShaderAnalytics::CreateMatrixType(const SPIRType& spirType) {
 SpvType* ShaderAnalytics::CreateImageType(const SPIRType& spirType) {
     SpvImageType* type = new SpvImageType();
     type->size = 0;
-    type->imageTypename = spirType.image.dim == spv::Dim1D ? SpvImageTypename::TEX1D :
-                                           spirType.image.dim == spv::Dim2D ? SpvImageTypename::TEX2D :
-                                           spirType.image.dim == spv::Dim3D ? SpvImageTypename::TEX3D :
-                                           spirType.image.dim == spv::DimCube ? SpvImageTypename::TEX_CUBE :
-                                           SpvImageTypename::TEX_UNKNOWN;
+    type->imageTypename = spirType.image.dim == spv::Dim1D ? SpvImageTypeName::TEX1D :
+                                           spirType.image.dim == spv::Dim2D ? SpvImageTypeName::TEX2D :
+                                           spirType.image.dim == spv::Dim3D ? SpvImageTypeName::TEX3D :
+                                           spirType.image.dim == spv::DimCube ? SpvImageTypeName::TEX_CUBE :
+                                           SpvImageTypeName::TEX_UNKNOWN;
     type->isDepth = spirType.image.depth;
     type->isArrayed = spirType.image.arrayed;
     type->sampled = spirType.image.sampled == 1;
@@ -292,8 +292,8 @@ void ShaderAnalytics::BuildDescriptorLayoutMap() {
             // Use binding and set as key and add to map. If key exists and the resources are different then the shaders are not compatible.
             QVector<SmallVector<Resource>> descriptorResources = { m_resources[i].sampled_images, m_resources[i].storage_images,
                                                                    m_resources[i].storage_buffers, m_resources[i].uniform_buffers };
-            QVector<SpvGroupname> groups = { SpvGroupname::IMAGE, SpvGroupname::IMAGE,
-                                             SpvGroupname::STORAGE_BUFFER, SpvGroupname::UNIFORM_BUFFER };
+            QVector<SpvGroupName> groups = { SpvGroupName::IMAGE, SpvGroupName::IMAGE,
+                                             SpvGroupName::STORAGE_BUFFER, SpvGroupName::UNIFORM_BUFFER };
 
             for (int k = 0 ; k < descriptorResources.size(); ++k) {
                 for (auto& resource : descriptorResources[k]) {
