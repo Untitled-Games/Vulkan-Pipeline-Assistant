@@ -151,6 +151,7 @@ namespace vpa {
 
     struct SpvArrayType : public SpvType {
         QVector<size_t> lengths; // num elements
+        QVector<bool> lengthsUnsized; // unsized = true, otherwise false
         SpvType* subtype;
 
         ~SpvArrayType() override {
@@ -166,8 +167,8 @@ namespace vpa {
         }
         QDebug& Print(QDebug& stream) const override {
             stream << "Dimensions " << lengths.size();
-            for (size_t length : lengths) {
-                stream << " [" << length << "]";
+            for (int i = 0; i < lengths.size(); ++i) {
+                stream << " [" << lengths[i] << "]" << " unsized " << lengthsUnsized[i];
             }
             stream << "\n    subtype " << SpvTypenameStrings[size_t(subtype->Type())] << " ";
             subtype->Print(stream);

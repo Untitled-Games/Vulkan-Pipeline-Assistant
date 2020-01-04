@@ -28,7 +28,8 @@ layout(set = 0, binding = 0) uniform MVPBuffer {
 };
 
 layout(set = 2, binding = 2) buffer AnotherOne {
-	NestedStruct arrstruct;
+	NestedStruct structArray[4];
+	NestedStruct s[];
 };
 
 void main() {

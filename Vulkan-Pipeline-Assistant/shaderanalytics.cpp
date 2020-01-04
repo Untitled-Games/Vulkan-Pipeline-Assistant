@@ -194,13 +194,19 @@ SpvType* ShaderAnalytics::CreateImageType(const SPIRType& spirType) {
 
 SpvType* ShaderAnalytics::CreateArrayType(spirv_cross::Compiler* compiler, const SPIRType& spirType) {
     SpvArrayType* type = new SpvArrayType();
-    type->lengths.resize(spirType.array.size());
+    type->lengths.resize(int(spirType.array.size()));
+    type->lengthsUnsized.resize(int(spirType.array.size()));
+    memset(type->lengthsUnsized.data(), false, type->lengthsUnsized.size() * sizeof(bool));
     for (size_t i = 0; i < spirType.array.size(); ++i) {
-        if (spirType.array_size_literal[i]) { // TODO test unsized arrays
+        if (spirType.array_size_literal[i]) {
             type->lengths[i] = spirType.array[i];
+            if (type->lengths[i] == 0) {
+                type->lengths[i] = 1; // Unsized arrays defaulted to length 1
+                type->lengthsUnsized[i] = true;
+            }
         }
         else {
-            type->lengths[i] = 1; // Unsized and specialisation constant arrays set as 1
+            type->lengths[i] = 1; // Specialisation constant arrays set as 1
         }
     }
     type->subtype = CreateType(compiler, spirType, true);
@@ -224,7 +230,7 @@ SpvType* ShaderAnalytics::CreateStructType(spirv_cross::Compiler* compiler, cons
         type->members[i]->name = QString::fromStdString(compiler->get_member_name(spirType.self, i));
         type->members[i]->size = compiler->get_declared_struct_member_size(spirType, i);
         type->memberOffsets[i] = compiler->type_struct_member_offset(spirType, i);
-    } // TODO test structs of structs
+    }
     return type;
 }
 
@@ -234,14 +240,14 @@ SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, spirv_cros
 
 SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, const spirv_cross::SPIRType& spirType, bool ignoreArray) {
     SpvType* type;
-    if (spirType.basetype == SPIRType::Image || spirType.basetype == SPIRType::SampledImage) {
+    if (!spirType.array.empty() && !ignoreArray) {
+        type = CreateArrayType(compiler, spirType);
+    }
+    else if (spirType.basetype == SPIRType::Image || spirType.basetype == SPIRType::SampledImage) {
         type = CreateImageType(spirType);
     }
     else if (spirType.basetype == SPIRType::Struct) {
         type = CreateStructType(compiler, spirType);
-    }
-    else if (!spirType.array.empty() && !ignoreArray) {
-        type = CreateArrayType(compiler, spirType);
     }
     else if (spirType.columns > 1) {
         type = CreateMatrixType(spirType);
@@ -249,7 +255,6 @@ SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, const spir
     else {
         type = CreateVectorType(spirType);
     }
-    // TODO test, is it possible to have columns = 0? e.g. with just an attrib { float f }
     type->name = "";
     return type;
 }
@@ -277,7 +282,7 @@ void ShaderAnalytics::BuildInputAttributes() {
         m_inputAttributes[i] = new SpvResource();
         m_inputAttributes[i]->name = QString::fromStdString(stageInputs[i].name);
         m_inputAttributes[i]->group = new SpvInputAttribGroup(m_compilers[vertexIdx]->get_decoration(stageInputs[i].id, spv::DecorationLocation));
-        m_inputAttributes[i]->type = CreateType(m_compilers[vertexIdx], stageInputs[i]); // TODO need something to calculate the type and put it here
+        m_inputAttributes[i]->type = CreateType(m_compilers[vertexIdx], stageInputs[i]);
     }
 }
 
