@@ -493,23 +493,76 @@ QWidget* MainWindow::MakeMultisampleBlock() {
 QWidget* MainWindow::MakeDepthStencilBlock() {
     QWidget* container = new QWidget(m_rightTopContainer);
 
+    //TODO These (and some others) are all just changing a bool
+    // Write a function to do all of them
     QLabel* testLabel = new QLabel("Test Enable");
     QComboBox* testBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(testBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, testBox](int index){
+        QString text = testBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthTestEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* writeLabel = new QLabel("Write Enable");
     QComboBox* writeBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(writeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, writeBox](int index){
+        QString text = writeBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthWriteEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* boundsLabel = new QLabel("Bounds Enable");
     QComboBox* boundsBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(boundsBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, boundsBox](int index){
+        QString text = boundsBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthBoundsTest = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* stencilLabel = new QLabel("Stencil Test Enable");
     QComboBox* stencilBox = MakeComboBox(container, {"False", "True"});
+    QObject::connect(stencilBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, stencilBox](int index){
+        QString text = stencilBox->currentText();
+        bool value = text == "True" ? true : false;
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.stencilTestEnable = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
+
+    QMap<QString, VkCompareOp> compareOps;
+    compareOps.insert("Never", VK_COMPARE_OP_NEVER);
+    compareOps.insert("Less", VK_COMPARE_OP_LESS);
+    compareOps.insert("Equal", VK_COMPARE_OP_EQUAL);
+    compareOps.insert("Less or Equal", VK_COMPARE_OP_LESS_OR_EQUAL);
+    compareOps.insert("Greater", VK_COMPARE_OP_GREATER);
+    compareOps.insert("Not Equal", VK_COMPARE_OP_NOT_EQUAL);
+    compareOps.insert("Greater or Equal", VK_COMPARE_OP_GREATER_OR_EQUAL);
+    compareOps.insert("Always", VK_COMPARE_OP_ALWAYS);
 
     QLabel* compareLabel = new QLabel("Compare Op");
     QComboBox* compareBox = MakeComboBox(container, {
         "Never", "Less", "Equal", "Less or Equal", "Greater",
         "Not Equal", "Greater or Equal", "Always"
     });
+    QObject::connect(compareBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, compareBox, compareOps](int index){
+        QString text = compareBox->currentText();
+        VkCompareOp value = compareOps.value(text);
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthCompareOp = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
+
 
     QGridLayout* layout = new QGridLayout(container);
     container->setLayout(layout);
