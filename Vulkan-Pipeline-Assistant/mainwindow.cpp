@@ -446,14 +446,38 @@ QWidget* MainWindow::MakeRasterizerBlock() {
 }
 
 QWidget* MainWindow::MakeMultisampleBlock() {
-    QWidget* container = new QWidget(m_rightTopContainer);
+    QMap<QString, VkSampleCountFlagBits> sampleCounts;
+    sampleCounts.insert("1", VK_SAMPLE_COUNT_1_BIT);
+    sampleCounts.insert("2", VK_SAMPLE_COUNT_2_BIT);
+    sampleCounts.insert("4", VK_SAMPLE_COUNT_4_BIT);
+    sampleCounts.insert("8", VK_SAMPLE_COUNT_8_BIT);
+    sampleCounts.insert("16", VK_SAMPLE_COUNT_16_BIT);
+    sampleCounts.insert("32", VK_SAMPLE_COUNT_32_BIT);
+    sampleCounts.insert("64", VK_SAMPLE_COUNT_64_BIT);
 
+    QWidget* container = new QWidget(m_rightTopContainer);
     QLabel* sampleCountLabel = new QLabel("Sample Count", container);
     QComboBox* sampleCountBox = MakeComboBox(container, {"1", "2", "4", "8", "16", "32", "64"});
+    QObject::connect(sampleCountBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, sampleCountBox, sampleCounts](int index){
+        QString text = sampleCountBox->currentText();
+        VkSampleCountFlagBits value = sampleCounts.value(text);
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.msaaSamples = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QLabel* minShadingLabel = new QLabel("Min Sample Shading", container);
     QLineEdit* minShadingBox = new QLineEdit("0.2", container);
     minShadingBox->setValidator(new QDoubleValidator(0.0, 1.0, 3, container));
+    QObject::connect(minShadingBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, minShadingBox](int index) {
+        QString text = minShadingBox->text();
+        float value = float(std::atof(text.toStdString().c_str()));
+        PipelineConfig& config = this->m_vulkan->GetConfig();
+        config.writablePipelineConfig.depthBiasSlopeFactor = value;
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+    });
 
     QGridLayout* layout = new QGridLayout(container);
     container->setLayout(layout);

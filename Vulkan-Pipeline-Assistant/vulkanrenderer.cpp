@@ -282,7 +282,9 @@ void VulkanRenderer::CreatePipeline() {
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = m_config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
-    multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
+    //TODO change this back if multisampling is working
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    //multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
     multisampling.minSampleShading = m_config.writablePipelineConfig.minSampleShading;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
