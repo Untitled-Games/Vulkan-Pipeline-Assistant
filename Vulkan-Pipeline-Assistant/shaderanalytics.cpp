@@ -9,6 +9,18 @@
 using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
+const QString vpa::ShaderStageStrings[size_t(ShaderStage::count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
+const QString vpa::SpvGroupnameStrings[size_t(SpvGroupname::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
+const QString vpa::SpvTypenameStrings[size_t(SpvTypename::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
+const QString vpa::SpvImageTypenameStrings[size_t(SpvImageTypename::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+
+enum class SpvTypename {
+    IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_
+};
+
+enum class SpvImageTypename {
+    TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN, count_ //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
+};
 ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config)
     : m_deviceFuncs(deviceFuncs), m_device(device), m_config(config) {
     memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
@@ -60,6 +72,18 @@ void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, cons
     BuildInputAttributes();
     BuildDescriptorLayoutMap();
     qDebug("Loaded shaders.");
+
+#ifdef QT_DEBUG
+    for (SpvResource* resource : m_inputAttributes) {
+        qDebug() << resource;
+    }
+    for (SpvResource* resource : m_pushConstants) {
+        qDebug() << resource;
+    }
+    for (SpvResource* resource : m_descriptorLayoutMap.values()) {
+        qDebug() << resource;
+    }
+#endif
 }
 
 bool ShaderAnalytics::GetStageCreateInfo(ShaderStage stage, VkPipelineShaderStageCreateInfo& createInfo) {
@@ -170,6 +194,7 @@ SpvType* ShaderAnalytics::CreateImageType(const SPIRType& spirType) {
 
 SpvType* ShaderAnalytics::CreateArrayType(spirv_cross::Compiler* compiler, const SPIRType& spirType) {
     SpvArrayType* type = new SpvArrayType();
+    type->lengths.resize(spirType.array.size());
     for (size_t i = 0; i < spirType.array.size(); ++i) {
         if (spirType.array_size_literal[i]) { // TODO test unsized arrays
             type->lengths[i] = spirType.array[i];
@@ -224,7 +249,7 @@ SpvType* ShaderAnalytics::CreateType(spirv_cross::Compiler* compiler, const spir
     else {
         type = CreateVectorType(spirType);
     }
-    // TODO test, is it possible to have columns = 0? e.g. with just a uniform { float f }
+    // TODO test, is it possible to have columns = 0? e.g. with just an attrib { float f }
     type->name = "";
     return type;
 }
@@ -265,7 +290,7 @@ void ShaderAnalytics::BuildDescriptorLayoutMap() {
             QVector<SpvGroupname> groups = { SpvGroupname::IMAGE, SpvGroupname::IMAGE,
                                              SpvGroupname::STORAGE_BUFFER, SpvGroupname::UNIFORM_BUFFER };
 
-            for (size_t k = 0 ; k < descriptorResources.size(); ++k) {
+            for (int k = 0 ; k < descriptorResources.size(); ++k) {
                 for (auto& resource : descriptorResources[k]) {
                     uint32_t set = m_compilers[i]->get_decoration(resource.id, spv::DecorationDescriptorSet);
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
@@ -280,8 +305,9 @@ void ShaderAnalytics::BuildDescriptorLayoutMap() {
                             qFatal("Duplicate set and binding found, but with different values. Shaders are not compatible.");
                         }
                         else {
-                            // TODO add stage flag to existing
+                            ((SpvDescriptorGroup*)m_descriptorLayoutMap[key]->group)->AddStageFlag(StageToVkStageFlag(ShaderStage(i)));
                         }
+                        delete res;
                     }
                     else {
                         m_descriptorLayoutMap.insert(key, res);

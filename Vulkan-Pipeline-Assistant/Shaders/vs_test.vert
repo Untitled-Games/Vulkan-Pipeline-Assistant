@@ -1,5 +1,16 @@
 #version 450
 
+struct NestedStruct {
+	vec4 vecFour;
+};
+
+struct EverythingStruct {
+	float arr[4][4];
+	vec4 vec;
+	mat4 mat;
+	NestedStruct nstruct;
+};
+
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexcoord;
 layout(location = 2) in vec3 inNormal;
@@ -14,6 +25,10 @@ out gl_PerVertex {
 
 layout(set = 0, binding = 0) uniform MVPBuffer {
 	mat4 mvp;
+};
+
+layout(set = 2, binding = 2) buffer AnotherOne {
+	NestedStruct arrstruct;
 };
 
 void main() {

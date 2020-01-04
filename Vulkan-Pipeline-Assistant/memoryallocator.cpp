@@ -113,7 +113,7 @@ void MemoryAllocator::Deallocate(Allocation& allocation) {
     allocation.size = 0;
 }
 
-void MemoryAllocator::TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image) {
+void MemoryAllocator::TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image, VkPipelineStageFlags finalStageFlags) {
     Allocation stagingAllocation = Allocate(imageAllocation.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging_buffer");
 
     VkImageSubresource subres = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
@@ -164,7 +164,7 @@ void MemoryAllocator::TransferImageMemory(Allocation& imageAllocation, const VkE
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT; // TODO decide how to include storage image with  | VK_ACCESS_SHADER_WRITE_BIT
-    m_deviceFuncs->vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    m_deviceFuncs->vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, finalStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     WARNING_VKRESULT(m_deviceFuncs->vkEndCommandBuffer(m_commandBuffer), qPrintable("end transfer command buffer for allocation '" + imageAllocation.name + "'"));
 

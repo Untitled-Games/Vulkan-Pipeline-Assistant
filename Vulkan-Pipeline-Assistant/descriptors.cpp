@@ -1,8 +1,10 @@
 #include "descriptors.h"
 
 #include <QHash>
+#include <QList>
 #include <QVulkanWindow>
 #include <QVulkanDeviceFunctions>
+#include <algorithm>
 
 #include "vulkanmain.h"
 
@@ -13,7 +15,7 @@ using namespace vpa;
 Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                          const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants)
     : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
-    QSet<uint32_t> sets;
+    QSet<uint32_t> setIndices;
     QVector<VkDescriptorPoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1},
@@ -21,36 +23,38 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
     };
 
     if (!layoutMap.empty()) {
-        BuildDescriptors(sets, poolSizes, layoutMap);
+        BuildDescriptors(setIndices, poolSizes, layoutMap);
     }
     for (auto res : pushConstants) {
         m_pushConstants[((SpvPushConstantGroup*)res->group)->stage] = CreatePushConstant(res);
     }
     BuildPushConstantRanges();
 
-    if (!sets.empty()) {
+    if (!setIndices.empty()) {
+        QVector<uint32_t> setIndicesVec(setIndices.begin(), setIndices.end());
+        std::sort(setIndicesVec.begin(), setIndicesVec.end(), std::less<uint32_t>());
+
         VkDescriptorPoolCreateInfo poolInfo = {};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.flags = 0;
         poolInfo.pNext = nullptr;
         poolInfo.poolSizeCount = uint32_t(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = uint32_t(sets.size());
+        poolInfo.maxSets = uint32_t(setIndicesVec.size());
 
         FATAL_VKRESULT(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool");
 
-        m_descriptorSets.resize(sets.size());
-        m_descriptorLayouts.resize(sets.size());
-        for (int i = 0; i < sets.size(); ++i) {
-            uint32_t set = *(sets.begin() + i);
+        m_descriptorSets.resize(setIndicesVec.size());
+        m_descriptorLayouts.resize(setIndicesVec.size());
+        for (int i = 0; i < setIndicesVec.size(); ++i) {
+            uint32_t set = *(setIndicesVec.begin() + i);
+            m_descriptorSetIndexMap[set] = i;
             QVector<VkDescriptorSetLayoutBinding> bindings;
             for (auto& buf : m_buffers[set]) {
                 bindings.push_back(buf.descriptor.layoutBinding);
-                buf.descriptor.descriptorSet = &m_descriptorSets[i];
             }
             for (auto& img : m_images[set]) {
                 bindings.push_back(img.descriptor.layoutBinding);
-                img.descriptor.descriptorSet = &m_descriptorSets[i];
             }
 
             VkDescriptorSetLayoutCreateInfo layoutInfo = {};
@@ -74,7 +78,7 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
             for (BufferInfo& buffer : buffers) {
                 buffer.descriptor.writeSet = {};
                 buffer.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                buffer.descriptor.writeSet.dstSet = *buffer.descriptor.descriptorSet;
+                buffer.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[buffer.descriptor.set]];
                 buffer.descriptor.writeSet.dstBinding = buffer.descriptor.binding;
                 buffer.descriptor.writeSet.dstArrayElement = 0;
                 buffer.descriptor.writeSet.descriptorType = buffer.descriptor.layoutBinding.descriptorType;
@@ -88,7 +92,7 @@ Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFu
             for (ImageInfo& image : images) {
                 image.descriptor.writeSet = {};
                 image.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                image.descriptor.writeSet.dstSet = *image.descriptor.descriptorSet;
+                image.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[image.descriptor.set]];
                 image.descriptor.writeSet.dstBinding = image.descriptor.binding;
                 image.descriptor.writeSet.dstArrayElement = 0;
                 image.descriptor.writeSet.descriptorType = image.descriptor.layoutBinding.descriptorType;
@@ -184,7 +188,7 @@ void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoo
             info.descriptor = descriptor;
             CreateImage(info, "default.png");
             m_images[key.first].push_back(info);
-            if (descriptor.type == SpvGroupname::SAMPLER_IMAGE) {
+            if (((SpvImageType*)descriptor.resource->type)->sampled) {
                 poolSizes[4].descriptorCount++;
             }
             else {
@@ -215,7 +219,7 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* r
     info.descriptor.layoutBinding.descriptorType = dinfo.type == SpvGroupname::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.pImmutableSamplers = nullptr;
-    info.descriptor.layoutBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+    info.descriptor.layoutBinding.stageFlags = ((SpvDescriptorGroup*)resource->group)->stageFlags;
 
     return info;
 }
@@ -247,7 +251,9 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
     size_t size = size_t(image.width()) * size_t(image.height()) * 4;
     imageInfo.descriptor.allocation = m_allocator->Allocate(size, createInfo, imageInfo.descriptor.resource->name);
 
-    m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image);
+    VkShaderStageFlags shaderStageFlags = ((SpvDescriptorGroup*)imageInfo.descriptor.resource->group)->stageFlags;
+    VkPipelineStageFlags finalStageFlags = StageFlagsToPipelineFlags(shaderStageFlags);
+    m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image, finalStageFlags);
 
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -294,7 +300,7 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
     imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
-    imageInfo.descriptor.layoutBinding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+    imageInfo.descriptor.layoutBinding.stageFlags = shaderStageFlags;
 }
 
 PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {
@@ -315,6 +321,20 @@ void Descriptors::BuildPushConstantRanges() {
         offset += uint32_t(pushConstant.data.size());
         m_pushConstantRanges.push_back(range);
     }
+}
+
+VkPipelineStageFlags Descriptors::StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags) {
+    if (stageFlags & VK_SHADER_STAGE_ALL) return VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    if (stageFlags & VK_SHADER_STAGE_ALL_GRAPHICS) return VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+
+    VkPipelineStageFlags pipelineFlags;
+    if (stageFlags & VK_SHADER_STAGE_VERTEX_BIT) pipelineFlags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    if (stageFlags & VK_SHADER_STAGE_FRAGMENT_BIT) pipelineFlags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    if (stageFlags & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) pipelineFlags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+    if (stageFlags & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) pipelineFlags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    if (stageFlags & VK_SHADER_STAGE_GEOMETRY_BIT) pipelineFlags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+
+    return pipelineFlags;
 }
 
 void Descriptors::DestroyImage(ImageInfo& imageInfo) {

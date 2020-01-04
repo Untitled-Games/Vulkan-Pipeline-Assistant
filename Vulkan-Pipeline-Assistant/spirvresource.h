@@ -5,11 +5,14 @@
 #include <QString>
 #include <QPair>
 #include <QVector>
+#include <QDebug>
 
 namespace vpa {
     enum class ShaderStage {
         VERTEX, FRAGMENT, TESS_CONTROL, TESS_EVAL, GEOMETRY, count_
     };
+
+    extern const QString ShaderStageStrings[size_t(ShaderStage::count_)];
 
     inline VkShaderStageFlagBits StageToVkStageFlag(ShaderStage stage) {
         switch (stage) {
@@ -29,13 +32,16 @@ namespace vpa {
     }
 
     enum class SpvGroupname {
-        INPUT_ATTRIBUTE, UNIFORM_BUFFER, STORAGE_BUFFER, SAMPLER_IMAGE, STORAGE_IMAGE, PUSH_CONSTANT, IMAGE // TODO remove sampler/storage
+        INPUT_ATTRIBUTE, UNIFORM_BUFFER, STORAGE_BUFFER, PUSH_CONSTANT, IMAGE, count_
     };
+
+    extern const QString SpvGroupnameStrings[size_t(SpvGroupname::count_)];
 
     struct SpvGroup {
         virtual ~SpvGroup() { }
         virtual SpvGroupname Group() const = 0;
         virtual bool operator==(const SpvGroup* other) const = 0;
+        virtual QDebug& Print(QDebug& stream) const = 0;
     };
 
     struct SpvInputAttribGroup : public SpvGroup {
@@ -49,6 +55,9 @@ namespace vpa {
             return Group() == other->Group() &&
                     location == ((const SpvInputAttribGroup*)(other))->location;
         }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "location " << location;
+        }
     };
 
     struct SpvPushConstantGroup : public SpvGroup {
@@ -61,6 +70,9 @@ namespace vpa {
         bool operator==(const SpvGroup* other) const override {
             return Group() == other->Group() &&
                     stage == ((const SpvPushConstantGroup*)(other))->stage;
+        }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "stage " << ShaderStageStrings[size_t(stage)];
         }
     };
 
@@ -81,15 +93,26 @@ namespace vpa {
                     set == ((const SpvDescriptorGroup*)(other))->set &&
                     binding == ((const SpvDescriptorGroup*)(other))->binding;
         }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "set " << set << " binding " << binding << " stage flags " << stageFlags;
+        }
     };
+    inline QDebug operator<<(QDebug stream, const SpvGroup* group) {
+        stream << "SpvGroup " << SpvGroupnameStrings[size_t(group->Group())] << " ";
+        group->Print(stream);
+        return stream;
+    }
 
     enum class SpvTypename {
-        IMAGE, ARRAY, VECTOR, MATRIX, STRUCT
+        IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_
     };
 
     enum class SpvImageTypename {
-        TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
+        TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN, count_ //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
     };
+
+    extern const QString SpvTypenameStrings[size_t(SpvTypename::count_)];
+    extern const QString SpvImageTypenameStrings[size_t(SpvImageTypename::count_)];
 
     struct SpvType {
         QString name;
@@ -98,13 +121,14 @@ namespace vpa {
         virtual ~SpvType() { }
         virtual SpvTypename Type() const = 0;
         virtual bool operator==(const SpvType* other) const = 0;
+        virtual QDebug& Print(QDebug& stream) const = 0;
     };
 
     struct SpvImageType : public SpvType {
         SpvImageTypename imageTypename;
         bool multisampled;
         bool isDepth;
-        bool isArrayed;
+        bool isArrayed; // TODO deal with arrayed images
         bool sampled; // true is sampler/texture, false is image load/store
         VkFormat format; // Only matters for image load/store
 
@@ -117,6 +141,11 @@ namespace vpa {
                     isDepth == ((const SpvImageType*)(other))->isDepth &&
                     isArrayed == ((const SpvImageType*)(other))->isArrayed &&
                     sampled == ((const SpvImageType*)(other))->sampled;
+        }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "Image Type " << SpvImageTypenameStrings[size_t(imageTypename)] <<
+                             " ms " << multisampled << " depth " << isDepth << " arrayed " << isArrayed <<
+                             " sampled " << sampled << " VkFormat " << format;
         }
     };
 
@@ -135,6 +164,15 @@ namespace vpa {
                     lengths == ((const SpvArrayType*)(other))->lengths &&
                     subtype == ((const SpvArrayType*)(other))->subtype;
         }
+        QDebug& Print(QDebug& stream) const override {
+            stream << "Dimensions " << lengths.size();
+            for (size_t length : lengths) {
+                stream << " [" << length << "]";
+            }
+            stream << "\n    subtype " << SpvTypenameStrings[size_t(subtype->Type())] << " ";
+            subtype->Print(stream);
+            return stream;
+        }
     };
 
     struct SpvVectorType : public SpvType {
@@ -146,6 +184,9 @@ namespace vpa {
         bool operator==(const SpvType* other) const override {
             return Type() == other->Type() &&
                     length == ((const SpvVectorType*)(other))->length;
+        }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "length " << length;
         }
     };
 
@@ -160,6 +201,9 @@ namespace vpa {
             return Type() == other->Type() &&
                     rows == ((const SpvMatrixType*)(other))->rows &&
                     columns == ((const SpvMatrixType*)(other))->columns;
+        }
+        QDebug& Print(QDebug& stream) const override {
+            return stream << "rows " << rows << " columns " << columns;
         }
     };
 
@@ -179,7 +223,21 @@ namespace vpa {
             return Type() == other->Type() &&
                     members == ((const SpvStructType*)(other))->members;
         }
+        QDebug& Print(QDebug& stream) const override {
+            for (int i = 0; i < members.size(); ++i) {
+                stream << "\n   Member " << i << " offset " << memberOffsets[i] << " " <<
+                          SpvTypenameStrings[size_t(members[i]->Type())] << " ";
+                members[i]->Print(stream);
+            }
+            return stream;
+        }
     };
+
+    inline QDebug operator<<(QDebug stream, const SpvType* type) {
+        stream << "SpvType " << SpvTypenameStrings[size_t(type->Type())] << " ";
+        type->Print(stream);
+        return stream;
+    }
 
     struct SpvResource {
         QString name;
@@ -200,6 +258,12 @@ namespace vpa {
             return !operator==(other);
         }
     };
+
+    inline QDebug operator<<(QDebug stream, const SpvResource* res) {
+        return stream << "SpvResource " << res->name << "\n" <<
+                  "   " << res->group << "\n" <<
+                  "   " << res->type;
+    }
 
     using DescriptorLayoutMap = QHash<QPair<uint32_t, uint32_t>, SpvResource*>;
 }

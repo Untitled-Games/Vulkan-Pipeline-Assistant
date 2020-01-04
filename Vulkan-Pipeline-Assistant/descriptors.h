@@ -17,7 +17,6 @@ namespace vpa {
         SpvGroupname type;
         Allocation allocation;
         SpvResource* resource;
-        VkDescriptorSet* descriptorSet;
     };
 
     struct BufferInfo {
@@ -69,7 +68,7 @@ namespace vpa {
         void CreateImage(ImageInfo& imageInfo, const QString& name);
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
-
+        VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);
         void DestroyImage(ImageInfo& imageInfo);
 
         QVulkanWindow* m_window;
@@ -81,6 +80,7 @@ namespace vpa {
         QMap<ShaderStage, PushConstantInfo> m_pushConstants;
 
         QVector<VkPushConstantRange> m_pushConstantRanges;
+        QHash<uint32_t, int> m_descriptorSetIndexMap;
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
         VkDescriptorPool m_descriptorPool;

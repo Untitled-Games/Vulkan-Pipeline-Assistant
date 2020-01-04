@@ -33,7 +33,7 @@ namespace vpa {
         Allocation Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name);
         Allocation Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name);
         void Deallocate(Allocation& allocation);
-        void TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image);
+        void TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image, VkPipelineStageFlags finalStageFlags);
 
     private:
         QVulkanDeviceFunctions* m_deviceFuncs;

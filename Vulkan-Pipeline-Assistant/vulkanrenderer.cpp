@@ -153,7 +153,7 @@ VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSample
 VkSubpassDescription VulkanRenderer::makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences, VkAttachmentReference* depthReference, VkAttachmentReference* resolve) {
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = static_cast<uint32_t>(colourReferences.size());
+    subpass.colorAttachmentCount = uint32_t(colourReferences.size());
     subpass.pColorAttachments = colourReferences.data();
     subpass.pDepthStencilAttachment = depthReference;
     subpass.pResolveAttachments = resolve;
