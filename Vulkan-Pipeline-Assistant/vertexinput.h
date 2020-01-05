@@ -25,7 +25,7 @@ namespace vpa {
     class VertexInput {
     public:
         VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    QVector<SpirvResource> inputResources, QString meshName, bool isIndexed);
+                    QVector<SpvResource*> inputResources, QString meshName, bool isIndexed);
         ~VertexInput();
 
         VkBuffer VertexBuffer() const {
@@ -50,9 +50,9 @@ namespace vpa {
         QVector<VkVertexInputAttributeDescription> InputAttribDescription();
 
     private:
-        void AssignDefaultMeaning(QVector<SpirvResource>& inputResources);
+        void AssignDefaultMeaning(QVector<SpvResource*>& inputResources);
         void LoadMesh(QString& meshName, SupportedFormats format);
-        void CalculateData(QVector<SpirvResource>& inputResources);
+        void CalculateData(QVector<SpvResource*>& inputResources);
         uint32_t CalculateStride();
 
         bool m_indexed;

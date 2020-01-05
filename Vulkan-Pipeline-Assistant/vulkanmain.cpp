@@ -48,7 +48,6 @@ void VulkanMain::CreateVkInstance() {
     if (!m_instance.create()) {
         qFatal("Could not create Vulkan Instance %d", m_instance.errorCode());
     }
-
 }
 
 void VulkanMain::WritePipelineCache() {

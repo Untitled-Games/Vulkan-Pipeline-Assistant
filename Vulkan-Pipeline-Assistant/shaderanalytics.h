@@ -22,15 +22,26 @@ namespace vpa {
         VkShaderModule GetModule(ShaderStage stage);
         void SetShader(ShaderStage stage, const QString& name);
 
-        QVector<SpirvResource> InputAttributes();
-        size_t NumColourAttachments();
-        DescriptorLayoutMap& DescriptorLayoutMap();
-        QVector<SpirvResource> PushConstantRange(ShaderStage stage);
+        size_t NumColourAttachments() const;
+        const QVector<SpvResource*>& InputAttributes() const { return m_inputAttributes; }
+        const DescriptorLayoutMap& DescriptorLayoutMap() const { return m_descriptorLayoutMap; }
+        const QVector<SpvResource*>& PushConstantRanges() const { return m_pushConstants; }
 
     private:
         void CreateModule(ShaderStage stage, const QString& name);
-        size_t CalculateResourceSize(spirv_cross::Compiler* compiler, spirv_cross::Resource* res);
-        void AnalyseDescriptorLayout();
+
+        size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
+        SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);
+        SpvType* CreateMatrixType(const spirv_cross::SPIRType& spirType);
+        SpvType* CreateImageType(const spirv_cross::SPIRType& spirType);
+        SpvType* CreateArrayType(spirv_cross::Compiler* compiler, const spirv_cross::SPIRType& spirType);
+        SpvType* CreateStructType(spirv_cross::Compiler* compiler,const spirv_cross::SPIRType& spirType);
+        SpvType* CreateType(spirv_cross::Compiler* compiler, spirv_cross::Resource& res);
+        SpvType* CreateType(spirv_cross::Compiler* compiler, const spirv_cross::SPIRType& spirType, bool ignoreArray = false);
+
+        void BuildPushConstants();
+        void BuildInputAttributes();
+        void BuildDescriptorLayoutMap();
         void Destroy();
 
         QVulkanDeviceFunctions* m_deviceFuncs;
@@ -41,6 +52,8 @@ namespace vpa {
         spirv_cross::Compiler* m_compilers[size_t(ShaderStage::count_)];
         spirv_cross::ShaderResources m_resources[size_t(ShaderStage::count_)];
 
+        QVector<SpvResource*> m_inputAttributes;
+        QVector<SpvResource*> m_pushConstants;
         vpa::DescriptorLayoutMap m_descriptorLayoutMap;
     };
 }
