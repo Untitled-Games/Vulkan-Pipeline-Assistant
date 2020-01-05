@@ -46,6 +46,7 @@ void VulkanRenderer::releaseResources() {
     delete m_shaderAnalytics;
     if (m_vertexInput) delete m_vertexInput;
     if (m_descriptors) delete m_descriptors;
+    if (m_config.viewports) delete[] m_config.viewports;
     delete m_allocator;
 }
 
@@ -252,6 +253,10 @@ void VulkanRenderer::CreatePipeline() {
     viewport.height = float(m_window->swapChainImageSize().height());
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
+    if (m_config.viewports) delete[] m_config.viewports;
+    m_config.viewports = new VkViewport[1];
+    m_config.viewports[0] = viewport;
+    m_config.viewportCount = 1;
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
@@ -277,7 +282,9 @@ void VulkanRenderer::CreatePipeline() {
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = m_config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
-    multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
+    //TODO change this back if multisampling is working
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    //multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
     multisampling.minSampleShading = m_config.writablePipelineConfig.minSampleShading;
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};

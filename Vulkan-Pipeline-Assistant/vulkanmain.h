@@ -23,9 +23,13 @@ namespace vpa {
         ~VulkanMain();
 
         void WritePipelineCache();
+        void WritePipelineConfig();
         PipelineConfig& GetConfig();
+
+         void Reload(const ReloadFlags flag);
+
         Descriptors* GetDescriptors();
-        void Reload(const ReloadFlags flag);
+
     private:
         void CreateVkInstance();
 
