@@ -74,7 +74,6 @@ namespace vpa {
         VkBool32 logicOpEnable = VK_FALSE;
         VkLogicOp logicOp = VK_LOGIC_OP_COPY;
         float blendConstants[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
     };
 
     struct PipelineConfig {
