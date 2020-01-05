@@ -100,12 +100,12 @@ void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
 void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
     PipelineConfig& config = this->m_vulkan->GetConfig();
     VkViewport& viewport = config.viewports[0];
-    viewport.x = float(std::atof(v.at(0)->text().toStdString().c_str()));
-    viewport.y = float(std::atof(v.at(1)->text().toStdString().c_str()));
-    viewport.width = float(std::atof(v.at(2)->text().toStdString().c_str()));
-    viewport.height = float(std::atof(v.at(3)->text().toStdString().c_str()));
-    viewport.minDepth = float(std::atof(v.at(4)->text().toStdString().c_str()));
-    viewport.maxDepth = float(std::atof(v.at(5)->text().toStdString().c_str()));
+    viewport.x = v.at(0)->text().toFloat();
+    viewport.y = v.at(1)->text().toFloat();
+    viewport.width = v.at(2)->text().toFloat();
+    viewport.height = v.at(3)->text().toFloat();
+    viewport.minDepth = v.at(4)->text().toFloat();
+    viewport.maxDepth = v.at(5)->text().toFloat();
 }
 
 void MainWindow::HandleViewChangeReset(QVector<QLineEdit*> v) {
@@ -472,7 +472,7 @@ QWidget* MainWindow::MakeMultisampleBlock() {
     minShadingBox->setValidator(new QDoubleValidator(0.0, 1.0, 3, container));
     QObject::connect(minShadingBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, minShadingBox](int index) {
         QString text = minShadingBox->text();
-        float value = float(std::atof(text.toStdString().c_str()));
+        float value = text.toFloat();
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBiasSlopeFactor = value;
         this->m_vulkan->WritePipelineConfig();
