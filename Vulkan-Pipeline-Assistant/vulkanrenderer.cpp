@@ -253,7 +253,7 @@ void VulkanRenderer::CreatePipeline() {
     viewport.height = float(m_window->swapChainImageSize().height());
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    //TODO this looks like a memory leak waiting to happen
+    if (m_config.viewports) delete[] m_config.viewports;
     m_config.viewports = new VkViewport[1];
     m_config.viewports[0] = viewport;
     m_config.viewportCount = 1;
