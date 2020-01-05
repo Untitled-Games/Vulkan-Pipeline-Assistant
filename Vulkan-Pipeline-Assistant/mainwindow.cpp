@@ -159,9 +159,8 @@ QWidget* MainWindow::MakeVertexInputBlock() {
     QWidget* parent = new QWidget(m_rightTopContainer);
     QLabel* topologyLabel = new QLabel("Topology", parent);
     QComboBox* topologyBox = MakeComboBox(parent, {});
-    QMap<QString, VkPrimitiveTopology>::iterator it;
-    for (it = topologies.begin(); it != topologies.end(); it++) {
-        topologyBox->addItem(it.key());
+    for (QString key : topologies.keys()) {
+        topologyBox->addItem(key);
     }
 
     QObject::connect(topologyBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, topologyBox, topologies](int index) {
