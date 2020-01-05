@@ -5,25 +5,23 @@
 #include <QLineEdit>
 
 #include "PipelineConfig.h"
+#include "descriptors.h"
+#include "spvresourcewidget.h"
 
 using namespace vpa;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0) {
+
     m_ui->setupUi(this);
-    m_layout = new QGridLayout();
-    m_leftColumnContainer = new QWidget(this);
-    m_rightTopContainer = new QWidget(this);
-    m_rightBottomContainer = new QWidget(this);
-    m_layout->addWidget(m_leftColumnContainer, 0, 0);
-    m_layout->addWidget(m_rightTopContainer, 1, 0);
-    m_layout->addWidget(m_rightBottomContainer, 1, 1);
+    m_masterContainer = new QWidget(this);
+    m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
+    m_layout = new QGridLayout(this);
+    m_leftColumnContainer = new QWidget(m_masterContainer);
+    m_rightTopContainer = new QWidget(m_masterContainer);
+    m_rightBottomContainer = new QWidget(m_masterContainer);
     m_leftColumnContainer->setLayout(new QVBoxLayout(m_leftColumnContainer));
     m_leftColumnContainer->layout()->setAlignment(Qt::AlignTop);
-    m_leftColumnContainer->setGeometry(10, 20, this->width() / 4, this->height() / 2);
-    m_rightTopContainer->setGeometry(this->width() / 4, 20, (3 * this->width()) / 4, this->height() / 2);
-    m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
-    m_rightBottomContainer->setGeometry(this->width() / 4, this->height() / 2, (3 * this->width()) / 4, this->height() / 2);
     AddConfigButtons();
     AddConfigBlocks();
 
@@ -33,7 +31,15 @@ MainWindow::MainWindow(QWidget *parent)
         this->m_vulkan->WritePipelineCache();
     });
 
-    m_vulkan = new VulkanMain(m_rightBottomContainer);
+    m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
+    m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
+
+    m_layout->addWidget(m_leftColumnContainer, 0, 0);
+    m_layout->addWidget(m_rightTopContainer, 0, 1);
+    m_layout->addWidget(m_rightBottomContainer, 1, 1);
+    m_layout->setColumnStretch(0, 1);
+    m_layout->setColumnStretch(1, 4);
+    m_masterContainer->setLayout(m_layout);
 }
 
 MainWindow::~MainWindow() {
@@ -56,6 +62,9 @@ void MainWindow::AddConfigButtons() {
     QObject::connect(m_configButtons[5], &QPushButton::released, [this]{ this->HandleConfigAreaChange(5); });
     m_configButtons.push_back(new QPushButton("Render Pass State", m_leftColumnContainer));
     QObject::connect(m_configButtons[6], &QPushButton::released, [this]{ this->HandleConfigAreaChange(6); });
+    m_configButtons.push_back(new QPushButton("Descriptors", m_leftColumnContainer));
+    QObject::connect(m_configButtons[7], &QPushButton::released, [this]{ this->HandleConfigAreaChange(7); });
+    m_descriptorBlockIdx = 7;
     for (QPushButton* button : m_configButtons) {
         m_leftColumnContainer->layout()->addWidget(button);
     }
@@ -79,6 +88,8 @@ void MainWindow::AddConfigBlocks() {
     m_configBlocks.push_back(MakeMultisampleBlock());
     m_configBlocks.push_back(MakeDepthStencilBlock());
     m_configBlocks.push_back(MakeRenderPassBlock());
+    m_configBlocks.push_back(nullptr);
+    MakeDescriptorBlock();
 
     for (QWidget* widget : m_configBlocks) {
         widget->hide();
@@ -141,7 +152,6 @@ void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
     QObject::connect(dialogBtn, &QPushButton::released, [this, field]{ this->HandleShaderFileDialog(field); });
 }
 
-// TODO expandable vertex inputs (max 16, although track for multiple such as with mat4)
 QWidget* MainWindow::MakeVertexInputBlock() {
     QMap<QString, VkPrimitiveTopology> topologies;
     topologies.insert("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
@@ -207,7 +217,6 @@ QWidget* MainWindow::MakeVertexInputBlock() {
     return parent;
 }
 
-// TODO add supoort for multiple viewports and scissors
 QWidget* MainWindow::MakeViewportStateBlock() {
     // Viewport
     QWidget* container = new QWidget(m_rightTopContainer);
@@ -592,7 +601,55 @@ QWidget* MainWindow::MakeRenderPassBlock() {
     layout->addWidget(subpassLabel, 0, 0);
     layout->addWidget(subpassBox, 1, 0);
 
+
     return container;
+}
+
+void MainWindow::MakeDescriptorBlock() {
+    QWidget*& container = m_configBlocks[m_descriptorBlockIdx];
+    if (container) delete container;
+    container = new QWidget(m_rightTopContainer);
+    QGridLayout* layout = new QGridLayout(container);
+    layout->setColumnStretch(0, 1);
+    layout->setColumnStretch(1, 4);
+    layout->setAlignment(Qt::AlignTop);
+    container->setLayout(layout);
+
+    QWidget* leftGroup = new QWidget(container);
+    QWidget* rightGroup = new QWidget(container);
+    leftGroup->setLayout(new QVBoxLayout(leftGroup));
+    rightGroup->setLayout(new QVBoxLayout(rightGroup));
+    layout->addWidget(leftGroup, 0, 0);
+    layout->addWidget(rightGroup, 0, 1);
+    leftGroup->layout()->setAlignment(Qt::AlignTop);
+    rightGroup->layout()->setAlignment(Qt::AlignTop);
+
+    if (m_vulkan) {
+        auto descriptors = m_vulkan->GetDescriptors();
+        if (descriptors) {
+            QVector<QWidget*> spvWidgets;
+            for (auto buffers : descriptors->Buffers().values()) {
+                for (auto buffer : buffers) {
+                    SpvResourceWidget* spvWidget = new SpvResourceWidget(buffer.descriptor.resource, rightGroup);
+                    spvWidgets.push_back(spvWidget);
+                    rightGroup->layout()->addWidget(spvWidget);
+                }
+            }
+            for (int i = 0; i < spvWidgets.size(); ++i) {
+                QPushButton* btn = new QPushButton(((SpvResourceWidget*)spvWidgets[i])->Title(), leftGroup);
+                leftGroup->layout()->addWidget(btn);
+                QObject::connect(btn, &QPushButton::released, [this, spvWidgets, i]{
+                    qDebug(qPrintable(QString::number(i)));
+                    spvWidgets[this->m_activeDescriptorIdx]->hide();
+                    spvWidgets[i]->show();
+                    this->m_activeDescriptorIdx = i;
+                });
+                spvWidgets[i]->hide();
+            }
+            spvWidgets[0]->show();
+            m_activeDescriptorIdx = 0;
+        }
+    }
 }
 
 QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {
@@ -601,4 +658,8 @@ QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {
         box->addItem(str);
     }
     return box;
+}
+
+void MainWindow::VulkanCreationCallback() {
+    MakeDescriptorBlock();
 }

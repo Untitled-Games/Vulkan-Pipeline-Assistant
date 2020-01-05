@@ -198,8 +198,9 @@ SpvType* ShaderAnalytics::CreateArrayType(spirv_cross::Compiler* compiler, const
     type->lengthsUnsized.resize(int(spirType.array.size()));
     memset(type->lengthsUnsized.data(), false, type->lengthsUnsized.size() * sizeof(bool));
     for (size_t i = 0; i < spirType.array.size(); ++i) {
-        if (spirType.array_size_literal[i]) {
-            type->lengths[i] = spirType.array[i];
+        size_t iReversed = spirType.array.size() - (i+1);
+        if (spirType.array_size_literal[iReversed]) {
+            type->lengths[i] = spirType.array[iReversed];
             if (type->lengths[i] == 0) {
                 type->lengths[i] = 1; // Unsized arrays defaulted to length 1
                 type->lengthsUnsized[i] = true;
@@ -301,6 +302,7 @@ void ShaderAnalytics::BuildDescriptorLayoutMap() {
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
                     SpvResource* res = new SpvResource();
                     res->name = QString::fromStdString(m_compilers[i]->get_name(resource.id));
+                    if (res->name == "") res->name = QString::fromStdString(m_compilers[i]->get_name(resource.base_type_id));
                     res->group = new SpvDescriptorGroup(set, binding, StageToVkStageFlag(ShaderStage(i)), groups[k]);
                     res->type = CreateType(m_compilers[i], resource);
 

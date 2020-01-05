@@ -55,14 +55,18 @@ namespace vpa {
         QWidget* MakeMultisampleBlock();
         QWidget* MakeDepthStencilBlock();
         QWidget* MakeRenderPassBlock();
+        void MakeDescriptorBlock();
 
         QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
+
+        void VulkanCreationCallback();
 
         Ui::MainWindow* m_ui;
         VulkanMain* m_vulkan;
         QPushButton* m_createCacheBtn;
         QGridLayout* m_layout;
 
+        QWidget* m_masterContainer;
         QWidget* m_leftColumnContainer;
         QWidget* m_rightTopContainer;
         QWidget* m_rightBottomContainer;
@@ -72,7 +76,9 @@ namespace vpa {
         QVector<QPushButton*> m_configButtons;
         QVector<QWidget*> m_configBlocks;
 
+        int m_descriptorBlockIdx;
         int m_unhiddenIdx;
+        int m_activeDescriptorIdx;
     };
 }
 #endif // MAINWINDOW_H

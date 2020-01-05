@@ -15,9 +15,10 @@
 
 using namespace vpa;
 
-VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
+VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback)
     : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
-      m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr), m_descriptors(nullptr) {
+      m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr), m_descriptors(nullptr),
+      m_creationCallback(creationCallback) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -116,15 +117,15 @@ bool VulkanRenderer::WritePipelineCache() {
 
 bool VulkanRenderer::WritePipelineConfig() {
     bool success = true;
-    FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
+    FileManager<PipelineConfig>::Writer(m_config);
     return success;
 }
 
 bool VulkanRenderer::ReadPipelineConfig()
 {
     bool success = false;
-    FileManager<PipelineConfig>::Loader(m_config); //todo: return boolean
-    FileManager<PipelineConfig>::Writer(m_config, "config_rewrite.vpa"); //todo: return boolean
+    FileManager<PipelineConfig>::Loader(m_config);
+    FileManager<PipelineConfig>::Writer(m_config, "config_rewrite.vpa");
     success = true;
     return success;
 }
@@ -135,6 +136,7 @@ void VulkanRenderer::Reload(const ReloadFlags flag) {
     if (flag & ReloadFlagBits::RENDER_PASS) CreateRenderPass();
     if (flag & ReloadFlagBits::SHADERS) CreateShaders();
     if (flag & ReloadFlagBits::PIPELINE) CreatePipeline();
+    m_creationCallback();
 }
 
 VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
