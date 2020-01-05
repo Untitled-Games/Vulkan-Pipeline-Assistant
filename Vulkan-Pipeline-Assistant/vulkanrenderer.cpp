@@ -46,7 +46,7 @@ void VulkanRenderer::releaseResources() {
     delete m_shaderAnalytics;
     if (m_vertexInput) delete m_vertexInput;
     if (m_descriptors) delete m_descriptors;
-    //TODO Delete config viewports
+    if (m_config.viewports) delete[] m_config.viewports;
     delete m_allocator;
 }
 
