@@ -628,9 +628,10 @@ void MainWindow::MakeDescriptorBlock() {
         auto descriptors = m_vulkan->GetDescriptors();
         if (descriptors) {
             QVector<QWidget*> spvWidgets;
-            for (auto buffers : descriptors->Buffers().values()) {
-                for (auto buffer : buffers) {
-                    SpvResourceWidget* spvWidget = new SpvResourceWidget(buffer.descriptor.resource, rightGroup);
+            for (auto& set : descriptors->Buffers().keys()) {
+                for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
+                    SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
+                        descriptors->Buffers()[set][i].descriptor.resource, set, i, rightGroup);
                     spvWidgets.push_back(spvWidget);
                     rightGroup->layout()->addWidget(spvWidget);
                 }
@@ -639,7 +640,6 @@ void MainWindow::MakeDescriptorBlock() {
                 QPushButton* btn = new QPushButton(((SpvResourceWidget*)spvWidgets[i])->Title(), leftGroup);
                 leftGroup->layout()->addWidget(btn);
                 QObject::connect(btn, &QPushButton::released, [this, spvWidgets, i]{
-                    qDebug(qPrintable(QString::number(i)));
                     spvWidgets[this->m_activeDescriptorIdx]->hide();
                     spvWidgets[i]->show();
                     this->m_activeDescriptorIdx = i;

@@ -132,7 +132,6 @@ bool VulkanRenderer::ReadPipelineConfig()
 
 void VulkanRenderer::Reload(const ReloadFlags flag) {
     m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
-    if (flag & ReloadFlagBits::DESCRIPTOR_VALUES) UpdateDescriptorData();
     if (flag & ReloadFlagBits::RENDER_PASS) CreateRenderPass();
     if (flag & ReloadFlagBits::SHADERS) CreateShaders();
     if (flag & ReloadFlagBits::PIPELINE) CreatePipeline();
@@ -380,14 +379,12 @@ void VulkanRenderer::CreateShaders() {
     projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
     projection.data()[5] *= -1;
     QMatrix4x4 mvp = projection * view * model;
-    m_descriptors->WriteBufferData(0, 0, 16 * sizeof(float), 0, mvp.data());
+    unsigned char* ptr = m_descriptors->MapBufferPointer(0, 0);
+    memcpy(ptr, mvp.data(), 16 * sizeof(float));
+    m_descriptors->UnmapBufferPointer(0, 0);
 
     float colourMask[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask);
 
     // TODO Determine new colour attachment count
-}
-
-void VulkanRenderer::UpdateDescriptorData() {
-    // TODO link up to descriptor update functions
 }

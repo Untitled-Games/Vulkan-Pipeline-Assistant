@@ -38,6 +38,8 @@ namespace vpa {
     public:
         MainWindow(QWidget* parent = nullptr);
         ~MainWindow();
+
+        static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
     private slots:
         void HandleShaderFileDialog(QLineEdit* field);
         void HandleConfigAreaChange(int toIdx);
@@ -56,8 +58,6 @@ namespace vpa {
         QWidget* MakeDepthStencilBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
-
-        QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
 
         void VulkanCreationCallback();
 

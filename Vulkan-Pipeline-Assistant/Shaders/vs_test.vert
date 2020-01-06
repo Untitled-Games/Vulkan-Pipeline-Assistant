@@ -31,6 +31,6 @@ layout(set = 0, binding = 0) uniform MVPBuffer {
 
 void main() {
 	gl_Position = mvp * vec4(inPosition, 1.0);
-	outColour = inColour;
+	outColour = v4;
 	outTexcoord = inTexcoord;
 }

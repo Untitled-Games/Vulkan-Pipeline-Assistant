@@ -12,9 +12,12 @@
 
 using namespace vpa;
 
+double Descriptors::s_aspectRatio = 0.0;
+
 Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                          const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants)
     : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
+    s_aspectRatio = m_window->width() / m_window->height();
     QSet<uint32_t> setIndices;
     QVector<VkDescriptorPoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
@@ -123,14 +126,15 @@ Descriptors::~Descriptors() {
     DESTROY_HANDLE(m_window->device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool);
 }
 
-void Descriptors::WriteBufferData(uint32_t set, int index, size_t size, size_t offset, void* data) {
+unsigned char* Descriptors::MapBufferPointer(uint32_t set, int index) {
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
     Allocation& allocation = m_buffers[set][index].descriptor.allocation;
-    assert(size <= allocation.size);
-    if (data != nullptr) {
-        unsigned char* dataPtr = m_allocator->MapMemory(allocation);
-        memcpy((dataPtr + offset), data, size);
-        m_allocator->UnmapMemory(allocation);
-    }
+    return m_allocator->MapMemory(allocation);
+}
+
+void Descriptors::UnmapBufferPointer(uint32_t set, int index) {
+    Allocation& allocation = m_buffers[set][index].descriptor.allocation;
+    m_allocator->UnmapMemory(allocation);
 }
 
 void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
@@ -341,4 +345,28 @@ void Descriptors::DestroyImage(ImageInfo& imageInfo) {
     DESTROY_HANDLE(m_window->device(), imageInfo.sampler, m_deviceFuncs->vkDestroySampler);
     DESTROY_HANDLE(m_window->device(), imageInfo.view, m_deviceFuncs->vkDestroyImageView);
     m_allocator->Deallocate(imageInfo.descriptor.allocation);
+}
+
+const QMatrix4x4 Descriptors::DefaultModelMatrix() {
+    QMatrix4x4 model;
+    model.setToIdentity();
+    model.scale(0.1f, 0.1f, 0.1f);
+    return model;
+}
+
+const QMatrix4x4 Descriptors::DefaultViewMatrix() {
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
+    return view;
+}
+
+const QMatrix4x4 Descriptors::DefaultProjectionMatrix() {
+    QMatrix4x4 projection;
+    projection.perspective(45.0, s_aspectRatio, 1.0, 100.0);
+    projection.data()[5] *= -1;
+    return projection;
+}
+
+const QMatrix4x4 Descriptors::DefaultMVPMatrix() {
+    return DefaultProjectionMatrix() * DefaultViewMatrix() * DefaultModelMatrix();
 }

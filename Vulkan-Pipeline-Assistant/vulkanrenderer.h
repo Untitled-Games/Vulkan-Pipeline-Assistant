@@ -41,7 +41,6 @@ namespace vpa {
         void CreatePipeline();
         void CreatePipelineCache();
         void CreateShaders();
-        void UpdateDescriptorData();
 
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);

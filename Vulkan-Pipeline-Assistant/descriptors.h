@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QHash>
 #include <QMap>
+#include <QMatrix4x4>
 
 #include "spirvresource.h"
 #include "memoryallocator.h"
@@ -52,7 +53,8 @@ namespace vpa {
         const QHash<uint32_t, QVector<ImageInfo>>& Images() const { return m_images; }
         const QMap<ShaderStage, PushConstantInfo>& PushConstants() const { return m_pushConstants; }
 
-        void WriteBufferData(uint32_t set, int index, size_t size, size_t offset, void* data);
+        unsigned char* MapBufferPointer(uint32_t set, int index);
+        void UnmapBufferPointer(uint32_t set, int index);
         void LoadImage(const uint32_t set, const int index, const QString name);
         void WritePushConstantData(ShaderStage stage, size_t size, void* data);
 
@@ -61,6 +63,11 @@ namespace vpa {
 
         const QVector<VkDescriptorSetLayout>& DescriptorSetLayouts() const;
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
+
+        static const QMatrix4x4 DefaultModelMatrix();
+        static const QMatrix4x4 DefaultViewMatrix();
+        static const QMatrix4x4 DefaultProjectionMatrix();
+        static const QMatrix4x4 DefaultMVPMatrix();
 
     private:
         void BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
@@ -84,6 +91,8 @@ namespace vpa {
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
         VkDescriptorPool m_descriptorPool;
+
+        static double s_aspectRatio;
     };
 }
 

@@ -3,6 +3,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QLayout>
+#include <QCoreApplication>
 
 #include "spirvresource.h"
 
@@ -27,6 +28,7 @@ SpvVectorWidget::SpvVectorWidget(SpvVectorType* type, QWidget* parent)
         m_inputs[i] = new QLineEdit(m_inputsGroup);
         inputsGroupLayout->addWidget(new QLabel(ComponentStrings[i]), 0, int(i));
         inputsGroupLayout->addWidget(m_inputs[i], 1, int(i));
+        QObject::connect(m_inputs[i], &QLineEdit::textChanged, [parent] { SPV_DATA_CHANGE_EVENT(parent); });
     }
 
     m_inputsGroup->setLayout(inputsGroupLayout);
