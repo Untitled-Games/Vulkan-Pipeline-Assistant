@@ -8,8 +8,6 @@
 
 #include "vulkanmain.h"
 
-#define TEXDIR "../../Resources/Textures/"
-
 using namespace vpa;
 
 double Descriptors::s_aspectRatio = 0.0;
@@ -138,9 +136,10 @@ void Descriptors::UnmapBufferPointer(uint32_t set, int index) {
 }
 
 void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
     ImageInfo& imageInfo = m_images[set][index];
     DestroyImage(imageInfo);
-    CreateImage(imageInfo, name);
+    CreateImage(imageInfo, name, true);
 }
 
 void Descriptors::WritePushConstantData(ShaderStage stage, size_t size, void* data) {
@@ -190,7 +189,7 @@ void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoo
         else if (descriptor.type == SpvGroupName::IMAGE) {
             ImageInfo info = {};
             info.descriptor = descriptor;
-            CreateImage(info, "default.png");
+            CreateImage(info, TEXDIR"default.png", false);
             m_images[key.first].push_back(info);
             if (((SpvImageType*)descriptor.resource->type)->sampled) {
                 poolSizes[4].descriptorCount++;
@@ -228,9 +227,12 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& descriptor, const SpvResour
     return info;
 }
 
-void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
-    QImage image(TEXDIR + name);
-    if (image.isNull()) qWarning("Failed to load image %s", qPrintable(name));
+void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet) {
+    QImage image(name);
+    if (image.isNull()) {
+        qWarning("Failed to load image %s", qPrintable(name));
+        return;
+    }
     image = image.convertToFormat(QImage::Format_RGBA8888);
 
      // TODO allow better customisation for images
@@ -305,6 +307,20 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
     imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
     imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     imageInfo.descriptor.layoutBinding.stageFlags = shaderStageFlags;
+
+    if (writeSet) {
+        QVector<VkWriteDescriptorSet> writes;
+        imageInfo.descriptor.writeSet = {};
+        imageInfo.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        imageInfo.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[imageInfo.descriptor.set]];
+        imageInfo.descriptor.writeSet.dstBinding = imageInfo.descriptor.binding;
+        imageInfo.descriptor.writeSet.dstArrayElement = 0;
+        imageInfo.descriptor.writeSet.descriptorType = imageInfo.descriptor.layoutBinding.descriptorType;
+        imageInfo.descriptor.writeSet.descriptorCount = 1;
+        imageInfo.descriptor.writeSet.pImageInfo = &imageInfo.imageInfo;
+        writes.push_back(imageInfo.descriptor.writeSet);
+        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+    }
 }
 
 PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {

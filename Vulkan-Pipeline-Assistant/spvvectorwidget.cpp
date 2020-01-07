@@ -5,6 +5,7 @@
 #include <QLayout>
 #include <QPushButton>
 #include <QCoreApplication>
+#include <QValidator>
 
 #include "spirvresource.h"
 
@@ -32,6 +33,7 @@ SpvVectorWidget::SpvVectorWidget(SpvVectorType* type, QWidget* parent)
         m_inputs[i] = new QLineEdit(m_inputsGroup);
         inputsGroupLayout->addWidget(new QLabel(ComponentStrings[i]), 0, int(i));
         inputsGroupLayout->addWidget(m_inputs[i], 1, int(i));
+        m_inputs[i]->setValidator(new QDoubleValidator(double(FLT_MIN + FLT_EPSILON), (double(FLT_MAX - FLT_EPSILON)), 4, m_inputs[i]));
         QObject::connect(m_inputs[i], &QLineEdit::textChanged, [parent] { SPV_DATA_CHANGE_EVENT(parent); });
     }
 

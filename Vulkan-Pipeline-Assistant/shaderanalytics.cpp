@@ -10,9 +10,9 @@ using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
 const QString vpa::ShaderStageStrings[size_t(ShaderStage::count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
-const QString vpa::SpvGroupnameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
-const QString vpa::SpvTypenameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
-const QString vpa::SpvImageTypenameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+const QString vpa::SpvGroupNameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
+const QString vpa::SpvTypeNameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
+const QString vpa::SpvImageTypeNameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
 
 enum class SpvTypeName {
     IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_

@@ -17,6 +17,7 @@ namespace vpa {
         AllocationType type;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkDeviceSize size = 0;
+        bool isMapped = false;
         union {
             VkBuffer buffer;
             VkImage image;

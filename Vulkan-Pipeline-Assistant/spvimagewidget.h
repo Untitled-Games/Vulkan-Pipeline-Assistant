@@ -9,11 +9,13 @@ namespace vpa {
     public:
         SpvImageWidget(SpvImageType* type, QWidget* parent);
 
-        void Data(unsigned char* dataPtr) const override;
-        void Fill(unsigned char* data) override;
+        void Data(unsigned char* dataPtr) const override { };
+        void Fill(unsigned char* data) override { };
 
     private:
         SpvImageType* m_type;
+        QWidget* m_infoGroup;
+        QWidget* m_inputsGroup;
     };
 }
 

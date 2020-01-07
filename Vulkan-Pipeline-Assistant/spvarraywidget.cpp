@@ -23,7 +23,7 @@ SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, QWidget* parent)
     m_infoGroup->layout()->setAlignment(Qt::AlignTop);
 
     QString infoStr;
-    infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypenameStrings[size_t(m_type->subtype->Type())]).arg(m_type->lengths.size()));
+    infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypeNameStrings[size_t(m_type->subtype->Type())]).arg(m_type->lengths.size()));
     for (int i = 0; i < m_type->lengths.size(); ++i) {
         infoStr.append(QStringLiteral("[%1").arg(m_type->lengths[i]));
         if (m_type->lengthsUnsized[i]) infoStr.append("*");

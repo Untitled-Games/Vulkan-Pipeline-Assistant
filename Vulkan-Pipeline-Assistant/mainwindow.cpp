@@ -636,6 +636,14 @@ void MainWindow::MakeDescriptorBlock() {
                     rightGroup->layout()->addWidget(spvWidget);
                 }
             }
+            for (auto& set : descriptors->Buffers().keys()) {
+                for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
+                    SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
+                        descriptors->Images()[set][i].descriptor.resource, set, i, rightGroup);
+                    spvWidgets.push_back(spvWidget);
+                    rightGroup->layout()->addWidget(spvWidget);
+                }
+            }
             for (int i = 0; i < spvWidgets.size(); ++i) {
                 QPushButton* btn = new QPushButton(((SpvResourceWidget*)spvWidgets[i])->Title(), leftGroup);
                 leftGroup->layout()->addWidget(btn);

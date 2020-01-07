@@ -35,7 +35,7 @@ namespace vpa {
         INPUT_ATTRIBUTE, UNIFORM_BUFFER, STORAGE_BUFFER, PUSH_CONSTANT, IMAGE, count_
     };
 
-    extern const QString SpvGroupnameStrings[size_t(SpvGroupName::count_)];
+    extern const QString SpvGroupNameStrings[size_t(SpvGroupName::count_)];
 
     struct SpvGroup {
         virtual ~SpvGroup() { }
@@ -98,7 +98,7 @@ namespace vpa {
         }
     };
     inline QDebug operator<<(QDebug stream, const SpvGroup* group) {
-        stream << "SpvGroup " << SpvGroupnameStrings[size_t(group->Group())] << " ";
+        stream << "SpvGroup " << SpvGroupNameStrings[size_t(group->Group())] << " ";
         group->Print(stream);
         return stream;
     }
@@ -111,8 +111,8 @@ namespace vpa {
         TEX1D, TEX2D, TEX3D, TEX_CUBE, TEX_UNKNOWN, count_ //, TEX_BUFFER, TEX_RECT. Note these are not handled yet
     };
 
-    extern const QString SpvTypenameStrings[size_t(SpvTypeName::count_)];
-    extern const QString SpvImageTypenameStrings[size_t(SpvImageTypeName::count_)];
+    extern const QString SpvTypeNameStrings[size_t(SpvTypeName::count_)];
+    extern const QString SpvImageTypeNameStrings[size_t(SpvImageTypeName::count_)];
 
     struct SpvType {
         QString name;
@@ -143,7 +143,7 @@ namespace vpa {
                     sampled == ((const SpvImageType*)(other))->sampled;
         }
         QDebug& Print(QDebug& stream) const override {
-            return stream << "Image Type " << SpvImageTypenameStrings[size_t(imageTypename)] <<
+            return stream << "Image Type " << SpvImageTypeNameStrings[size_t(imageTypename)] <<
                              " ms " << multisampled << " depth " << isDepth << " arrayed " << isArrayed <<
                              " sampled " << sampled << " VkFormat " << format;
         }
@@ -170,7 +170,7 @@ namespace vpa {
             for (int i = 0; i < lengths.size(); ++i) {
                 stream << " [" << lengths[i] << "]" << " unsized " << lengthsUnsized[i];
             }
-            stream << "\n    subtype " << SpvTypenameStrings[size_t(subtype->Type())] << " ";
+            stream << "\n    subtype " << SpvTypeNameStrings[size_t(subtype->Type())] << " ";
             subtype->Print(stream);
             return stream;
         }
@@ -227,7 +227,7 @@ namespace vpa {
         QDebug& Print(QDebug& stream) const override {
             for (int i = 0; i < members.size(); ++i) {
                 stream << "\n   Member " << i << " offset " << memberOffsets[i] << " " <<
-                          SpvTypenameStrings[size_t(members[i]->Type())] << " ";
+                          SpvTypeNameStrings[size_t(members[i]->Type())] << " ";
                 members[i]->Print(stream);
             }
             return stream;
@@ -235,7 +235,7 @@ namespace vpa {
     };
 
     inline QDebug operator<<(QDebug stream, const SpvType* type) {
-        stream << "SpvType " << SpvTypenameStrings[size_t(type->Type())] << " ";
+        stream << "SpvType " << SpvTypeNameStrings[size_t(type->Type())] << " ";
         type->Print(stream);
         return stream;
     }

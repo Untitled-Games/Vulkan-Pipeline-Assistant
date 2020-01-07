@@ -1,6 +1,8 @@
 #ifndef DESCRIPTORS_H
 #define DESCRIPTORS_H
 
+#define TEXDIR "../../Resources/Textures/"
+
 #include <QVector>
 #include <QHash>
 #include <QMap>
@@ -72,7 +74,7 @@ namespace vpa {
     private:
         void BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
         BufferInfo CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource);
-        void CreateImage(ImageInfo& imageInfo, const QString& name);
+        void CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
         VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);

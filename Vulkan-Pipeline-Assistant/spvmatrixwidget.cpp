@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QMatrix4x4>
+#include <QValidator>
 
 #include "spirvresource.h"
 #include "mainwindow.h"
@@ -45,6 +46,7 @@ SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, QWidget* parent)
     for (size_t row = 0; row < m_type->rows; ++row) {
         for (size_t col = 0; col < m_type->columns; ++col) {
             m_inputs[row][col] = new QLineEdit(m_inputsGroup);
+            m_inputs[row][col]->setValidator(new QDoubleValidator(double(FLT_MIN + FLT_EPSILON), (double(FLT_MAX - FLT_EPSILON)), 4, m_inputs[row][col]));
             inputsGroupLayout->addWidget(m_inputs[row][col], int(row), int(col));
             QObject::connect(m_inputs[row][col], &QLineEdit::textChanged, [parent] { SPV_DATA_CHANGE_EVENT(parent); });
         }

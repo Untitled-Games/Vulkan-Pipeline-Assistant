@@ -369,22 +369,8 @@ void VulkanRenderer::CreateShaders() {
     if (m_descriptors) delete m_descriptors;
     m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges());
 
-    // ------- Test data TODO remove when interface complete ------
-    QMatrix4x4 model;
-    QMatrix4x4 view;
-    QMatrix4x4 projection;
-    model.setToIdentity();
-    model.scale(0.1f, 0.1f, 0.1f);
-    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
-    projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
-    projection.data()[5] *= -1;
-    QMatrix4x4 mvp = projection * view * model;
-    unsigned char* ptr = m_descriptors->MapBufferPointer(0, 0);
-    memcpy(ptr, mvp.data(), 16 * sizeof(float));
-    m_descriptors->UnmapBufferPointer(0, 0);
-
     float colourMask[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask);
+    m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask); // todo remove
 
     // TODO Determine new colour attachment count
 }
