@@ -369,8 +369,5 @@ void VulkanRenderer::CreateShaders() {
     if (m_descriptors) delete m_descriptors;
     m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges());
 
-    float colourMask[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask); // todo remove
-
     // TODO Determine new colour attachment count
 }

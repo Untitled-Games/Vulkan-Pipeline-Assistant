@@ -142,8 +142,8 @@ void Descriptors::LoadImage(const uint32_t set, const int index, const QString n
     CreateImage(imageInfo, name, true);
 }
 
-void Descriptors::WritePushConstantData(ShaderStage stage, size_t size, void* data) {
-    memcpy(m_pushConstants[stage].data.data(), data, size);
+unsigned char* Descriptors::PushConstantData(ShaderStage stage) {
+    return m_pushConstants[stage].data.data();
 }
 
 void Descriptors::CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const {

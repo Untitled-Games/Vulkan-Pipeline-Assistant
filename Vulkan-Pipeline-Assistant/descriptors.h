@@ -47,10 +47,6 @@ namespace vpa {
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
         ~Descriptors();
 
-        int BufferCount() { return m_buffers.size(); }
-        int ImageCount() { return m_images.size(); }
-        int PushConstantCount() { return m_pushConstants.size(); }
-
         const QHash<uint32_t, QVector<BufferInfo>>& Buffers() const { return m_buffers; }
         const QHash<uint32_t, QVector<ImageInfo>>& Images() const { return m_images; }
         const QMap<ShaderStage, PushConstantInfo>& PushConstants() const { return m_pushConstants; }
@@ -58,7 +54,7 @@ namespace vpa {
         unsigned char* MapBufferPointer(uint32_t set, int index);
         void UnmapBufferPointer(uint32_t set, int index);
         void LoadImage(const uint32_t set, const int index, const QString name);
-        void WritePushConstantData(ShaderStage stage, size_t size, void* data);
+        unsigned char* PushConstantData(ShaderStage stage);
 
         void CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;
         void CmdPushConstants(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;

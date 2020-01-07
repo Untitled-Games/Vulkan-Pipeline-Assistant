@@ -76,7 +76,10 @@ bool SpvResourceWidget::event(QEvent* event) {
     else if (event->type() == SpvGuiDataChangeType) {
         if (m_typeWidget == nullptr) return true;
         if (m_resource->group->Group() == SpvGroupName::PUSH_CONSTANT) {
-
+            unsigned char* dataPtr = m_descriptors->PushConstantData(((SpvPushConstantGroup*)m_resource->group)->stage);
+            if (dataPtr != nullptr) {
+                m_typeWidget->Data(dataPtr);
+            }
         }
         else {
             unsigned char* dataPtr = m_descriptors->MapBufferPointer(m_set, m_index);

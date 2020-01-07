@@ -48,6 +48,9 @@ void ShaderAnalytics::Destroy() {
     for (SpvResource* resource : m_descriptorLayoutMap.values()) {
         delete resource;
     }
+    m_pushConstants.clear();
+    m_inputAttributes.clear();
+    m_descriptorLayoutMap.clear();
 }
 
 void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, const QString& tesc, const QString& tese, const QString& geom) {
