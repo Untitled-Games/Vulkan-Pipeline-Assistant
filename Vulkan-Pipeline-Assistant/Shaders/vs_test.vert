@@ -25,15 +25,12 @@ out gl_PerVertex {
 
 layout(set = 0, binding = 0) uniform MVPBuffer {
 	mat4 mvp;
-};
-
-layout(set = 2, binding = 2) buffer AnotherOne {
-	NestedStruct structArray[4];
-	NestedStruct s[];
+	vec4 texColourMask;
+	vec2 v3[10][4];
 };
 
 void main() {
 	gl_Position = mvp * vec4(inPosition, 1.0);
-	outColour = inColour;
+	outColour = texColourMask;
 	outTexcoord = inTexcoord;
 }

@@ -8,13 +8,14 @@
 
 #include "vulkanmain.h"
 
-#define TEXDIR "../../Resources/Textures/"
-
 using namespace vpa;
+
+double Descriptors::s_aspectRatio = 0.0;
 
 Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                          const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants)
     : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
+    s_aspectRatio = m_window->width() / m_window->height();
     QSet<uint32_t> setIndices;
     QVector<VkDescriptorPoolSize> poolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
@@ -123,24 +124,26 @@ Descriptors::~Descriptors() {
     DESTROY_HANDLE(m_window->device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool);
 }
 
-void Descriptors::WriteBufferData(uint32_t set, int index, size_t size, size_t offset, void* data) {
+unsigned char* Descriptors::MapBufferPointer(uint32_t set, int index) {
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
     Allocation& allocation = m_buffers[set][index].descriptor.allocation;
-    assert(size <= allocation.size);
-    if (data != nullptr) {
-        unsigned char* dataPtr = m_allocator->MapMemory(allocation);
-        memcpy((dataPtr + offset), data, size);
-        m_allocator->UnmapMemory(allocation);
-    }
+    return m_allocator->MapMemory(allocation);
+}
+
+void Descriptors::UnmapBufferPointer(uint32_t set, int index) {
+    Allocation& allocation = m_buffers[set][index].descriptor.allocation;
+    m_allocator->UnmapMemory(allocation);
 }
 
 void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
+    m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
     ImageInfo& imageInfo = m_images[set][index];
     DestroyImage(imageInfo);
-    CreateImage(imageInfo, name);
+    CreateImage(imageInfo, name, true);
 }
 
-void Descriptors::WritePushConstantData(ShaderStage stage, size_t size, void* data) {
-    memcpy(m_pushConstants[stage].data.data(), data, size);
+unsigned char* Descriptors::PushConstantData(ShaderStage stage) {
+    return m_pushConstants[stage].data.data();
 }
 
 void Descriptors::CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const {
@@ -186,7 +189,7 @@ void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoo
         else if (descriptor.type == SpvGroupName::IMAGE) {
             ImageInfo info = {};
             info.descriptor = descriptor;
-            CreateImage(info, "default.png");
+            CreateImage(info, TEXDIR"default.png", false);
             m_images[key.first].push_back(info);
             if (((SpvImageType*)descriptor.resource->type)->sampled) {
                 poolSizes[4].descriptorCount++;
@@ -202,10 +205,10 @@ void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoo
     }
 }
 
-BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* resource) {
+BufferInfo Descriptors::CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource) {
     BufferInfo info = {};
-    info.usage = dinfo.type == SpvGroupName::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    info.descriptor = dinfo;
+    info.usage = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    info.descriptor = descriptor;
     info.descriptor.allocation = m_allocator->Allocate(((SpvStructType*)resource->type)->size, info.usage, resource->name);
 
     info.bufferInfo = {};
@@ -216,7 +219,7 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* r
     info.descriptor.layoutBinding = {};
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.descriptorCount = 1;
-    info.descriptor.layoutBinding.descriptorType = dinfo.type == SpvGroupName::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    info.descriptor.layoutBinding.descriptorType = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     info.descriptor.layoutBinding.stageFlags = ((SpvDescriptorGroup*)resource->group)->stageFlags;
@@ -224,9 +227,12 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* r
     return info;
 }
 
-void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
-    QImage image(TEXDIR + name);
-    if (image.isNull()) qWarning("Failed to load image %s", qPrintable(name));
+void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet) {
+    QImage image(name);
+    if (image.isNull()) {
+        qWarning("Failed to load image %s", qPrintable(name));
+        return;
+    }
     image = image.convertToFormat(QImage::Format_RGBA8888);
 
      // TODO allow better customisation for images
@@ -301,6 +307,20 @@ void Descriptors::CreateImage(ImageInfo& imageInfo, const QString& name) {
     imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
     imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     imageInfo.descriptor.layoutBinding.stageFlags = shaderStageFlags;
+
+    if (writeSet) {
+        QVector<VkWriteDescriptorSet> writes;
+        imageInfo.descriptor.writeSet = {};
+        imageInfo.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        imageInfo.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[imageInfo.descriptor.set]];
+        imageInfo.descriptor.writeSet.dstBinding = imageInfo.descriptor.binding;
+        imageInfo.descriptor.writeSet.dstArrayElement = 0;
+        imageInfo.descriptor.writeSet.descriptorType = imageInfo.descriptor.layoutBinding.descriptorType;
+        imageInfo.descriptor.writeSet.descriptorCount = 1;
+        imageInfo.descriptor.writeSet.pImageInfo = &imageInfo.imageInfo;
+        writes.push_back(imageInfo.descriptor.writeSet);
+        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+    }
 }
 
 PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {
@@ -341,4 +361,28 @@ void Descriptors::DestroyImage(ImageInfo& imageInfo) {
     DESTROY_HANDLE(m_window->device(), imageInfo.sampler, m_deviceFuncs->vkDestroySampler);
     DESTROY_HANDLE(m_window->device(), imageInfo.view, m_deviceFuncs->vkDestroyImageView);
     m_allocator->Deallocate(imageInfo.descriptor.allocation);
+}
+
+const QMatrix4x4 Descriptors::DefaultModelMatrix() {
+    QMatrix4x4 model;
+    model.setToIdentity();
+    model.scale(0.1f, 0.1f, 0.1f);
+    return model;
+}
+
+const QMatrix4x4 Descriptors::DefaultViewMatrix() {
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
+    return view;
+}
+
+const QMatrix4x4 Descriptors::DefaultProjectionMatrix() {
+    QMatrix4x4 projection;
+    projection.perspective(45.0, s_aspectRatio, 1.0, 100.0);
+    projection.data()[5] *= -1;
+    return projection;
+}
+
+const QMatrix4x4 Descriptors::DefaultMVPMatrix() {
+    return DefaultProjectionMatrix() * DefaultViewMatrix() * DefaultModelMatrix();
 }

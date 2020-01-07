@@ -17,9 +17,10 @@ namespace vpa {
     class MemoryAllocator;
     class Descriptors;
     class VulkanMain {
+        friend class VulkanWindow;
         friend class VulkanRenderer;
     public:
-        VulkanMain(QWidget* parent);
+        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
         void WritePipelineCache();
@@ -37,6 +38,7 @@ namespace vpa {
         QVulkanInstance m_instance;
         VulkanRenderer* m_renderer;
         QWidget* m_container;
+        std::function<void(void)> m_creationCallback;
     };
 }
 

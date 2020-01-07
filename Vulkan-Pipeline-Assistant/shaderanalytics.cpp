@@ -10,9 +10,9 @@ using namespace vpa;
 using namespace SPIRV_CROSS_NAMESPACE;
 
 const QString vpa::ShaderStageStrings[size_t(ShaderStage::count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
-const QString vpa::SpvGroupnameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
-const QString vpa::SpvTypenameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
-const QString vpa::SpvImageTypenameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+const QString vpa::SpvGroupNameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
+const QString vpa::SpvTypeNameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
+const QString vpa::SpvImageTypeNameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
 
 enum class SpvTypeName {
     IMAGE, ARRAY, VECTOR, MATRIX, STRUCT, count_
@@ -48,6 +48,9 @@ void ShaderAnalytics::Destroy() {
     for (SpvResource* resource : m_descriptorLayoutMap.values()) {
         delete resource;
     }
+    m_pushConstants.clear();
+    m_inputAttributes.clear();
+    m_descriptorLayoutMap.clear();
 }
 
 void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, const QString& tesc, const QString& tese, const QString& geom) {
@@ -72,18 +75,6 @@ void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, cons
     BuildInputAttributes();
     BuildDescriptorLayoutMap();
     qDebug("Loaded shaders.");
-
-#ifdef QT_DEBUG
-    for (SpvResource* resource : m_inputAttributes) {
-        qDebug() << resource;
-    }
-    for (SpvResource* resource : m_pushConstants) {
-        qDebug() << resource;
-    }
-    for (SpvResource* resource : m_descriptorLayoutMap.values()) {
-        qDebug() << resource;
-    }
-#endif
 }
 
 bool ShaderAnalytics::GetStageCreateInfo(ShaderStage stage, VkPipelineShaderStageCreateInfo& createInfo) {
@@ -198,8 +189,9 @@ SpvType* ShaderAnalytics::CreateArrayType(spirv_cross::Compiler* compiler, const
     type->lengthsUnsized.resize(int(spirType.array.size()));
     memset(type->lengthsUnsized.data(), false, type->lengthsUnsized.size() * sizeof(bool));
     for (size_t i = 0; i < spirType.array.size(); ++i) {
-        if (spirType.array_size_literal[i]) {
-            type->lengths[i] = spirType.array[i];
+        size_t iReversed = spirType.array.size() - (i+1);
+        if (spirType.array_size_literal[iReversed]) {
+            type->lengths[i] = spirType.array[iReversed];
             if (type->lengths[i] == 0) {
                 type->lengths[i] = 1; // Unsized arrays defaulted to length 1
                 type->lengthsUnsized[i] = true;
@@ -301,6 +293,7 @@ void ShaderAnalytics::BuildDescriptorLayoutMap() {
                     uint32_t binding = m_compilers[i]->get_decoration(resource.id, spv::DecorationBinding);
                     SpvResource* res = new SpvResource();
                     res->name = QString::fromStdString(m_compilers[i]->get_name(resource.id));
+                    if (res->name == "") res->name = QString::fromStdString(m_compilers[i]->get_name(resource.base_type_id));
                     res->group = new SpvDescriptorGroup(set, binding, StageToVkStageFlag(ShaderStage(i)), groups[k]);
                     res->type = CreateType(m_compilers[i], resource);
 

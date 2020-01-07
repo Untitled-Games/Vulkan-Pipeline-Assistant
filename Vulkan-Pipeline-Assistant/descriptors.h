@@ -1,9 +1,12 @@
 #ifndef DESCRIPTORS_H
 #define DESCRIPTORS_H
 
+#define TEXDIR "../../Resources/Textures/"
+
 #include <QVector>
 #include <QHash>
 #include <QMap>
+#include <QMatrix4x4>
 
 #include "spirvresource.h"
 #include "memoryallocator.h"
@@ -44,17 +47,14 @@ namespace vpa {
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
         ~Descriptors();
 
-        int BufferCount() { return m_buffers.size(); }
-        int ImageCount() { return m_images.size(); }
-        int PushConstantCount() { return m_pushConstants.size(); }
-
         const QHash<uint32_t, QVector<BufferInfo>>& Buffers() const { return m_buffers; }
         const QHash<uint32_t, QVector<ImageInfo>>& Images() const { return m_images; }
         const QMap<ShaderStage, PushConstantInfo>& PushConstants() const { return m_pushConstants; }
 
-        void WriteBufferData(uint32_t set, int index, size_t size, size_t offset, void* data);
+        unsigned char* MapBufferPointer(uint32_t set, int index);
+        void UnmapBufferPointer(uint32_t set, int index);
         void LoadImage(const uint32_t set, const int index, const QString name);
-        void WritePushConstantData(ShaderStage stage, size_t size, void* data);
+        unsigned char* PushConstantData(ShaderStage stage);
 
         void CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;
         void CmdPushConstants(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;
@@ -62,10 +62,15 @@ namespace vpa {
         const QVector<VkDescriptorSetLayout>& DescriptorSetLayouts() const;
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
 
+        static const QMatrix4x4 DefaultModelMatrix();
+        static const QMatrix4x4 DefaultViewMatrix();
+        static const QMatrix4x4 DefaultProjectionMatrix();
+        static const QMatrix4x4 DefaultMVPMatrix();
+
     private:
         void BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
         BufferInfo CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource);
-        void CreateImage(ImageInfo& imageInfo, const QString& name);
+        void CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
         VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);
@@ -84,6 +89,8 @@ namespace vpa {
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
         VkDescriptorPool m_descriptorPool;
+
+        static double s_aspectRatio;
     };
 }
 

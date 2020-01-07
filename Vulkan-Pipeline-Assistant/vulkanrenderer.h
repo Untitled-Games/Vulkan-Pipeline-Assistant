@@ -14,7 +14,7 @@ namespace vpa {
     class Descriptors;
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
-        VulkanRenderer(QVulkanWindow* window, VulkanMain* main);
+        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback);
 
         void initResources() override;
         void initSwapChainResources() override;
@@ -33,7 +33,6 @@ namespace vpa {
 
         bool WritePipelineCache();
 
-        //TODO: move this to a more organized location
         bool WritePipelineConfig();
         bool ReadPipelineConfig();
         void Reload(const ReloadFlags flag);
@@ -42,7 +41,6 @@ namespace vpa {
         void CreatePipeline();
         void CreatePipelineCache();
         void CreateShaders();
-        void UpdateDescriptorData();
 
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
@@ -69,6 +67,7 @@ namespace vpa {
         QVector<VkPipelineShaderStageCreateInfo> m_shaderStageInfos;
 
         PipelineConfig m_config;
+        std::function<void(void)> m_creationCallback;
     };
 }
 

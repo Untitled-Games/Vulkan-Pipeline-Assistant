@@ -15,9 +15,10 @@
 
 using namespace vpa;
 
-VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main)
+VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback)
     : m_initialised(false), m_window(window), m_pipelineCache(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
-      m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr), m_descriptors(nullptr) {
+      m_pipelineLayout(VK_NULL_HANDLE), m_renderPass(VK_NULL_HANDLE), m_vertexInput(nullptr), m_descriptors(nullptr),
+      m_creationCallback(creationCallback) {
     main->m_renderer = this;
     m_config = {};
 }
@@ -116,25 +117,25 @@ bool VulkanRenderer::WritePipelineCache() {
 
 bool VulkanRenderer::WritePipelineConfig() {
     bool success = true;
-    FileManager<PipelineConfig>::Writer(m_config); //todo: return boolean
+    FileManager<PipelineConfig>::Writer(m_config);
     return success;
 }
 
 bool VulkanRenderer::ReadPipelineConfig()
 {
     bool success = false;
-    FileManager<PipelineConfig>::Loader(m_config); //todo: return boolean
-    FileManager<PipelineConfig>::Writer(m_config, "config_rewrite.vpa"); //todo: return boolean
+    FileManager<PipelineConfig>::Loader(m_config);
+    FileManager<PipelineConfig>::Writer(m_config, "config_rewrite.vpa");
     success = true;
     return success;
 }
 
 void VulkanRenderer::Reload(const ReloadFlags flag) {
     m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
-    if (flag & ReloadFlagBits::DESCRIPTOR_VALUES) UpdateDescriptorData();
     if (flag & ReloadFlagBits::RENDER_PASS) CreateRenderPass();
     if (flag & ReloadFlagBits::SHADERS) CreateShaders();
     if (flag & ReloadFlagBits::PIPELINE) CreatePipeline();
+    m_creationCallback();
 }
 
 VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
@@ -368,24 +369,5 @@ void VulkanRenderer::CreateShaders() {
     if (m_descriptors) delete m_descriptors;
     m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges());
 
-    // ------- Test data TODO remove when interface complete ------
-    QMatrix4x4 model;
-    QMatrix4x4 view;
-    QMatrix4x4 projection;
-    model.setToIdentity();
-    model.scale(0.1f, 0.1f, 0.1f);
-    view.lookAt(QVector3D(0.0, 10.0, 20.0), QVector3D(0.0, 0.0, 0.0), QVector3D(0.0, 1.0, 0.0));
-    projection.perspective(45.0, m_window->width() / m_window->height(), 1.0, 100.0);
-    projection.data()[5] *= -1;
-    QMatrix4x4 mvp = projection * view * model;
-    m_descriptors->WriteBufferData(0, 0, 16 * sizeof(float), 0, mvp.data());
-
-    float colourMask[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    m_descriptors->WritePushConstantData(ShaderStage::FRAGMENT, 4 * sizeof(float), colourMask);
-
     // TODO Determine new colour attachment count
-}
-
-void VulkanRenderer::UpdateDescriptorData() {
-    // TODO link up to descriptor update functions
 }

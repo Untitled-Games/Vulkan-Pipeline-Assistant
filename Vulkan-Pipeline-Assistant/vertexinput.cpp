@@ -1,6 +1,6 @@
 #include "vertexinput.h"
 
-#include <Lib/spirv-cross/spirv_cross.hpp>
+#include <time.h>
 #include <QCoreApplication>
 #include <QVulkanDeviceFunctions>
 #include <QMap>
@@ -9,7 +9,6 @@
 #include "tiny_obj_loader.h"
 
 using namespace vpa;
-using namespace SPIRV_CROSS_NAMESPACE;
 
 VertexInput::VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                          QVector<SpvResource*> inputResources, QString meshName, bool isIndexed)

@@ -22,6 +22,12 @@ SOURCES += \
     pipelineconfig.cpp \
     memoryallocator.cpp \
     shaderanalytics.cpp \
+    spvarraywidget.cpp \
+    spvimagewidget.cpp \
+    spvmatrixwidget.cpp \
+    spvresourcewidget.cpp \
+    spvstructwidget.cpp \
+    spvvectorwidget.cpp \
     vertexinput.cpp \
     vulkanmain.cpp \
     vulkanrenderer.cpp
@@ -35,6 +41,13 @@ HEADERS += \
     reloadflags.h \
     shaderanalytics.h \
     spirvresource.h \
+    spvarraywidget.h \
+    spvimagewidget.h \
+    spvmatrixwidget.h \
+    spvresourcewidget.h \
+    spvstructwidget.h \
+    spvvectorwidget.h \
+    spvwidget.h \
     tiny_obj_loader.h \
     vertexinput.h \
     vulkanmain.h \

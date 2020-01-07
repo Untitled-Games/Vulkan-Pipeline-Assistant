@@ -25,7 +25,7 @@ MemoryAllocator::MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWin
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = m_transferQueueIdx;
-    poolInfo.flags = 0;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     FATAL_VKRESULT(m_deviceFuncs->vkCreateCommandPool(window->device(), &poolInfo, nullptr, &m_commandPool), "command pool allocation");
 
@@ -43,13 +43,16 @@ MemoryAllocator::~MemoryAllocator() {
 }
 
 unsigned char* MemoryAllocator::MapMemory(Allocation& allocation) {
+    if (allocation.isMapped) return nullptr;
     unsigned char* dataPtr = nullptr;
     WARNING_VKRESULT(m_deviceFuncs->vkMapMemory(m_window->device(), allocation.memory, 0, allocation.size, 0, reinterpret_cast<void **>(&dataPtr)), qPrintable("map memory for allocation '" + allocation.name + "'"));
+    if (dataPtr != nullptr) allocation.isMapped = true;
     return dataPtr;
 }
 
 void MemoryAllocator::UnmapMemory(Allocation& allocation) {
     m_deviceFuncs->vkUnmapMemory(m_window->device(), allocation.memory);
+    allocation.isMapped = false;
 }
 
 Allocation MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name) {
@@ -76,6 +79,8 @@ Allocation MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usage
 
     WARNING_VKRESULT(m_deviceFuncs->vkBindBufferMemory(m_window->device(), allocation.buffer, allocation.memory, 0), qPrintable("bind buffer memory for allocation '" + allocation.name + "'"));
 
+    memset(MapMemory(allocation), 0, allocation.size);
+    UnmapMemory(allocation);
     return allocation;
 }
 
@@ -153,6 +158,8 @@ void MemoryAllocator::TransferImageMemory(Allocation& imageAllocation, const VkE
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.srcAccessMask = 0;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    m_deviceFuncs->vkResetCommandBuffer(m_commandBuffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
     VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr };
     WARNING_VKRESULT(m_deviceFuncs->vkBeginCommandBuffer(m_commandBuffer, &beginInfo), qPrintable("begin transfer command buffer for allocation '" + imageAllocation.name + "'"));

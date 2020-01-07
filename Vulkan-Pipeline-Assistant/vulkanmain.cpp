@@ -9,17 +9,20 @@
 
 using namespace vpa;
 
-class VulkanWindow : public QVulkanWindow {
-public:
-    VulkanWindow(VulkanMain* main) : m_main(main) { }
-    QVulkanWindowRenderer* createRenderer() override {
-        return new VulkanRenderer(this, m_main);
-    }
-private:
-    VulkanMain* m_main;
-};
+namespace vpa {
+    class VulkanWindow : public QVulkanWindow {
+    public:
+        VulkanWindow(VulkanMain* main) : m_main(main) { }
+        QVulkanWindowRenderer* createRenderer() override {
+            return new VulkanRenderer(this, m_main, m_main->m_creationCallback);
+        }
+    private:
+        VulkanMain* m_main;
+    };
+}
 
-VulkanMain::VulkanMain(QWidget* parent) {
+VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
+    : m_renderer(nullptr), m_creationCallback(creationCallback) {
     CreateVkInstance();
     m_vkWindow = new VulkanWindow(this);
     m_vkWindow->setVulkanInstance(&m_instance);
@@ -73,7 +76,7 @@ PipelineConfig& VulkanMain::GetConfig() {
 }
 
 Descriptors* VulkanMain::GetDescriptors() {
-    return m_renderer->GetDescriptors();
+    return m_renderer ? m_renderer->GetDescriptors() : nullptr;
 }
 
 void VulkanMain::Reload(const ReloadFlags flag) {

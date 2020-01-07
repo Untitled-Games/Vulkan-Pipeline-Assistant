@@ -5,25 +5,23 @@
 #include <QLineEdit>
 
 #include "PipelineConfig.h"
+#include "descriptors.h"
+#include "spvresourcewidget.h"
 
 using namespace vpa;
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0) {
+    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0), m_vulkan(nullptr) {
+
     m_ui->setupUi(this);
-    m_layout = new QGridLayout();
-    m_leftColumnContainer = new QWidget(this);
-    m_rightTopContainer = new QWidget(this);
-    m_rightBottomContainer = new QWidget(this);
-    m_layout->addWidget(m_leftColumnContainer, 0, 0);
-    m_layout->addWidget(m_rightTopContainer, 1, 0);
-    m_layout->addWidget(m_rightBottomContainer, 1, 1);
+    m_masterContainer = new QWidget(this);
+    m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
+    m_layout = new QGridLayout(m_masterContainer);
+    m_leftColumnContainer = new QWidget(m_masterContainer);
+    m_rightTopContainer = new QWidget(m_masterContainer);
+    m_rightBottomContainer = new QWidget(m_masterContainer);
     m_leftColumnContainer->setLayout(new QVBoxLayout(m_leftColumnContainer));
     m_leftColumnContainer->layout()->setAlignment(Qt::AlignTop);
-    m_leftColumnContainer->setGeometry(10, 20, this->width() / 4, this->height() / 2);
-    m_rightTopContainer->setGeometry(this->width() / 4, 20, (3 * this->width()) / 4, this->height() / 2);
-    m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
-    m_rightBottomContainer->setGeometry(this->width() / 4, this->height() / 2, (3 * this->width()) / 4, this->height() / 2);
     AddConfigButtons();
     AddConfigBlocks();
 
@@ -33,7 +31,16 @@ MainWindow::MainWindow(QWidget *parent)
         this->m_vulkan->WritePipelineCache();
     });
 
-    m_vulkan = new VulkanMain(m_rightBottomContainer);
+    m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
+    m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
+
+    m_layout->addWidget(m_leftColumnContainer, 0, 0);
+    m_layout->addWidget(m_rightTopContainer, 0, 1);
+    m_layout->addWidget(m_rightBottomContainer, 1, 1);
+    m_layout->setColumnStretch(0, 1);
+    m_layout->setColumnStretch(1, 4);
+    m_masterContainer->setLayout(m_layout);
+    this->setCentralWidget(m_masterContainer);
 }
 
 MainWindow::~MainWindow() {
@@ -56,13 +63,15 @@ void MainWindow::AddConfigButtons() {
     QObject::connect(m_configButtons[5], &QPushButton::released, [this]{ this->HandleConfigAreaChange(5); });
     m_configButtons.push_back(new QPushButton("Render Pass State", m_leftColumnContainer));
     QObject::connect(m_configButtons[6], &QPushButton::released, [this]{ this->HandleConfigAreaChange(6); });
+    m_configButtons.push_back(new QPushButton("Descriptors", m_leftColumnContainer));
+    QObject::connect(m_configButtons[7], &QPushButton::released, [this]{ this->HandleConfigAreaChange(7); });
+    m_descriptorBlockIdx = 7;
     for (QPushButton* button : m_configButtons) {
         m_leftColumnContainer->layout()->addWidget(button);
     }
 }
 
 void MainWindow::AddConfigBlocks() {
-    // ------ Shaders ------------
     QWidget* shaderWidget = new QWidget(m_rightTopContainer);
     shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
     m_configBlocks.push_back(shaderWidget);
@@ -72,13 +81,14 @@ void MainWindow::AddConfigBlocks() {
     MakeShaderBlock(shaderWidget, "Tess Eval");
     MakeShaderBlock(shaderWidget, "Geometry");
 
-    // ------ Vertex Input -------
     m_configBlocks.push_back(MakeVertexInputBlock());
     m_configBlocks.push_back(MakeViewportStateBlock());
     m_configBlocks.push_back(MakeRasterizerBlock());
     m_configBlocks.push_back(MakeMultisampleBlock());
     m_configBlocks.push_back(MakeDepthStencilBlock());
     m_configBlocks.push_back(MakeRenderPassBlock());
+    m_configBlocks.push_back(nullptr);
+    MakeDescriptorBlock();
 
     for (QWidget* widget : m_configBlocks) {
         widget->hide();
@@ -92,8 +102,7 @@ void MainWindow::HandleConfigAreaChange(int toIdx) {
 }
 
 void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
-    field->setText(QFileDialog::getOpenFileName(this,
-        tr("Open File"), ".", tr("Shader Files (*.spv)")));
+    field->setText(QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)")));
 }
 
 //TODO allow multiple viewports
@@ -141,7 +150,6 @@ void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
     QObject::connect(dialogBtn, &QPushButton::released, [this, field]{ this->HandleShaderFileDialog(field); });
 }
 
-// TODO expandable vertex inputs (max 16, although track for multiple such as with mat4)
 QWidget* MainWindow::MakeVertexInputBlock() {
     QMap<QString, VkPrimitiveTopology> topologies;
     topologies.insert("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
@@ -168,7 +176,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.topology = topologies.value(topologyname);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* primRestartLabel = new QLabel("Primitive Restart", parent);
@@ -179,7 +187,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.primitiveRestartEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* patchPointsLabel = new QLabel("Patch Point Count", parent);
@@ -191,7 +199,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.patchControlPoints = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QGridLayout* layout = new QGridLayout(parent);
@@ -207,7 +215,6 @@ QWidget* MainWindow::MakeVertexInputBlock() {
     return parent;
 }
 
-// TODO add supoort for multiple viewports and scissors
 QWidget* MainWindow::MakeViewportStateBlock() {
     // Viewport
     QWidget* container = new QWidget(m_rightTopContainer);
@@ -305,7 +312,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.polygonMode = polygonModes.value(text);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* rasterizerDiscardLabel = new QLabel("Discard Enable");
@@ -316,7 +323,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.rasterizerDiscardEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* lineWidthLabel = new QLabel("Line Width");
@@ -327,7 +334,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.lineWidth = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     //TODO move this maybe?
@@ -344,7 +351,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.cullMode = cullModes.value(text);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* frontFaceLabel = new QLabel("Front Face");
@@ -355,7 +362,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.frontFace = direction;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthClampLabel = new QLabel("Depth Clamp Enable");
@@ -366,7 +373,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthClampEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasLabel = new QLabel("Depth Bias Enable");
@@ -377,7 +384,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBiasEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasConstLabel = new QLabel("Depth Bias Constant");
@@ -389,7 +396,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasConstantFactor = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasClampLabel = new QLabel("Depth Bias Clamp");
@@ -401,7 +408,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasClamp = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasSlopeLabel = new QLabel("Depth Bias Slope");
@@ -413,7 +420,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasSlopeFactor = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QGridLayout* layout = new QGridLayout(container);
@@ -463,7 +470,7 @@ QWidget* MainWindow::MakeMultisampleBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.msaaSamples = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
     });
 
     QLabel* minShadingLabel = new QLabel("Min Sample Shading", container);
@@ -475,7 +482,7 @@ QWidget* MainWindow::MakeMultisampleBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBiasSlopeFactor = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
     });
 
     QGridLayout* layout = new QGridLayout(container);
@@ -502,7 +509,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthTestEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* writeLabel = new QLabel("Write Enable");
@@ -513,7 +520,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthWriteEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* boundsLabel = new QLabel("Bounds Enable");
@@ -524,7 +531,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBoundsTest = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* stencilLabel = new QLabel("Stencil Test Enable");
@@ -535,7 +542,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.stencilTestEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QMap<QString, VkCompareOp> compareOps;
@@ -559,7 +566,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthCompareOp = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
 
@@ -592,7 +599,69 @@ QWidget* MainWindow::MakeRenderPassBlock() {
     layout->addWidget(subpassLabel, 0, 0);
     layout->addWidget(subpassBox, 1, 0);
 
+
     return container;
+}
+
+void MainWindow::MakeDescriptorBlock() {
+    QWidget*& container = m_configBlocks[m_descriptorBlockIdx];
+    if (container) delete container;
+    container = new QWidget(m_rightTopContainer);
+    QGridLayout* layout = new QGridLayout(container);
+    layout->setColumnStretch(0, 1);
+    layout->setColumnStretch(1, 4);
+    layout->setAlignment(Qt::AlignTop);
+    container->setLayout(layout);
+
+    QWidget* leftGroup = new QWidget(container);
+    QWidget* rightGroup = new QWidget(container);
+    leftGroup->setLayout(new QVBoxLayout(leftGroup));
+    rightGroup->setLayout(new QVBoxLayout(rightGroup));
+    layout->addWidget(leftGroup, 0, 0);
+    layout->addWidget(rightGroup, 0, 1);
+    leftGroup->layout()->setAlignment(Qt::AlignTop);
+    rightGroup->layout()->setAlignment(Qt::AlignTop);
+
+    if (m_vulkan) {
+        Descriptors* descriptors = m_vulkan->GetDescriptors();
+        if (descriptors) {
+            QVector<QWidget*> spvWidgets;
+            for (auto& set : descriptors->Buffers().keys()) {
+                for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
+                    SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
+                        descriptors->Buffers()[set][i].descriptor.resource, set, i, rightGroup);
+                    spvWidgets.push_back(spvWidget);
+                    rightGroup->layout()->addWidget(spvWidget);
+                }
+            }
+            for (auto& set : descriptors->Buffers().keys()) {
+                for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
+                    SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
+                        descriptors->Images()[set][i].descriptor.resource, set, i, rightGroup);
+                    spvWidgets.push_back(spvWidget);
+                    rightGroup->layout()->addWidget(spvWidget);
+                }
+            }
+            for (auto& pushConstant : descriptors->PushConstants().values()) {
+                SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
+                    pushConstant.resource, 0, 0, rightGroup);
+                spvWidgets.push_back(spvWidget);
+                rightGroup->layout()->addWidget(spvWidget);
+            }
+            for (int i = 0; i < spvWidgets.size(); ++i) {
+                QPushButton* btn = new QPushButton(((SpvResourceWidget*)spvWidgets[i])->Title(), leftGroup);
+                leftGroup->layout()->addWidget(btn);
+                QObject::connect(btn, &QPushButton::released, [this, spvWidgets, i]{
+                    spvWidgets[this->m_activeDescriptorIdx]->hide();
+                    spvWidgets[i]->show();
+                    this->m_activeDescriptorIdx = i;
+                });
+                spvWidgets[i]->hide();
+            }
+            spvWidgets[0]->show();
+            m_activeDescriptorIdx = 0;
+        }
+    }
 }
 
 QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {
@@ -601,4 +670,8 @@ QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {
         box->addItem(str);
     }
     return box;
+}
+
+void MainWindow::VulkanCreationCallback() {
+    MakeDescriptorBlock();
 }
