@@ -25,6 +25,7 @@ namespace vpa {
 
         static const QString VecStrings[4];
         static const QString ComponentStrings[4];
+        static constexpr float DefaultData[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     };
 }
 

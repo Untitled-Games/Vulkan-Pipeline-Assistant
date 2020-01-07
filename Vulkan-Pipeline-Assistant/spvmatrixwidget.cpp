@@ -56,6 +56,8 @@ SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, QWidget* parent)
     layout->addWidget(m_infoGroup);
     layout->addWidget(m_inputsGroup);
     setLayout(layout);
+
+    Fill((unsigned char*)DefaultData);
 }
 
 void SpvMatrixWidget::Data(unsigned char* dataPtr) const {

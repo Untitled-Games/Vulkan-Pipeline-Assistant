@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->setupUi(this);
     m_masterContainer = new QWidget(this);
     m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
-    m_layout = new QGridLayout(this);
+    m_layout = new QGridLayout(m_masterContainer);
     m_leftColumnContainer = new QWidget(m_masterContainer);
     m_rightTopContainer = new QWidget(m_masterContainer);
     m_rightBottomContainer = new QWidget(m_masterContainer);
@@ -40,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_layout->setColumnStretch(0, 1);
     m_layout->setColumnStretch(1, 4);
     m_masterContainer->setLayout(m_layout);
+    this->setCentralWidget(m_masterContainer);
 }
 
 MainWindow::~MainWindow() {
@@ -71,7 +72,6 @@ void MainWindow::AddConfigButtons() {
 }
 
 void MainWindow::AddConfigBlocks() {
-    // ------ Shaders ------------
     QWidget* shaderWidget = new QWidget(m_rightTopContainer);
     shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
     m_configBlocks.push_back(shaderWidget);
@@ -81,7 +81,6 @@ void MainWindow::AddConfigBlocks() {
     MakeShaderBlock(shaderWidget, "Tess Eval");
     MakeShaderBlock(shaderWidget, "Geometry");
 
-    // ------ Vertex Input -------
     m_configBlocks.push_back(MakeVertexInputBlock());
     m_configBlocks.push_back(MakeViewportStateBlock());
     m_configBlocks.push_back(MakeRasterizerBlock());
@@ -103,8 +102,7 @@ void MainWindow::HandleConfigAreaChange(int toIdx) {
 }
 
 void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
-    field->setText(QFileDialog::getOpenFileName(this,
-        tr("Open File"), ".", tr("Shader Files (*.spv)")));
+    field->setText(QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)")));
 }
 
 //TODO allow multiple viewports
@@ -178,7 +176,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.topology = topologies.value(topologyname);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* primRestartLabel = new QLabel("Primitive Restart", parent);
@@ -189,7 +187,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.primitiveRestartEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* patchPointsLabel = new QLabel("Patch Point Count", parent);
@@ -201,7 +199,7 @@ QWidget* MainWindow::MakeVertexInputBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.patchControlPoints = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QGridLayout* layout = new QGridLayout(parent);
@@ -314,7 +312,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.polygonMode = polygonModes.value(text);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* rasterizerDiscardLabel = new QLabel("Discard Enable");
@@ -325,7 +323,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.rasterizerDiscardEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* lineWidthLabel = new QLabel("Line Width");
@@ -336,7 +334,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.lineWidth = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     //TODO move this maybe?
@@ -353,7 +351,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.cullMode = cullModes.value(text);
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* frontFaceLabel = new QLabel("Front Face");
@@ -364,7 +362,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.frontFace = direction;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthClampLabel = new QLabel("Depth Clamp Enable");
@@ -375,7 +373,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthClampEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasLabel = new QLabel("Depth Bias Enable");
@@ -386,7 +384,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBiasEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasConstLabel = new QLabel("Depth Bias Constant");
@@ -398,7 +396,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasConstantFactor = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasClampLabel = new QLabel("Depth Bias Clamp");
@@ -410,7 +408,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasClamp = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* depthBiasSlopeLabel = new QLabel("Depth Bias Slope");
@@ -422,7 +420,7 @@ QWidget* MainWindow::MakeRasterizerBlock() {
        PipelineConfig& config = this->m_vulkan->GetConfig();
        config.writablePipelineConfig.depthBiasSlopeFactor = value;
        this->m_vulkan->WritePipelineConfig();
-       this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+       this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QGridLayout* layout = new QGridLayout(container);
@@ -472,7 +470,7 @@ QWidget* MainWindow::MakeMultisampleBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.msaaSamples = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
     });
 
     QLabel* minShadingLabel = new QLabel("Min Sample Shading", container);
@@ -484,7 +482,7 @@ QWidget* MainWindow::MakeMultisampleBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBiasSlopeFactor = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
     });
 
     QGridLayout* layout = new QGridLayout(container);
@@ -511,7 +509,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthTestEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* writeLabel = new QLabel("Write Enable");
@@ -522,7 +520,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthWriteEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* boundsLabel = new QLabel("Bounds Enable");
@@ -533,7 +531,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthBoundsTest = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QLabel* stencilLabel = new QLabel("Stencil Test Enable");
@@ -544,7 +542,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.stencilTestEnable = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
     QMap<QString, VkCompareOp> compareOps;
@@ -568,7 +566,7 @@ QWidget* MainWindow::MakeDepthStencilBlock() {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         config.writablePipelineConfig.depthCompareOp = value;
         this->m_vulkan->WritePipelineConfig();
-        this->m_vulkan->Reload(ReloadFlags::EVERYTHING);
+        this->m_vulkan->Reload(ReloadFlags::PIPELINE);
     });
 
 

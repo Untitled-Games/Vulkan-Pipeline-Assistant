@@ -25,12 +25,12 @@ out gl_PerVertex {
 
 layout(set = 0, binding = 0) uniform MVPBuffer {
 	mat4 mvp;
-	vec4 v4;
+	vec4 texColourMask;
 	vec2 v3[10][4];
 };
 
 void main() {
 	gl_Position = mvp * vec4(inPosition, 1.0);
-	outColour = v4;
+	outColour = texColourMask;
 	outTexcoord = inTexcoord;
 }

@@ -21,15 +21,15 @@ SpvStructWidget::SpvStructWidget(SpvStructType* type, QWidget* parent)
     m_infoGroup->layout()->addWidget(new QLabel(QStringLiteral("struct"), parent));
     m_infoGroup->layout()->setAlignment(Qt::AlignTop);
 
-    QHBoxLayout* inputLayout = new QHBoxLayout(m_infoGroup);
-    QVBoxLayout* buttonsLayout = new QVBoxLayout(m_infoGroup);
-    QVBoxLayout* typesLayout = new QVBoxLayout(m_infoGroup);
-    inputLayout->setAlignment(Qt::AlignTop);
-    buttonsLayout->setAlignment(Qt::AlignTop);
-    typesLayout->setAlignment(Qt::AlignTop);
     m_inputsGroup = new QWidget(parent);
     m_buttonsGroup = new QWidget(m_inputsGroup);
     m_typesGroup = new QWidget(m_inputsGroup);
+    QHBoxLayout* inputLayout = new QHBoxLayout(m_inputsGroup);
+    QVBoxLayout* buttonsLayout = new QVBoxLayout(m_buttonsGroup);
+    QVBoxLayout* typesLayout = new QVBoxLayout(m_typesGroup);
+    inputLayout->setAlignment(Qt::AlignTop);
+    buttonsLayout->setAlignment(Qt::AlignTop);
+    typesLayout->setAlignment(Qt::AlignTop);
 
     inputLayout->addWidget(m_buttonsGroup);
     inputLayout->addWidget(m_typesGroup);

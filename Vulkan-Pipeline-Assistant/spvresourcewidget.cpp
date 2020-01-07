@@ -38,14 +38,11 @@ SpvResourceWidget::SpvResourceWidget(Descriptors* descriptors, SpvResource* reso
         qWarning("Invalid type found in spv array.");
     }
 
-    if (m_resource->group->Group() == SpvGroupName::IMAGE) {
-
-    }
-    else if (m_resource->group->Group() == SpvGroupName::PUSH_CONSTANT) {
-
+    if (m_resource->group->Group() == SpvGroupName::PUSH_CONSTANT) {
+        m_typeWidget->Data(m_descriptors->PushConstantData(((SpvPushConstantGroup*)m_resource->group)->stage));
     }
     else {
-        m_typeWidget->Fill(m_descriptors->MapBufferPointer(m_set, m_index));
+        m_typeWidget->Data(m_descriptors->MapBufferPointer(m_set, m_index));
         m_descriptors->UnmapBufferPointer(m_set, m_index);
     }
 

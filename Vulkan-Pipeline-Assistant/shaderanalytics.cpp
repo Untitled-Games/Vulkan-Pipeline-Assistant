@@ -75,18 +75,6 @@ void ShaderAnalytics::LoadShaders(const QString& vert, const QString& frag, cons
     BuildInputAttributes();
     BuildDescriptorLayoutMap();
     qDebug("Loaded shaders.");
-
-#ifdef QT_DEBUG
-    for (SpvResource* resource : m_inputAttributes) {
-        qDebug() << resource;
-    }
-    for (SpvResource* resource : m_pushConstants) {
-        qDebug() << resource;
-    }
-    for (SpvResource* resource : m_descriptorLayoutMap.values()) {
-        qDebug() << resource;
-    }
-#endif
 }
 
 bool ShaderAnalytics::GetStageCreateInfo(ShaderStage stage, VkPipelineShaderStageCreateInfo& createInfo) {

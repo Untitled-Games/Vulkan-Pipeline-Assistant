@@ -41,6 +41,8 @@ SpvVectorWidget::SpvVectorWidget(SpvVectorType* type, QWidget* parent)
     layout->addWidget(m_infoGroup);
     layout->addWidget(m_inputsGroup);
     setLayout(layout);
+
+    Fill((unsigned char*)DefaultData);
 }
 
 void SpvVectorWidget::Data(unsigned char* dataPtr) const {

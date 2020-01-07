@@ -22,6 +22,13 @@ namespace vpa {
         QWidget* m_infoGroup;
         QWidget* m_inputsGroup;
         QLineEdit* m_inputs[4][4];
+
+        static constexpr float DefaultData[16] = {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
     };
 }
 

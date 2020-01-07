@@ -79,6 +79,8 @@ Allocation MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usage
 
     WARNING_VKRESULT(m_deviceFuncs->vkBindBufferMemory(m_window->device(), allocation.buffer, allocation.memory, 0), qPrintable("bind buffer memory for allocation '" + allocation.name + "'"));
 
+    memset(MapMemory(allocation), 0, allocation.size);
+    UnmapMemory(allocation);
     return allocation;
 }
 
