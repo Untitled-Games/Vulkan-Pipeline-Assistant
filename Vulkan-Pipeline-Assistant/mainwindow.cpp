@@ -11,7 +11,7 @@
 using namespace vpa;
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0) {
+    : QMainWindow(parent), m_ui(new Ui::MainWindow), m_unhiddenIdx(0), m_vulkan(nullptr) {
 
     m_ui->setupUi(this);
     m_masterContainer = new QWidget(this);
@@ -625,7 +625,7 @@ void MainWindow::MakeDescriptorBlock() {
     rightGroup->layout()->setAlignment(Qt::AlignTop);
 
     if (m_vulkan) {
-        auto descriptors = m_vulkan->GetDescriptors();
+        Descriptors* descriptors = m_vulkan->GetDescriptors();
         if (descriptors) {
             QVector<QWidget*> spvWidgets;
             for (auto& set : descriptors->Buffers().keys()) {
