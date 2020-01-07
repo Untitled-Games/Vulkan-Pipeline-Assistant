@@ -3,13 +3,12 @@
 
 #include "spvwidget.h"
 
-class QLineEdit;
 namespace vpa {
     struct SpvArrayType;
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvArrayWidget(SpvArrayType* type, QWidget* parent = nullptr);
+        SpvArrayWidget(SpvArrayType* type, QWidget* parent);
         ~SpvArrayWidget() override;
 
         void Data(unsigned char* dataPtr) const override;
@@ -23,7 +22,7 @@ namespace vpa {
         QWidget* m_infoGroup;
         QWidget* m_indicesGroup;
         SpvWidget* m_inputWidget;
-        QVector<QLineEdit*> m_dimensionIndices;
+        QVector<size_t> m_dimensionIndices;
         unsigned char* m_data;
 
         size_t m_totalNumElements;

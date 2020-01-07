@@ -206,10 +206,10 @@ void Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoo
     }
 }
 
-BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* resource) {
+BufferInfo Descriptors::CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource) {
     BufferInfo info = {};
-    info.usage = dinfo.type == SpvGroupName::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    info.descriptor = dinfo;
+    info.usage = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    info.descriptor = descriptor;
     info.descriptor.allocation = m_allocator->Allocate(((SpvStructType*)resource->type)->size, info.usage, resource->name);
 
     info.bufferInfo = {};
@@ -220,7 +220,7 @@ BufferInfo Descriptors::CreateBuffer(DescriptorInfo& dinfo, const SpvResource* r
     info.descriptor.layoutBinding = {};
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.descriptorCount = 1;
-    info.descriptor.layoutBinding.descriptorType = dinfo.type == SpvGroupName::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    info.descriptor.layoutBinding.descriptorType = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     info.descriptor.layoutBinding.binding = info.descriptor.binding;
     info.descriptor.layoutBinding.pImmutableSamplers = nullptr;
     info.descriptor.layoutBinding.stageFlags = ((SpvDescriptorGroup*)resource->group)->stageFlags;

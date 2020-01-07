@@ -8,7 +8,7 @@ namespace vpa {
     struct SpvStructType;
     class SpvStructWidget : public SpvWidget {
     public:
-        SpvStructWidget(SpvStructType* type, QWidget* parent = nullptr);
+        SpvStructWidget(SpvStructType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(unsigned char* data) override;

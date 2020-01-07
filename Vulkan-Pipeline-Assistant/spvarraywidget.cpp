@@ -3,6 +3,8 @@
 #include <QLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QSpinBox>
+#include <QCoreApplication>
 
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
@@ -36,15 +38,15 @@ SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, QWidget* parent)
     m_indicesGroup->layout()->setAlignment(Qt::AlignTop);
     m_dimensionIndices.resize(m_type->lengths.size());
     for (int i = 0; i < m_dimensionIndices.size(); ++i) {
-        QLineEdit* indexEdit = new QLineEdit("0", parent);
-        m_dimensionIndices[i] = indexEdit;
+        m_dimensionIndices[i] = 0;
+        QSpinBox* indexEdit = new QSpinBox(parent);
+        indexEdit->setRange(0, m_type->lengths[i] - 1);
         indexEdit->setMaximumWidth(40);
-        m_indicesGroup->layout()->addWidget(m_dimensionIndices[i]);
-        QObject::connect(indexEdit, &QLineEdit::textChanged, [this, i, indexEdit]() {
-            if (indexEdit->text().toUInt() >= m_type->lengths[i]) {
-                indexEdit->setText(QString::number(m_type->lengths[i]- 1));
-            }
+        m_indicesGroup->layout()->addWidget(indexEdit);
+        QObject::connect(indexEdit, QOverload<int>::of(&QSpinBox::valueChanged), [=](int valueIndex){
+            m_dimensionIndices[i] = size_t(indexEdit->value());
             HandleArrayElementChange();
+            SPV_DATA_CHANGE_EVENT(parent);
         });
     }
 
@@ -88,16 +90,8 @@ void SpvArrayWidget::HandleArrayElementChange() {
     int newIndex = 0;
     size_t lengthMult = 1;
     for (int i = m_dimensionIndices.size() - 1; i >= 0; --i) {
-        size_t dimIndex = m_dimensionIndices[i]->text().toUInt();
-        size_t length = m_type->lengths[i];
-        if (dimIndex >= length) {
-            qWarning("Index for array dimension %i out of range.", (i+1));
-            return;
-        }
-        else {
-            newIndex += dimIndex * lengthMult;
-            lengthMult *= length;
-        }
+        newIndex += m_dimensionIndices[i] * lengthMult;
+        lengthMult *= m_type->lengths[i];
     }
     newIndex *= m_stride;
 

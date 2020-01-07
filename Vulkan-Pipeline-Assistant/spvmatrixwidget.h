@@ -9,10 +9,13 @@ namespace vpa {
     class SpvMatrixWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvMatrixWidget(SpvMatrixType* type, QWidget* parent = nullptr);
+        SpvMatrixWidget(SpvMatrixType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(unsigned char* data) override;
+
+    private slots:
+        void HandleInverse();
 
     private:
         SpvMatrixType* m_type;

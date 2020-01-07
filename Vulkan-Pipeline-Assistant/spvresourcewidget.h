@@ -9,7 +9,7 @@ namespace vpa {
     class Descriptors;
     class SpvResourceWidget : public SpvWidget {
     public:
-        SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent = nullptr);
+        SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent);
 
         QString Title() const;
 

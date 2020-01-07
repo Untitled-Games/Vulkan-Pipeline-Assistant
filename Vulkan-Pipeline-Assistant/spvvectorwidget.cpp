@@ -3,6 +3,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QLayout>
+#include <QPushButton>
 #include <QCoreApplication>
 
 #include "spirvresource.h"
@@ -20,6 +21,9 @@ SpvVectorWidget::SpvVectorWidget(SpvVectorType* type, QWidget* parent)
     m_infoGroup = new QWidget(parent);
     m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
     m_infoGroup->layout()->addWidget(new QLabel(VecStrings[(m_type->length - 1)], parent));
+    QPushButton* normBtn = new QPushButton("Normalize", m_infoGroup);
+    m_infoGroup->layout()->addWidget(normBtn);
+    connect(normBtn, SIGNAL(pressed()), this, SLOT(HandleNormalize()));
     m_infoGroup->layout()->setAlignment(Qt::AlignTop);
 
     m_inputsGroup = new QWidget(parent);
@@ -47,6 +51,21 @@ void SpvVectorWidget::Data(unsigned char* dataPtr) const {
 void SpvVectorWidget::Fill(unsigned char* data) {
     float* floatPtr = reinterpret_cast<float*>(data);
     for (size_t i = 0; i < m_type->length; ++i) {
-        m_inputs[i]->setText(QString::number(floatPtr[i]));
+        m_inputs[i]->setText(QString::number(double(floatPtr[i])));
+    }
+}
+
+void SpvVectorWidget::HandleNormalize() {
+    float length = 0;
+    for (size_t i = 0; i < m_type->length; ++i) {
+        float val = m_inputs[i]->text().toFloat();
+        length += val * val;
+    }
+    if (length > 0) {
+        length = sqrt(length);
+        for (size_t i = 0; i < m_type->length; ++i) {
+            float val = m_inputs[i]->text().toFloat();
+            m_inputs[i]->setText(QString::number(double(val / length)));
+        }
     }
 }

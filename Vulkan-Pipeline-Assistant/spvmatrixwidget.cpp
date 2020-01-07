@@ -5,6 +5,7 @@
 #include <QLayout>
 #include <QCoreApplication>
 #include <QComboBox>
+#include <QMatrix4x4>
 
 #include "spirvresource.h"
 #include "mainwindow.h"
@@ -21,6 +22,9 @@ SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, QWidget* parent)
     m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
     m_infoGroup->layout()->setAlignment(Qt::AlignTop);
     m_infoGroup->layout()->addWidget(new QLabel(QStringLiteral("mat %1x%2").arg(m_type->rows).arg(m_type->columns), parent));
+    QPushButton* invBtn = new QPushButton("Inverse", m_infoGroup);
+    m_infoGroup->layout()->addWidget(invBtn);
+    connect(invBtn, SIGNAL(pressed()), this, SLOT(HandleInverse()));
 
     if (m_type->rows == 4 && m_type->columns == 4) {
         QComboBox* defaultMatricesBox = MainWindow::MakeComboBox(m_infoGroup, { "Model", "View", "Projection", "MVP" });
@@ -68,4 +72,16 @@ void SpvMatrixWidget::Fill(unsigned char* data) {
             m_inputs[row][col]->setText(QString::number(floatPtr[row * m_type->columns + col]));
         }
     }
+}
+
+void SpvMatrixWidget::HandleInverse() {
+    float* data = new float[m_type->rows * m_type->columns];
+    for (size_t row = 0; row < m_type->rows; ++row) {
+        for (size_t col = 0; col < m_type->columns; ++col) {
+            data[row * m_type->columns + col] = m_inputs[row][col]->text().toFloat();
+        }
+    }
+    QMatrix4x4 mat(data, m_type->columns, m_type->rows);
+    mat = mat.inverted();
+    Fill((unsigned char*)mat.data());
 }
