@@ -12,6 +12,7 @@ namespace vpa {
     class ShaderAnalytics;
     class VertexInput;
     class Descriptors;
+
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
         VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback);
@@ -31,16 +32,16 @@ namespace vpa {
             return m_descriptors;
         }
 
-        bool WritePipelineCache();
+        VPAError WritePipelineCache();
 
-        bool WritePipelineConfig();
-        bool ReadPipelineConfig();
-        void Reload(const ReloadFlags flag);
+        VPAError WritePipelineConfig();
+        VPAError ReadPipelineConfig();
+        VPAError Reload(const ReloadFlags flag);
     private:
-        void CreateRenderPass();
-        void CreatePipeline();
-        void CreatePipelineCache();
-        void CreateShaders();
+        VPAError CreateRenderPass();
+        VPAError CreatePipeline();
+        VPAError CreatePipelineCache();
+        VPAError CreateShaders();
 
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);

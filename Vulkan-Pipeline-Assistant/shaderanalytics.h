@@ -1,13 +1,14 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "spirvresource.h"
 #include <Lib/spirv-cross/spirv_cross.hpp>
-
 #include <QString>
 #include <QPair>
 #include <QHash>
 #include <QVulkanDeviceFunctions>
+
+#include "spirvresource.h"
+#include "common.h"
 
 namespace vpa {
     struct PipelineConfig;
@@ -17,7 +18,7 @@ namespace vpa {
         ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config);
         ~ShaderAnalytics();
 
-        void LoadShaders(const QString& vert, const QString& frag = "", const QString& tesc = "", const QString& tese = "", const QString& geom = "");
+        VPAError LoadShaders(const QString& vert, const QString& frag = "", const QString& tesc = "", const QString& tese = "", const QString& geom = "");
         bool GetStageCreateInfo(ShaderStage stage, VkPipelineShaderStageCreateInfo& createInfo);
         VkShaderModule GetModule(ShaderStage stage);
         void SetShader(ShaderStage stage, const QString& name);
@@ -28,7 +29,7 @@ namespace vpa {
         const QVector<SpvResource*>& PushConstantRanges() const { return m_pushConstants; }
 
     private:
-        void CreateModule(ShaderStage stage, const QString& name);
+        VPAError CreateModule(ShaderStage stage, const QString& name);
 
         size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
         SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);
@@ -41,7 +42,7 @@ namespace vpa {
 
         void BuildPushConstants();
         void BuildInputAttributes();
-        void BuildDescriptorLayoutMap();
+        VPAError BuildDescriptorLayoutMap();
         void Destroy();
 
         QVulkanDeviceFunctions* m_deviceFuncs;

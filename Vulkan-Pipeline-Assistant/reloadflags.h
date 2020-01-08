@@ -1,13 +1,14 @@
 #ifndef RELOADFLAGS_H
 #define RELOADFLAGS_H
 
+#include "common.h"
+
 namespace vpa {
     // Underlying bits for each individual part of the renderer
     enum class ReloadFlagBits : size_t {
         PIPELINE = 1,
         RENDER_PASS = 2,
-        SHADERS = 4,
-        DESCRIPTOR_VALUES = 8
+        SHADERS = 4
     };
 
     inline constexpr size_t operator|(const ReloadFlagBits& f0, const ReloadFlagBits& f1) {
@@ -19,9 +20,7 @@ namespace vpa {
         PIPELINE = size_t(ReloadFlagBits::PIPELINE), // 0001
         RENDER_PASS = ReloadFlagBits::RENDER_PASS | ReloadFlagBits::PIPELINE, // 0011
         SHADERS = ReloadFlagBits::SHADERS | ReloadFlagBits::PIPELINE, // 0101
-        DESCRIPTOR_VALUES = size_t(ReloadFlagBits::DESCRIPTOR_VALUES), // 1000
-        EVERYTHING = (ReloadFlagBits::DESCRIPTOR_VALUES | ReloadFlagBits::SHADERS) |
-            (ReloadFlagBits::RENDER_PASS | ReloadFlagBits::PIPELINE) // 1111
+        EVERYTHING = (ReloadFlagBits::SHADERS | ReloadFlagBits::RENDER_PASS) | size_t(ReloadFlagBits::PIPELINE) // 1111
     };
 
     inline constexpr bool operator&(const ReloadFlags& f0, const ReloadFlagBits& f1) {

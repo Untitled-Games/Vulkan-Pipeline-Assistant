@@ -4,6 +4,8 @@
 #include <vulkan/vulkan.h>
 #include <QString>
 
+#include "common.h"
+
 class QVulkanDeviceFunctions;
 class QVulkanWindow;
 class QImage;
@@ -26,15 +28,16 @@ namespace vpa {
 
     class MemoryAllocator {
     public:
-        MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window);
+        MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window, VPAError& err);
         ~MemoryAllocator();
 
         unsigned char* MapMemory(Allocation& allocation);
         void UnmapMemory(Allocation& allocation);
-        Allocation Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name);
-        Allocation Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name);
+        // If there is an error in the allocation then resources will be deallocated before return
+        VPAError Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name, Allocation& allocation);
+        VPAError Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name, Allocation& allocation);
         void Deallocate(Allocation& allocation);
-        void TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image, VkPipelineStageFlags finalStageFlags);
+        VPAError TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image, VkPipelineStageFlags finalStageFlags);
 
     private:
         QVulkanDeviceFunctions* m_deviceFuncs;

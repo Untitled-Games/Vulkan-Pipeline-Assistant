@@ -9,9 +9,9 @@
 #include <QLayout>
 #include <QComboBox>
 #include <QPair>
-#include "vulkanmain.h"
 
-#define IMAGEDIR "../../Resources/Images/"
+#include "vulkanmain.h"
+#include "common.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

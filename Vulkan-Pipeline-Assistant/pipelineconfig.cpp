@@ -132,7 +132,7 @@ namespace vpa {
         return "";
     }
 
-    bool PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize) {
+    VPAError PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize) {
         // Keep a reference to the current position we are reading from
         auto readPosition = buffer.begin();
 
@@ -140,10 +140,7 @@ namespace vpa {
         //// START OF CONFIG
         ///////////////////////////////////////////////////////
         std::string activeData = GetNextLine(&readPosition, &buffer);
-        if(!(activeData == "VPA_CONFIG_BEGIN")) {
-            qCritical("VPA_CONFIG_BEGIN format invalid, missing object header.");
-            return false;
-        }
+        if(!(activeData == "VPA_CONFIG_BEGIN")) return VPA_CRITICAL("VPA_CONFIG_BEGIN format invalid, missing object header.");
         try {
             ///////////////////////////////////////////////////////
             //// SHADER DATA
@@ -275,21 +272,17 @@ namespace vpa {
             writablePipelineConfig.blendConstants[3] = std::stof(bufferString);
         }
         catch (std::invalid_argument const &e) {
-            qCritical("Bad input: std::invalid_argument was thrown");
-            qDebug(e.what());
+            return VPA_CRITICAL("Bad input: std::invalid_argument was thrown");
         }
         catch (std::out_of_range const &e) {
-            qCritical("Data Overflow: std::out_of_range was thrown");
-            qDebug(e.what());
-
+            return VPA_CRITICAL("Data Overflow: std::out_of_range was thrown");
         }
 
         activeData = GetNextLine(&readPosition, &buffer);
         if(!(activeData == "VPA_CONFIG_END" || activeData == "\rVPA_CONFIG_END")) {
-            qCritical("VPA_CONFIG_END format invalid, missing object footer.");
-            return false;
+            return VPA_CRITICAL("VPA_CONFIG_END format invalid, missing object footer.");
         }
-        return true;
+        return VPA_OK;
     }
 
 }

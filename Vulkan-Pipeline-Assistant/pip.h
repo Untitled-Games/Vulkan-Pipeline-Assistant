@@ -5,10 +5,11 @@
 
 #include <iostream>
 #include <QFile>
+
 #include "spirvresource.h"
+#include "common.h"
 
 namespace vpa {
-
     struct ColourAttachmentConfig {
         VkBool32 blendEnable = VK_TRUE;
         VkColorComponentFlags writeMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -79,7 +80,7 @@ namespace vpa {
     struct PipelineConfig {
 
         //TODO: can a pipeline config can have multiple writables?
-        bool LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
+        VPAError LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
 
         //todo: Note down the size of these shaders somewhere so that we can  serialize this into binary format
         // Shaders

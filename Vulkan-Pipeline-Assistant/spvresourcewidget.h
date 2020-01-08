@@ -7,6 +7,7 @@ namespace vpa {
     struct SpvResource;
     struct DescriptorInfo;
     class Descriptors;
+
     class SpvResourceWidget : public SpvWidget {
     public:
         SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent);
@@ -14,7 +15,7 @@ namespace vpa {
         QString Title() const;
 
         void Data(unsigned char* dataPtr) const override;
-        void Fill(unsigned char* data) override;
+        void Fill(const unsigned char* data) override;
 
         bool event(QEvent* event) override;
 
