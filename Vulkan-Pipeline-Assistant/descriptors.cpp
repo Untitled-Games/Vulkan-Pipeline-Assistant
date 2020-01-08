@@ -245,7 +245,7 @@ namespace vpa {
 
         VPAError err = VPA_OK;
         err = m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image, finalStageFlags);
-        if (err.level == VPAErrorLevel::Ok) {
+        if (err.level != VPAErrorLevel::Ok) {
             DestroyImage(imageInfo);
             return err;
         }
@@ -263,7 +263,7 @@ namespace vpa {
 
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &imageInfo.view),
                          qPrintable("create image view for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
-        if (err.level == VPAErrorLevel::Ok) {
+        if (err.level != VPAErrorLevel::Ok) {
             DestroyImage(imageInfo);
             return err;
         }
@@ -287,7 +287,7 @@ namespace vpa {
         samplerInfo.maxLod = 1.0f;
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &imageInfo.sampler),
                          qPrintable("create sampler for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
-        if (err.level == VPAErrorLevel::Ok) {
+        if (err.level != VPAErrorLevel::Ok) {
             DestroyImage(imageInfo);
             return err;
         }
@@ -302,7 +302,6 @@ namespace vpa {
         imageInfo.descriptor.layoutBinding.descriptorCount = 1;
         imageInfo.descriptor.layoutBinding.descriptorType = reinterpret_cast<const SpvImageType*>(imageInfo.descriptor.resource->type)->sampled ?
                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        imageInfo.descriptor.layoutBinding.binding = imageInfo.descriptor.binding;
         imageInfo.descriptor.layoutBinding.pImmutableSamplers = nullptr;
         imageInfo.descriptor.layoutBinding.stageFlags = shaderStageFlags;
 
