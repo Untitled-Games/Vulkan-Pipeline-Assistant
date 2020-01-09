@@ -139,15 +139,13 @@ namespace vpa {
         Allocation stagingAllocation;
         VPA_PASS_ERROR(Allocate(imageAllocation.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging_buffer", stagingAllocation));
 
-        VkImageSubresource subres = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
-        VkSubresourceLayout layout;
-        m_deviceFuncs->vkGetImageSubresourceLayout(m_window->device(), imageAllocation.image, &subres, &layout);
+        uint32_t rowLength = uint32_t(image.width()) * 4;
 
         unsigned char* stagingData = MapMemory(stagingAllocation);
         for (int y = 0; y < image.height(); ++y) {
             const unsigned char* line = image.constScanLine(y);
-            memcpy(stagingData, line, size_t(image.width()) * 4);
-            stagingData += layout.rowPitch;
+            memcpy(stagingData, line, rowLength);
+            stagingData += rowLength;
         }
         UnmapMemory(stagingAllocation);
 

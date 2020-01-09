@@ -111,7 +111,7 @@ namespace vpa {
         uint32_t outputAttachmentIndex = 0;
         uint32_t attachmentCount = 0;
 
-        WritablePipelineConfig writablePipelineConfig;
+        WritablePipelineConfig writables;
     };
 
     std::ostream& operator<<(std::ostream& out, const WritablePipelineConfig& config);

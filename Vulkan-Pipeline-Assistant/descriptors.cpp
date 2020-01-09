@@ -234,7 +234,7 @@ namespace vpa {
         if (image.isNull()) return VPA_CRITICAL("Failed to load image " + name);
         image = image.convertToFormat(QImage::Format_RGBA8888);
 
-        VkImageCreateInfo createInfo = MakeImageCreateInfo(reinterpret_cast<const SpvImageType*>(imageInfo.descriptor.resource),
+        VkImageCreateInfo createInfo = MakeImageCreateInfo(reinterpret_cast<const SpvImageType*>(imageInfo.descriptor.resource->type),
                                                            uint32_t(image.width()), uint32_t(image.height()), 1);
 
         size_t size = size_t(image.width()) * size_t(image.height()) * 4;
@@ -395,7 +395,7 @@ namespace vpa {
 
         createInfo.extent = { width, height, depth };
         createInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-        createInfo.tiling = VK_IMAGE_TILING_LINEAR;
+        createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
         createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         createInfo.imageType = VK_IMAGE_TYPE_2D;
         createInfo.mipLevels = 1;

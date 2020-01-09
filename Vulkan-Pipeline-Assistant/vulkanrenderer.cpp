@@ -236,8 +236,8 @@ namespace vpa {
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology = m_config.writablePipelineConfig.topology;
-        inputAssembly.primitiveRestartEnable = m_config.writablePipelineConfig.primitiveRestartEnable;
+        inputAssembly.topology = m_config.writables.topology;
+        inputAssembly.primitiveRestartEnable = m_config.writables.primitiveRestartEnable;
 
         VkViewport viewport = {};
         viewport.x = 0.0f;
@@ -264,51 +264,51 @@ namespace vpa {
 
         VkPipelineRasterizationStateCreateInfo rasterizer = {};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = m_config.writablePipelineConfig.depthClampEnable;
-        rasterizer.rasterizerDiscardEnable = m_config.writablePipelineConfig.rasterizerDiscardEnable;
-        rasterizer.polygonMode = m_config.writablePipelineConfig.polygonMode;
-        rasterizer.lineWidth = m_config.writablePipelineConfig.lineWidth;
-        rasterizer.cullMode = m_config.writablePipelineConfig.cullMode;
-        rasterizer.frontFace = m_config.writablePipelineConfig.frontFace;
-        rasterizer.depthBiasEnable = m_config.writablePipelineConfig.depthBiasEnable;
+        rasterizer.depthClampEnable = m_config.writables.depthClampEnable;
+        rasterizer.rasterizerDiscardEnable = m_config.writables.rasterizerDiscardEnable;
+        rasterizer.polygonMode = m_config.writables.polygonMode;
+        rasterizer.lineWidth = m_config.writables.lineWidth;
+        rasterizer.cullMode = m_config.writables.cullMode;
+        rasterizer.frontFace = m_config.writables.frontFace;
+        rasterizer.depthBiasEnable = m_config.writables.depthBiasEnable;
 
         VkPipelineMultisampleStateCreateInfo multisampling = {};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable = m_config.writablePipelineConfig.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
+        multisampling.sampleShadingEnable = m_config.writables.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
         //TODO change this back if multisampling is working
         multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
         //multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
-        multisampling.minSampleShading = m_config.writablePipelineConfig.minSampleShading;
+        multisampling.minSampleShading = m_config.writables.minSampleShading;
 
         VkPipelineDepthStencilStateCreateInfo depthStencil = {};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = m_config.writablePipelineConfig.depthTestEnable;
-        depthStencil.depthWriteEnable = m_config.writablePipelineConfig.depthWriteEnable;
-        depthStencil.depthCompareOp = m_config.writablePipelineConfig.depthCompareOp;
-        depthStencil.depthBoundsTestEnable = m_config.writablePipelineConfig.depthBoundsTest;
-        depthStencil.stencilTestEnable = m_config.writablePipelineConfig.stencilTestEnable;
+        depthStencil.depthTestEnable = m_config.writables.depthTestEnable;
+        depthStencil.depthWriteEnable = m_config.writables.depthWriteEnable;
+        depthStencil.depthCompareOp = m_config.writables.depthCompareOp;
+        depthStencil.depthBoundsTestEnable = m_config.writables.depthBoundsTest;
+        depthStencil.stencilTestEnable = m_config.writables.stencilTestEnable;
 
         QVector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
         for (size_t i = 0; i < 1; ++i) {
             VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
             colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable = m_config.writablePipelineConfig.attachments.blendEnable;
-            colorBlendAttachment.alphaBlendOp = m_config.writablePipelineConfig.attachments.alphaBlendOp;
-            colorBlendAttachment.srcAlphaBlendFactor = m_config.writablePipelineConfig.attachments.srcAlphaBlendFactor;
-            colorBlendAttachment.dstAlphaBlendFactor = m_config.writablePipelineConfig.attachments.dstAlphaBlendFactor;
-            colorBlendAttachment.colorBlendOp = m_config.writablePipelineConfig.attachments.colourBlendOp;
-            colorBlendAttachment.srcColorBlendFactor = m_config.writablePipelineConfig.attachments.srcColourBlendFactor;
-            colorBlendAttachment.dstColorBlendFactor = m_config.writablePipelineConfig.attachments.dstColourBlendFactor;
+            colorBlendAttachment.blendEnable = m_config.writables.attachments.blendEnable;
+            colorBlendAttachment.alphaBlendOp = m_config.writables.attachments.alphaBlendOp;
+            colorBlendAttachment.srcAlphaBlendFactor = m_config.writables.attachments.srcAlphaBlendFactor;
+            colorBlendAttachment.dstAlphaBlendFactor = m_config.writables.attachments.dstAlphaBlendFactor;
+            colorBlendAttachment.colorBlendOp = m_config.writables.attachments.colourBlendOp;
+            colorBlendAttachment.srcColorBlendFactor = m_config.writables.attachments.srcColourBlendFactor;
+            colorBlendAttachment.dstColorBlendFactor = m_config.writables.attachments.dstColourBlendFactor;
             colorBlendAttachments.push_back(colorBlendAttachment);
         }
 
         VkPipelineColorBlendStateCreateInfo colorBlending = {};
         colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable = m_config.writablePipelineConfig.logicOpEnable;
-        colorBlending.logicOp = m_config.writablePipelineConfig.logicOp;
+        colorBlending.logicOpEnable = m_config.writables.logicOpEnable;
+        colorBlending.logicOp = m_config.writables.logicOp;
         colorBlending.attachmentCount = uint32_t(colorBlendAttachments.size());
         colorBlending.pAttachments = colorBlendAttachments.data();
-        memcpy(colorBlending.blendConstants, m_config.writablePipelineConfig.blendConstants, 4 * sizeof(float));
+        memcpy(colorBlending.blendConstants, m_config.writables.blendConstants, 4 * sizeof(float));
 
         VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreatePipelineLayout(m_window->device(), &layoutInfo, nullptr, &m_pipelineLayout), "Failed to create pipeline layout")
 

@@ -122,7 +122,7 @@ namespace vpa {
         m_compilers[size_t(stage)] = new Compiler(std::move(spirvCrossBuf));
         m_resources[size_t(stage)] = m_compilers[size_t(stage)]->get_shader_resources();
 
-        m_config->writablePipelineConfig.shaderBlobs[size_t(stage)] = blob;
+        m_config->writables.shaderBlobs[size_t(stage)] = blob;
         return VPA_OK;
     }
 
