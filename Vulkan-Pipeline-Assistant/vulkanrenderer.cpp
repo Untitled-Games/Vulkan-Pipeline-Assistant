@@ -127,7 +127,6 @@ namespace vpa {
         if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass()); }
         if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
         if (flag & ReloadFlagBits::Pipeline) { VPA_PASS_ERROR(CreatePipeline()); }
-        m_creationCallback();
         return VPA_OK;
     }
 
@@ -366,6 +365,7 @@ namespace vpa {
         }
 
         // TODO Determine new colour attachment count
+        m_creationCallback();
         return VPA_OK;
     }
 }
