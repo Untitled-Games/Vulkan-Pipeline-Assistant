@@ -11,19 +11,19 @@ class QVulkanDeviceFunctions;
 class QVulkanWindow;
 namespace vpa {
     enum class VertexAttribute {
-        POSITION,
-        TEX_COORD,
-        NORMAL,
-        RGBA_COLOUR,
-        count_
+        Position,
+        TexCoord,
+        Normal,
+        RgbaColour,
+        Count_
     };
 
     enum class SupportedFormats {
-        OBJ,
-        count_
+        Obj,
+        Count_
     };
 
-    class VertexInput {
+    class VertexInput final {
     public:
         VertexInput(QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                     QVector<SpvResource*> inputResources, QString meshName, bool isIndexed, VPAError& err);

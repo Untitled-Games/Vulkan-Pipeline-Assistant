@@ -6,6 +6,8 @@
 #if __has_warning("-Wzero-as-null-pointer-constant")
 #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
 #pragma clang diagnostic ignored "-Wc++98-compat"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#pragma clang diagnostic ignored "-Wglobal-constructors"
 #endif
 #endif
 

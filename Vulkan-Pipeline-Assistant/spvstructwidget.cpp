@@ -37,16 +37,16 @@ namespace vpa {
         m_typeWidgets.resize(m_type->members.size());
         m_memberButtons.resize(m_type->members.size());
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
-            if (m_type->members[i]->Type() == SpvTypeName::VECTOR) {
+            if (m_type->members[i]->Type() == SpvTypeName::Vector) {
                 m_typeWidgets[i] = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_type->members[i]), parent);
             }
-            else if (m_type->members[i]->Type() == SpvTypeName::MATRIX) {
+            else if (m_type->members[i]->Type() == SpvTypeName::Matrix) {
                 m_typeWidgets[i] = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_type->members[i]), parent);
             }
-            else if (m_type->members[i]->Type() == SpvTypeName::STRUCT) {
+            else if (m_type->members[i]->Type() == SpvTypeName::Struct) {
                 m_typeWidgets[i] = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_type->members[i]), parent);
             }
-            else if (m_type->members[i]->Type() == SpvTypeName::ARRAY) {
+            else if (m_type->members[i]->Type() == SpvTypeName::Array) {
                 m_typeWidgets[i] = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(m_type->members[i]), parent);
             }
             else {

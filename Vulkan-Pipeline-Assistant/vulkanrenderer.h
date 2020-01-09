@@ -15,7 +15,7 @@ namespace vpa {
 
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
-        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback);
+        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
 
         void initResources() override;
         void initSwapChainResources() override;
@@ -69,6 +69,7 @@ namespace vpa {
 
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
+        std::function<void(void)> m_postInitCallback;
     };
 }
 

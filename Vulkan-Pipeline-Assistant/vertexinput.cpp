@@ -13,7 +13,7 @@ namespace vpa {
                              QVector<SpvResource*> inputResources, QString meshName, bool isIndexed, VPAError& err)
          : m_indexed(isIndexed), m_indexCount(0), m_deviceFuncs(deviceFuncs), m_allocator(allocator) {
         CalculateData(inputResources);
-        err = LoadMesh(meshName, SupportedFormats::OBJ);
+        err = LoadMesh(meshName, SupportedFormats::Obj);
     }
 
     VertexInput::~VertexInput() {
@@ -32,7 +32,7 @@ namespace vpa {
     }
 
     VPAError VertexInput::LoadMesh(QString& meshName, SupportedFormats format) {
-        if (format == SupportedFormats::OBJ) {
+        if (format == SupportedFormats::Obj) {
             return LoadObj(meshName);
         }
         return VPA_WARN("Unsupported format for loading mesh");
@@ -58,21 +58,21 @@ namespace vpa {
         for (const auto& shape : shapes) {
             for (const auto& index : shape.mesh.indices) {
                 for (int i = 0; i < m_attributes.size(); ++i) {
-                    if (m_attributes[i] == VertexAttribute::POSITION) {
+                    if (m_attributes[i] == VertexAttribute::Position) {
                         verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 0]);
                         verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 1]);
                         verts.push_back(attrib.vertices[3 * size_t(index.vertex_index) + 2]);
                     }
-                    else if (attrib.texcoords.size() > 0 && m_attributes[i] == VertexAttribute::TEX_COORD) {
+                    else if (attrib.texcoords.size() > 0 && m_attributes[i] == VertexAttribute::TexCoord) {
                         verts.push_back(attrib.texcoords[2 * size_t(index.texcoord_index) + 0]);
                         verts.push_back(1.0f - attrib.texcoords[2 * size_t(index.texcoord_index) + 1]);
                     }
-                    else if (attrib.normals.size() > 0 && m_attributes[i] == VertexAttribute::NORMAL) {
+                    else if (attrib.normals.size() > 0 && m_attributes[i] == VertexAttribute::Normal) {
                         verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 0]);
                         verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 1]);
                         verts.push_back(attrib.normals[3 * size_t(index.normal_index) + 2]);
                     }
-                    else if (m_attributes[i] == VertexAttribute::RGBA_COLOUR) {
+                    else if (m_attributes[i] == VertexAttribute::RgbaColour) {
                         verts.push_back(rand() / float(RAND_MAX));
                         verts.push_back(rand() / float(RAND_MAX));
                         verts.push_back(rand() / float(RAND_MAX));
@@ -108,17 +108,17 @@ namespace vpa {
             uint32_t location = reinterpret_cast<SpvInputAttribGroup*>(inputResources[i]->group)->location;
             SpvVectorType* type = reinterpret_cast<SpvVectorType*>(inputResources[i]->type); // TODO deal with other types
             if (type->length == 2) {
-                attribData[location] = VertexAttribute::TEX_COORD;
+                attribData[location] = VertexAttribute::TexCoord;
             }
             else if (type->length == 3 && !usedPos) {
-                attribData[location] = VertexAttribute::POSITION;
+                attribData[location] = VertexAttribute::Position;
                 usedPos = true;
             }
             else if (type->length == 3) {
-                attribData[location] = VertexAttribute::NORMAL;
+                attribData[location] = VertexAttribute::Normal;
             }
             else if (type->length == 4) {
-                attribData[location] = VertexAttribute::RGBA_COLOUR;
+                attribData[location] = VertexAttribute::RgbaColour;
             }
         }
 
@@ -144,11 +144,11 @@ namespace vpa {
         for (int i = 0; i < m_attributes.size(); ++i) {
             VkFormat format;
             uint32_t tmpOffset;
-            if (m_attributes[i] == VertexAttribute::TEX_COORD) {
+            if (m_attributes[i] == VertexAttribute::TexCoord) {
                 format = VK_FORMAT_R32G32_SFLOAT;
                 tmpOffset = 2 * sizeof(float);
             }
-            else if (m_attributes[i] == VertexAttribute::POSITION || m_attributes[i] == VertexAttribute::NORMAL) {
+            else if (m_attributes[i] == VertexAttribute::Position || m_attributes[i] == VertexAttribute::Normal) {
                 format = VK_FORMAT_R32G32B32_SFLOAT;
                 tmpOffset = 3 * sizeof(float);
             }
@@ -168,10 +168,10 @@ namespace vpa {
     uint32_t VertexInput::CalculateStride() {
         uint32_t stride = 0;
         for (int i = 0; i < m_attributes.size(); ++i) {
-            if (m_attributes[i] == VertexAttribute::TEX_COORD) {
+            if (m_attributes[i] == VertexAttribute::TexCoord) {
                 stride += 2 * sizeof(float);
             }
-            else if (m_attributes[i] == VertexAttribute::POSITION || m_attributes[i] == VertexAttribute::NORMAL) {
+            else if (m_attributes[i] == VertexAttribute::Position || m_attributes[i] == VertexAttribute::Normal) {
                 stride += 3 * sizeof(float);
             }
             else {

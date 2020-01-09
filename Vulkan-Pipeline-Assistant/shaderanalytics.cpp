@@ -12,10 +12,10 @@ using SPIRV_CROSS_NAMESPACE::SmallVector;
 using SPIRV_CROSS_NAMESPACE::Resource;
 
 namespace vpa {
-    const QString ShaderStageStrings[size_t(ShaderStage::count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
-    const QString SpvGroupNameStrings[size_t(SpvGroupName::count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
-    const QString SpvTypeNameStrings[size_t(SpvTypeName::count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
-    const QString SpvImageTypeNameStrings[size_t(SpvImageTypeName::count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+    const QString ShaderStageStrings[size_t(ShaderStage::Count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
+    const QString SpvGroupNameStrings[size_t(SpvGroupName::Count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
+    const QString SpvTypeNameStrings[size_t(SpvTypeName::Count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
+    const QString SpvImageTypeNameStrings[size_t(SpvImageTypeName::Count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
 
     ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config)
         : m_deviceFuncs(deviceFuncs), m_device(device), m_config(config) {
@@ -28,7 +28,7 @@ namespace vpa {
     }
 
     void ShaderAnalytics::Destroy() {
-        for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
             if (m_modules[i] != VK_NULL_HANDLE) m_deviceFuncs->vkDestroyShaderModule(m_device, m_modules[i], nullptr);
             if (m_compilers[i] != nullptr) delete m_compilers[i];
         }
@@ -55,15 +55,15 @@ namespace vpa {
             return VPA_WARN("Vertex shader required");
         }
         else {
-            VPA_PASS_ERROR(CreateModule(ShaderStage::VERTEX, vert));
+            VPA_PASS_ERROR(CreateModule(ShaderStage::Vertex, vert));
         }
 
         if ((tesc != "" || tese != "") && !(tesc != "" && tese != "")) return VPA_WARN("Missing either tess control or tess eval shaders.");
 
-        if (frag != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::FRAGMENT, frag)); }
-        if (tesc != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TESS_CONTROL, tesc)); }
-        if (tese != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TESS_EVAL, tese)); }
-        if (geom != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::GEOMETRY, geom)); }
+        if (frag != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Fragment, frag)); }
+        if (tesc != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationControl, tesc)); }
+        if (tese != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationEvaluation, tese)); }
+        if (geom != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Geometry, geom)); }
 
         BuildPushConstants();
         BuildInputAttributes();
@@ -91,7 +91,7 @@ namespace vpa {
     }
 
     size_t ShaderAnalytics::NumColourAttachments() const {
-        return m_modules[size_t(ShaderStage::FRAGMENT)] != VK_NULL_HANDLE ? m_resources[size_t(ShaderStage::FRAGMENT)].stage_outputs.size() : 0;
+        return m_modules[size_t(ShaderStage::Fragment)] != VK_NULL_HANDLE ? m_resources[size_t(ShaderStage::Fragment)].stage_outputs.size() : 0;
     }
 
     VPAError ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
@@ -163,11 +163,11 @@ namespace vpa {
     SpvType* ShaderAnalytics::CreateImageType(const SPIRType& spirType) {
         SpvImageType* type = new SpvImageType();
         type->size = 0;
-        type->imageTypename = spirType.image.dim == spv::Dim1D ? SpvImageTypeName::TEX1D :
-                                               spirType.image.dim == spv::Dim2D ? SpvImageTypeName::TEX2D :
-                                               spirType.image.dim == spv::Dim3D ? SpvImageTypeName::TEX3D :
-                                               spirType.image.dim == spv::DimCube ? SpvImageTypeName::TEX_CUBE :
-                                               SpvImageTypeName::TEX_UNKNOWN;
+        type->imageTypename = spirType.image.dim == spv::Dim1D ? SpvImageTypeName::Tex1D :
+                                               spirType.image.dim == spv::Dim2D ? SpvImageTypeName::Tex2D :
+                                               spirType.image.dim == spv::Dim3D ? SpvImageTypeName::Tex3D :
+                                               spirType.image.dim == spv::DimCube ? SpvImageTypeName::TexCube :
+                                               SpvImageTypeName::TexUnknown;
         type->isDepth = spirType.image.depth;
         type->isArrayed = spirType.image.arrayed;
         type->sampled = spirType.image.sampled == 1;
@@ -245,7 +245,7 @@ namespace vpa {
     }
 
     void ShaderAnalytics::BuildPushConstants() {
-        for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
             if (m_modules[i] != VK_NULL_HANDLE) {
                 SmallVector<Resource>& pushConstantsBuffers = m_resources[i].push_constant_buffers;
                 for (size_t j = 0; j < pushConstantsBuffers.size(); ++j) {
@@ -260,7 +260,7 @@ namespace vpa {
     }
 
     void ShaderAnalytics::BuildInputAttributes() {
-        size_t vertexIdx = size_t(ShaderStage::VERTEX);
+        size_t vertexIdx = size_t(ShaderStage::Vertex);
         SmallVector<Resource>& stageInputs = m_resources[vertexIdx].stage_inputs;
         m_inputAttributes.resize(int(stageInputs.size()));
         for (size_t i = 0; i < stageInputs.size(); ++i) {
@@ -272,13 +272,13 @@ namespace vpa {
     }
 
     VPAError ShaderAnalytics::BuildDescriptorLayoutMap() {
-        for (size_t i = 0; i < size_t(ShaderStage::count_); ++i) {
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
             if (m_modules[i] != VK_NULL_HANDLE) {
                 // Use binding and set as key and add to map. If key exists and the resources are different then the shaders are not compatible.
                 QVector<SmallVector<Resource>> descriptorResources = { m_resources[i].sampled_images, m_resources[i].storage_images,
                                                                        m_resources[i].storage_buffers, m_resources[i].uniform_buffers };
-                QVector<SpvGroupName> groups = { SpvGroupName::IMAGE, SpvGroupName::IMAGE,
-                                                 SpvGroupName::STORAGE_BUFFER, SpvGroupName::UNIFORM_BUFFER };
+                QVector<SpvGroupName> groups = { SpvGroupName::Image, SpvGroupName::Image,
+                                                 SpvGroupName::StorageBuffer, SpvGroupName::UniformBuffer };
 
                 for (int k = 0 ; k < descriptorResources.size(); ++k) {
                     for (auto& resource : descriptorResources[k]) {

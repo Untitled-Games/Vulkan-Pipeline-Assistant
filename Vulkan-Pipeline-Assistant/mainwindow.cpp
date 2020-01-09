@@ -1,40 +1,42 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "PipelineConfig.h"
 
 #include <QLineEdit>
+#include <QSpinBox>
+#include <QPushButton>
+#include <QFileDialog>
+#include <QLabel>
+#include <QLayout>
+#include <QComboBox>
+#include <QPair>
 
-#include "PipelineConfig.h"
+#include "pipelineconfig.h"
 #include "descriptors.h"
 #include "spvresourcewidget.h"
 
 namespace vpa {
-    MainWindow::MainWindow(QWidget *parent)
+    MainWindow::MainWindow(QWidget* parent)
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_unhiddenIdx(0) {
         m_ui->setupUi(this);
+
         m_masterContainer = new QWidget(this);
         m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
         m_layout = new QGridLayout(m_masterContainer);
+
         m_leftColumnContainer = new QWidget(m_masterContainer);
-        m_rightTopContainer = new QWidget(m_masterContainer);
-        m_rightBottomContainer = new QWidget(m_masterContainer);
         m_leftColumnContainer->setLayout(new QVBoxLayout(m_leftColumnContainer));
         m_leftColumnContainer->layout()->setAlignment(Qt::AlignTop);
-        AddConfigButtons();
-        AddConfigBlocks();
 
-        m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
-        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
-        QObject::connect(m_cacheBtn, &QPushButton::released, [this]{
-            this->m_vulkan->WritePipelineCache();
-        });
+        m_rightTopContainer = new QWidget(m_masterContainer);
 
+        m_rightBottomContainer = new QWidget(m_masterContainer);
         m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
-        m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
+        m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this), std::bind(&MainWindow::CreateInterface, this));
 
         m_layout->addWidget(m_leftColumnContainer, 0, 0);
         m_layout->addWidget(m_rightTopContainer, 0, 1);
         m_layout->addWidget(m_rightBottomContainer, 1, 1);
+
         m_layout->setColumnStretch(0, 1);
         m_layout->setColumnStretch(1, 4);
         m_masterContainer->setLayout(m_layout);
@@ -45,8 +47,18 @@ namespace vpa {
         delete m_ui;
     }
 
+    void MainWindow::CreateInterface() {
+        AddConfigButtons();
+        AddConfigBlocks();
+
+        m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
+        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
+        QObject::connect(m_cacheBtn, &QPushButton::released, [this]{
+            this->m_vulkan->WritePipelineCache();
+        });
+    }
+
     void MainWindow::AddConfigButtons() {
-        // Shaders
         m_configButtons.push_back(new QPushButton("Shaders", m_leftColumnContainer));
         QObject::connect(m_configButtons[0], &QPushButton::released, [this]{ this->HandleConfigAreaChange(0); });
         m_configButtons.push_back(new QPushButton("Vertex Input", m_leftColumnContainer));
@@ -104,7 +116,6 @@ namespace vpa {
         // TODO change shaders
     }
 
-    //TODO allow multiple viewports
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
         PipelineConfig& config = this->m_vulkan->GetConfig();
         VkViewport& viewport = config.viewports[0];
@@ -150,59 +161,39 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeVertexInputBlock() {
-        QMap<QString, VkPrimitiveTopology> topologies;
-        topologies.insert("Point List", VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
-        topologies.insert("Line List", VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-        topologies.insert("Line Strip", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
-        topologies.insert("Triangle List", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        topologies.insert("Triangle Strip", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
-        topologies.insert("Triangle Fan", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
-        topologies.insert("Line List With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY);
-        topologies.insert("Line Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY);
-        topologies.insert("Triangle List With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY);
-        topologies.insert("Triangle Strip With Adjacency", VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY);
-        topologies.insert("Patch List", VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-
-        QWidget* parent = new QWidget(m_rightTopContainer);
-        QLabel* topologyLabel = new QLabel("Topology", parent);
-        QComboBox* topologyBox = MakeComboBox(parent, {});
-        for (QString key : topologies.keys()) {
-            topologyBox->addItem(key);
-        }
-
-        QObject::connect(topologyBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, topologyBox, topologies](int index) {
-            QString topologyname = topologyBox->currentText();
+        QWidget* container = new QWidget(m_rightTopContainer);
+        // ----------- Topology -------------
+        QLabel* topologyLabel = new QLabel("Topology", container);
+        QComboBox* topologyBox = MakeComboBox(container, { "Point List", "Line List", "Line Strip", "Triangle List",
+                "Triangle Strip", "Triangle Fan", "Line List With Adjacency", "Line Strip With Adjacency",
+                "Triangle List With Adjacency", "Triangle Strip With Adjacency", "Patch List"});
+        QObject::connect(topologyBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, topologyBox]() {
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.topology = topologies.value(topologyname);
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.topology = VkPrimitiveTopology(topologyBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
-        QLabel* primRestartLabel = new QLabel("Primitive Restart", parent);
-        QComboBox* primRestartBox = MakeComboBox(parent, { "False", "True" });
-        QObject::connect(primRestartBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, primRestartBox](int index){
-            QString text = primRestartBox->currentText();
-            bool value = text == "True" ? true : false;
+        // ----------- Primitive Restart -------------
+        QLabel* primRestartLabel = new QLabel("Primitive Restart", container);
+        QComboBox* primRestartBox = MakeComboBox(container, { "False", "True" });
+        QObject::connect(primRestartBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, primRestartBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.primitiveRestartEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.primitiveRestartEnable = VkBool32(primRestartBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
-        QLabel* patchPointsLabel = new QLabel("Patch Point Count", parent);
-        QLineEdit* patchPointsBox = new QLineEdit("0", parent);
-        patchPointsBox->setValidator(new QIntValidator(0, 9, this));
-        QObject::connect(patchPointsBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, patchPointsBox](int index) {
-           QString text = patchPointsBox->text();
-           uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+        // ----------- Patch Points -------------
+        QLabel* patchPointsLabel = new QLabel("Patch Point Count", container);
+        QSpinBox* patchPointsBox = new QSpinBox(container);
+        patchPointsBox->setRange(0, 32); // TODO int(m_vulkan->Limits().maxTessellationPatchSize)
+        QObject::connect(patchPointsBox, QOverload<int>::of(&QSpinBox::valueChanged), [this, patchPointsBox]() {
            PipelineConfig& config = this->m_vulkan->GetConfig();
-           config.writablePipelineConfig.patchControlPoints = value;
-           this->m_vulkan->WritePipelineConfig();
-           this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+           config.writablePipelineConfig.patchControlPoints = uint32_t(patchPointsBox->value());
+           WriteAndReload(ReloadFlags::Pipeline);
         });
 
-        QGridLayout* layout = new QGridLayout(parent);
-        parent->setLayout(layout);
+        QGridLayout* layout = new QGridLayout(container);
+        container->setLayout(layout);
 
         layout->addWidget(topologyLabel, 0, 0);
         layout->addWidget(topologyBox, 1, 0);
@@ -211,11 +202,11 @@ namespace vpa {
         layout->addWidget(patchPointsLabel, 0, 2);
         layout->addWidget(patchPointsBox, 1, 2);
 
-        return parent;
+        return container;
     }
 
     QWidget* MainWindow::MakeViewportStateBlock() {
-        // Viewport
+        // ----------- Viewport -------------
         QWidget* container = new QWidget(m_rightTopContainer);
         QLabel* xLabel = new QLabel("Viewport X", container);
         QLineEdit* xBox = new QLineEdit(container);
@@ -271,7 +262,7 @@ namespace vpa {
         layout->addWidget(resetViewChangeButton, 6, 2);
         layout->addWidget(applyViewChangeButton, 6, 3);
 
-        // Scissor
+        // ----------- Scissor -------------
         QLabel* scissorXLabel = new QLabel("Scissor X", container);
         QLineEdit* scissorXBox = new QLineEdit(container);
         scissorXBox->setValidator(new QIntValidator(0, 10000, container));
@@ -298,128 +289,98 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeRasterizerBlock() {
-        QMap<QString, VkPolygonMode> polygonModes;
-        polygonModes.insert("Fill", VK_POLYGON_MODE_FILL);
-        polygonModes.insert("Line", VK_POLYGON_MODE_LINE);
-        polygonModes.insert("Point", VK_POLYGON_MODE_POINT);
-
+        // ----------- Polygon Mode -------------
         QWidget* container = new QWidget(m_rightTopContainer);
         QLabel* polygonModeLabel = new QLabel("Polygon Mode");
         QComboBox* polygonModeBox = MakeComboBox(container, {"Fill", "Line", "Point"});
-        QObject::connect(polygonModeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, polygonModeBox, polygonModes](int index){
-            QString text = polygonModeBox->currentText();
+        QObject::connect(polygonModeBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, polygonModeBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.polygonMode = polygonModes.value(text);
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.polygonMode = VkPolygonMode(polygonModeBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Rasterizer Discard -------------
         QLabel* rasterizerDiscardLabel = new QLabel("Discard Enable");
         QComboBox* rasterizerDiscardBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(rasterizerDiscardBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, rasterizerDiscardBox](int index){
-            QString text = rasterizerDiscardBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(rasterizerDiscardBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, rasterizerDiscardBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.rasterizerDiscardEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.rasterizerDiscardEnable = VkBool32(rasterizerDiscardBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Line Width -------------
         QLabel* lineWidthLabel = new QLabel("Line Width");
         QLineEdit* lineWidthBox = new QLineEdit("1.0", container);
-        QObject::connect(lineWidthBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, lineWidthBox](int index) {
-           QString text = lineWidthBox->text();
-           uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+        QObject::connect(lineWidthBox, &QLineEdit::textChanged, [this, lineWidthBox]() {
            PipelineConfig& config = this->m_vulkan->GetConfig();
-           config.writablePipelineConfig.lineWidth = value;
-           this->m_vulkan->WritePipelineConfig();
-           this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+           config.writablePipelineConfig.lineWidth = lineWidthBox->text().toFloat();
+           WriteAndReload(ReloadFlags::Pipeline);
         });
 
-        //TODO move this maybe?
-        QMap<QString, VkCullModeFlagBits> cullModes;
-        cullModes.insert("None", VK_CULL_MODE_NONE);
-        cullModes.insert("Front", VK_CULL_MODE_FRONT_BIT);
-        cullModes.insert("Back", VK_CULL_MODE_BACK_BIT);
-        cullModes.insert("Front and Back", VK_CULL_MODE_FRONT_AND_BACK);
-
+        // ----------- Cull Mode -------------
         QLabel* cullModeLabel = new QLabel("Cull Mode");
         QComboBox* cullModeBox = MakeComboBox(container, {"None", "Front", "Back", "Front and Back"});
-        QObject::connect(cullModeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, cullModeBox, cullModes](int index){
-            QString text = cullModeBox->currentText();
+        QObject::connect(cullModeBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, cullModeBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.cullMode = cullModes.value(text);
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.cullMode = VkCullModeFlagBits(cullModeBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Front Face -------------
         QLabel* frontFaceLabel = new QLabel("Front Face");
         QComboBox* frontFaceBox = MakeComboBox(container, {"Counter Clockwise", "Clockwise"});
-        QObject::connect(frontFaceBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, frontFaceBox](int index){
-            QString text = frontFaceBox->currentText();
-            VkFrontFace direction = text == "Clockwise" ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        QObject::connect(frontFaceBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, frontFaceBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.frontFace = direction;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.frontFace = VkFrontFace(frontFaceBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Clamp -------------
         QLabel* depthClampLabel = new QLabel("Depth Clamp Enable");
         QComboBox* depthClampBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(depthClampBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, depthClampBox](int index){
-            QString text = depthClampBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(depthClampBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, depthClampBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthClampEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthClampEnable = VkBool32(depthClampBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Bias -------------
         QLabel* depthBiasLabel = new QLabel("Depth Bias Enable");
         QComboBox* depthBiasBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(depthBiasBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, depthBiasBox](int index){
-            QString text = depthBiasBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(depthBiasBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, depthBiasBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthBiasEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthBiasEnable = VkBool32(depthBiasBox->currentIndex());
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Bias Constant -------------
         QLabel* depthBiasConstLabel = new QLabel("Depth Bias Constant");
         QLineEdit* depthBiasConstBox = new QLineEdit("1.0", container);
         depthBiasConstBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(depthBiasConstBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasConstBox](int index) {
-           QString text = depthBiasConstBox->text();
-           uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+        QObject::connect(depthBiasConstBox, &QLineEdit::textChanged, [this, depthBiasConstBox]() {
            PipelineConfig& config = this->m_vulkan->GetConfig();
-           config.writablePipelineConfig.depthBiasConstantFactor = value;
-           this->m_vulkan->WritePipelineConfig();
-           this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+           config.writablePipelineConfig.depthBiasConstantFactor = depthBiasConstBox->text().toFloat();
+           WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Bias Clamp -------------
         QLabel* depthBiasClampLabel = new QLabel("Depth Bias Clamp");
         QLineEdit* depthBiasClampBox = new QLineEdit("1.0", container);
         depthBiasClampBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(depthBiasClampBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasClampBox](int index) {
-           QString text = depthBiasClampBox->text();
-           uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+        QObject::connect(depthBiasClampBox, &QLineEdit::textChanged, [this, depthBiasClampBox]() {
            PipelineConfig& config = this->m_vulkan->GetConfig();
-           config.writablePipelineConfig.depthBiasClamp = value;
-           this->m_vulkan->WritePipelineConfig();
-           this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+           config.writablePipelineConfig.depthBiasClamp = depthBiasClampBox->text().toFloat();
+           WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Bias Slope -------------
         QLabel* depthBiasSlopeLabel = new QLabel("Depth Bias Slope");
         QLineEdit* depthBiasSlopeBox = new QLineEdit("1.0", container);
         depthBiasSlopeBox->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(depthBiasSlopeBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, depthBiasSlopeBox](int index) {
-           QString text = depthBiasSlopeBox->text();
-           uint32_t value = uint32_t(std::atoi(text.toStdString().c_str()));
+        QObject::connect(depthBiasSlopeBox, &QLineEdit::textChanged, [this, depthBiasSlopeBox]() {
            PipelineConfig& config = this->m_vulkan->GetConfig();
-           config.writablePipelineConfig.depthBiasSlopeFactor = value;
-           this->m_vulkan->WritePipelineConfig();
-           this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+           config.writablePipelineConfig.depthBiasSlopeFactor = depthBiasSlopeBox->text().toFloat();
+           WriteAndReload(ReloadFlags::Pipeline);
         });
 
         QGridLayout* layout = new QGridLayout(container);
@@ -451,37 +412,24 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeMultisampleBlock() {
-        QMap<QString, VkSampleCountFlagBits> sampleCounts;
-        sampleCounts.insert("1", VK_SAMPLE_COUNT_1_BIT);
-        sampleCounts.insert("2", VK_SAMPLE_COUNT_2_BIT);
-        sampleCounts.insert("4", VK_SAMPLE_COUNT_4_BIT);
-        sampleCounts.insert("8", VK_SAMPLE_COUNT_8_BIT);
-        sampleCounts.insert("16", VK_SAMPLE_COUNT_16_BIT);
-        sampleCounts.insert("32", VK_SAMPLE_COUNT_32_BIT);
-        sampleCounts.insert("64", VK_SAMPLE_COUNT_64_BIT);
-
         QWidget* container = new QWidget(m_rightTopContainer);
+        // ----------- Sample Count -------------
         QLabel* sampleCountLabel = new QLabel("Sample Count", container);
         QComboBox* sampleCountBox = MakeComboBox(container, {"1", "2", "4", "8", "16", "32", "64"});
-        QObject::connect(sampleCountBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, sampleCountBox, sampleCounts](int index){
-            QString text = sampleCountBox->currentText();
-            VkSampleCountFlagBits value = sampleCounts.value(text);
+        QObject::connect(sampleCountBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, sampleCountBox](){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.msaaSamples = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
+            config.writablePipelineConfig.msaaSamples = VkSampleCountFlagBits(sampleCountBox->currentIndex());
+            WriteAndReload(ReloadFlags::RenderPass);
         });
 
+        // ----------- Min Sample Shading -------------
         QLabel* minShadingLabel = new QLabel("Min Sample Shading", container);
         QLineEdit* minShadingBox = new QLineEdit("0.2", container);
         minShadingBox->setValidator(new QDoubleValidator(0.0, 1.0, 3, container));
-        QObject::connect(minShadingBox, (void(QLineEdit::*)(int))(&QLineEdit::textChanged), [this, minShadingBox](int index) {
-            QString text = minShadingBox->text();
-            float value = text.toFloat();
+        QObject::connect(minShadingBox, &QLineEdit::textChanged, [this, minShadingBox]() {
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthBiasSlopeFactor = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::RENDER_PASS);
+            config.writablePipelineConfig.depthBiasSlopeFactor = minShadingBox->text().toFloat();
+            WriteAndReload(ReloadFlags::RenderPass);
         });
 
         QGridLayout* layout = new QGridLayout(container);
@@ -498,76 +446,52 @@ namespace vpa {
     QWidget* MainWindow::MakeDepthStencilBlock() {
         QWidget* container = new QWidget(m_rightTopContainer);
 
-        //TODO These (and some others) are all just changing a bool
-        // Write a function to do all of them
+        // ----------- Depth Test -------------
         QLabel* testLabel = new QLabel("Test Enable");
         QComboBox* testBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(testBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, testBox](int index){
-            QString text = testBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(testBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthTestEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthTestEnable = VkBool32(index);
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Depth Write -------------
         QLabel* writeLabel = new QLabel("Write Enable");
         QComboBox* writeBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(writeBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, writeBox](int index){
-            QString text = writeBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(writeBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthWriteEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthWriteEnable = VkBool32(index);
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Bounds Enable -------------
         QLabel* boundsLabel = new QLabel("Bounds Enable");
         QComboBox* boundsBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(boundsBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, boundsBox](int index){
-            QString text = boundsBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(boundsBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthBoundsTest = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthBoundsTest = VkBool32(index);
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
+        // ----------- Stencil Test -------------
         QLabel* stencilLabel = new QLabel("Stencil Test Enable");
         QComboBox* stencilBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(stencilBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, stencilBox](int index){
-            QString text = stencilBox->currentText();
-            bool value = text == "True" ? true : false;
+        QObject::connect(stencilBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.stencilTestEnable = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.stencilTestEnable = VkBool32(index);
+            WriteAndReload(ReloadFlags::Pipeline);
         });
 
-        QMap<QString, VkCompareOp> compareOps;
-        compareOps.insert("Never", VK_COMPARE_OP_NEVER);
-        compareOps.insert("Less", VK_COMPARE_OP_LESS);
-        compareOps.insert("Equal", VK_COMPARE_OP_EQUAL);
-        compareOps.insert("Less or Equal", VK_COMPARE_OP_LESS_OR_EQUAL);
-        compareOps.insert("Greater", VK_COMPARE_OP_GREATER);
-        compareOps.insert("Not Equal", VK_COMPARE_OP_NOT_EQUAL);
-        compareOps.insert("Greater or Equal", VK_COMPARE_OP_GREATER_OR_EQUAL);
-        compareOps.insert("Always", VK_COMPARE_OP_ALWAYS);
-
+        // ----------- Compare Op -------------
         QLabel* compareLabel = new QLabel("Compare Op");
-        QComboBox* compareBox = MakeComboBox(container, {
-            "Never", "Less", "Equal", "Less or Equal", "Greater",
-            "Not Equal", "Greater or Equal", "Always"
+        QComboBox* compareBox = MakeComboBox(container, { "Never", "Less", "Equal",
+                "Less or Equal", "Greater", "Not Equal", "Greater or Equal", "Always"
         });
-        QObject::connect(compareBox, (void(QComboBox::*)(int))(&QComboBox::currentIndexChanged), [this, compareBox, compareOps](int index){
-            QString text = compareBox->currentText();
-            VkCompareOp value = compareOps.value(text);
+        QObject::connect(compareBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             PipelineConfig& config = this->m_vulkan->GetConfig();
-            config.writablePipelineConfig.depthCompareOp = value;
-            this->m_vulkan->WritePipelineConfig();
-            this->m_vulkan->Reload(ReloadFlags::PIPELINE);
+            config.writablePipelineConfig.depthCompareOp = VkCompareOp(index);
+            WriteAndReload(ReloadFlags::Pipeline);
         });
-
 
         QGridLayout* layout = new QGridLayout(container);
         container->setLayout(layout);
@@ -597,7 +521,6 @@ namespace vpa {
 
         layout->addWidget(subpassLabel, 0, 0);
         layout->addWidget(subpassBox, 1, 0);
-
 
         return container;
     }
@@ -673,5 +596,10 @@ namespace vpa {
 
     void MainWindow::VulkanCreationCallback() {
         MakeDescriptorBlock();
+    }
+
+    void MainWindow::WriteAndReload(ReloadFlags flag) const {
+        this->m_vulkan->WritePipelineConfig();
+        this->m_vulkan->Reload(flag);
     }
 }

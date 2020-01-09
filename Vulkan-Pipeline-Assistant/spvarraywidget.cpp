@@ -53,13 +53,13 @@ namespace vpa {
         memset(m_data, 0, m_type->size);
         m_stride = m_type->subtype->size;
 
-        if (m_type->subtype->Type() == SpvTypeName::VECTOR) {
+        if (m_type->subtype->Type() == SpvTypeName::Vector) {
             m_inputWidget = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_type->subtype), parent);
         }
-        else if (m_type->subtype->Type() == SpvTypeName::MATRIX) {
+        else if (m_type->subtype->Type() == SpvTypeName::Matrix) {
             m_inputWidget = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_type->subtype), parent);
         }
-        else if (m_type->subtype->Type() == SpvTypeName::STRUCT) {
+        else if (m_type->subtype->Type() == SpvTypeName::Struct) {
             m_inputWidget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_type->subtype), parent);
         }
         else {

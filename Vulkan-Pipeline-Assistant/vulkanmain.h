@@ -14,11 +14,11 @@ namespace vpa {
     class MemoryAllocator;
     class Descriptors;
 
-    class VulkanMain {
+    class VulkanMain final {
         friend class VulkanWindow;
         friend class VulkanRenderer;
     public:
-        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
+        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
         ~VulkanMain();
 
         void WritePipelineCache();
@@ -28,6 +28,7 @@ namespace vpa {
          void Reload(const ReloadFlags flag);
 
         Descriptors* GetDescriptors();
+        const VkPhysicalDeviceLimits& Limits() const;
 
     private:
         void CreateVkInstance();
@@ -36,7 +37,6 @@ namespace vpa {
         QVulkanInstance m_instance;
         VulkanRenderer* m_renderer;
         QWidget* m_container;
-        std::function<void(void)> m_creationCallback;
     };
 }
 

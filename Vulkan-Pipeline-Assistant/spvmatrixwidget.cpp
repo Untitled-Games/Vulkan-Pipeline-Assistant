@@ -3,6 +3,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QLayout>
+#include <QPushButton>
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QMatrix4x4>
@@ -56,7 +57,7 @@ namespace vpa {
         layout->addWidget(m_inputsGroup);
         setLayout(layout);
 
-        Fill((unsigned char*)DefaultData);
+        Fill(BYTE_CPTR(DefaultData));
     }
 
     void SpvMatrixWidget::Data(unsigned char* dataPtr) const {
@@ -72,7 +73,7 @@ namespace vpa {
         const float* floatPtr = reinterpret_cast<const float*>(data);
         for (size_t row = 0; row < m_type->rows; ++row) {
             for (size_t col = 0; col < m_type->columns; ++col) {
-                m_inputs[row][col]->setText(QString::number(floatPtr[row * m_type->columns + col]));
+                m_inputs[row][col]->setText(QString::number(double(floatPtr[row * m_type->columns + col])));
             }
         }
     }
@@ -84,8 +85,8 @@ namespace vpa {
                 data[row * m_type->columns + col] = m_inputs[row][col]->text().toFloat();
             }
         }
-        QMatrix4x4 mat(data, m_type->columns, m_type->rows);
+        QMatrix4x4 mat(data, int(m_type->columns), int(m_type->rows));
         mat = mat.inverted();
-        Fill((unsigned char*)mat.data());
+        Fill(BYTE_CPTR(mat.data()));
     }
 }

@@ -174,11 +174,11 @@ namespace vpa {
             descriptor.binding = key.second;
             descriptor.resource = layoutMap[key];
             descriptor.type = layoutMap[key]->group->Group();
-            if (descriptor.type == SpvGroupName::UNIFORM_BUFFER || descriptor.type == SpvGroupName::STORAGE_BUFFER) {
+            if (descriptor.type == SpvGroupName::UniformBuffer || descriptor.type == SpvGroupName::StorageBuffer) {
                 BufferInfo bufferInfo = {};
                 VPA_PASS_ERROR(CreateBuffer(descriptor, layoutMap[key], bufferInfo));
                 m_buffers[key.first].push_back(bufferInfo);
-                if (descriptor.type == SpvGroupName::UNIFORM_BUFFER) {
+                if (descriptor.type == SpvGroupName::UniformBuffer) {
                     poolSizes[0].descriptorCount++;
                     poolSizes[1].descriptorCount++;
                 }
@@ -187,7 +187,7 @@ namespace vpa {
                     poolSizes[3].descriptorCount++;
                 }
             }
-            else if (descriptor.type == SpvGroupName::IMAGE) {
+            else if (descriptor.type == SpvGroupName::Image) {
                 ImageInfo info = {};
                 info.descriptor = descriptor;
                 VPA_PASS_ERROR(CreateImage(info, TEXDIR"default.png", false));
@@ -209,7 +209,7 @@ namespace vpa {
 
     VPAError Descriptors::CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource, BufferInfo& info) {
         info = {};
-        info.usage = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        info.usage = descriptor.type == SpvGroupName::UniformBuffer ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         info.descriptor = descriptor;
         VPA_PASS_ERROR(m_allocator->Allocate(reinterpret_cast<const SpvStructType*>(resource->type)->size, info.usage, resource->name, info.descriptor.allocation));
 
@@ -221,7 +221,7 @@ namespace vpa {
         info.descriptor.layoutBinding = {};
         info.descriptor.layoutBinding.binding = info.descriptor.binding;
         info.descriptor.layoutBinding.descriptorCount = 1;
-        info.descriptor.layoutBinding.descriptorType = descriptor.type == SpvGroupName::UNIFORM_BUFFER ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        info.descriptor.layoutBinding.descriptorType = descriptor.type == SpvGroupName::UniformBuffer ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         info.descriptor.layoutBinding.binding = info.descriptor.binding;
         info.descriptor.layoutBinding.pImmutableSamplers = nullptr;
         info.descriptor.layoutBinding.stageFlags = reinterpret_cast<const SpvDescriptorGroup*>(resource->group)->stageFlags;

@@ -40,7 +40,7 @@ namespace vpa {
         QVector<unsigned char> data;
     };
 
-    class Descriptors {
+    class Descriptors final {
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err);

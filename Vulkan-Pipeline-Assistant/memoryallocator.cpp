@@ -58,7 +58,7 @@ namespace vpa {
 
     VPAError MemoryAllocator::Allocate(VkDeviceSize size, VkBufferUsageFlags usageFlags, QString name, Allocation& allocation) {
         allocation.name = name;
-        allocation.type = AllocationType::BUFFER;
+        allocation.type = AllocationType::Buffer;
         allocation.size = size;
 
         VkBufferCreateInfo bufInfo = {};
@@ -97,7 +97,7 @@ namespace vpa {
 
     VPAError MemoryAllocator::Allocate(VkDeviceSize size, VkImageCreateInfo createInfo, QString name, Allocation& allocation) {
         allocation.name = name;
-        allocation.type = AllocationType::IMAGE;
+        allocation.type = AllocationType::Image;
         allocation.size = size;
 
         VPAError err = VPA_OK;
@@ -125,7 +125,7 @@ namespace vpa {
     }
 
     void MemoryAllocator::Deallocate(Allocation& allocation) {
-        if (allocation.type == AllocationType::BUFFER) {
+        if (allocation.type == AllocationType::Buffer) {
             DESTROY_HANDLE(m_window->device(), allocation.buffer, m_deviceFuncs->vkDestroyBuffer)
         }
         else {
@@ -180,7 +180,7 @@ namespace vpa {
         m_deviceFuncs->vkResetCommandBuffer(m_commandBuffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 
         VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr };
-        VPA_VKFATAL(m_deviceFuncs->vkBeginCommandBuffer(m_commandBuffer, &beginInfo), qPrintable("begin transfer command buffer for allocation '" + imageAllocation.name + "'"));
+        VPA_VKFATAL(m_deviceFuncs->vkBeginCommandBuffer(m_commandBuffer, &beginInfo), qPrintable("begin transfer command buffer for allocation '" + imageAllocation.name + "'"))
 
         m_deviceFuncs->vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
         m_deviceFuncs->vkCmdCopyBufferToImage(m_commandBuffer, stagingAllocation.buffer, imageAllocation.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
@@ -191,14 +191,14 @@ namespace vpa {
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT; // TODO decide how to include storage image with  | VK_ACCESS_SHADER_WRITE_BIT
         m_deviceFuncs->vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, finalStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-        VPA_VKFATAL(m_deviceFuncs->vkEndCommandBuffer(m_commandBuffer), qPrintable("end transfer command buffer for allocation '" + imageAllocation.name + "'"));
+        VPA_VKFATAL(m_deviceFuncs->vkEndCommandBuffer(m_commandBuffer), qPrintable("end transfer command buffer for allocation '" + imageAllocation.name + "'"))
 
         VkSubmitInfo submitInfo = { };
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &m_commandBuffer;
 
-        VPA_VKFATAL(m_deviceFuncs->vkQueueSubmit(m_transferQueue, 1, &submitInfo, VK_NULL_HANDLE), qPrintable("transfer queue submit for allocation '" + imageAllocation.name + "'"));
+        VPA_VKFATAL(m_deviceFuncs->vkQueueSubmit(m_transferQueue, 1, &submitInfo, VK_NULL_HANDLE), qPrintable("transfer queue submit for allocation '" + imageAllocation.name + "'"))
         m_deviceFuncs->vkQueueWaitIdle(m_transferQueue);
 
         Deallocate(stagingAllocation);

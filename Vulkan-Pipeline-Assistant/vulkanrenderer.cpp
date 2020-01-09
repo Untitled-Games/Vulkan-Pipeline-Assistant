@@ -13,25 +13,26 @@
 #include "descriptors.h"
 
 namespace vpa {
-    VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback)
+    VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
         : m_initialised(false), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr),
-          m_vertexInput(nullptr), m_descriptors(nullptr), m_creationCallback(creationCallback) {
+          m_vertexInput(nullptr), m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
         main->m_renderer = this;
         m_config = {};
     }
 
     void VulkanRenderer::initResources() {
+        m_postInitCallback();
         m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
         VPAError err = VPA_OK;
         m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
-        if (err.level != VPAErrorLevel::Ok) VPA_FATAL("Device memory allocator fatal error. " + err.message);
+        if (err.level != VPAErrorLevel::Ok) VPA_FATAL("Device memory allocator fatal error. " + err.message)
         m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
     }
 
     void VulkanRenderer::initSwapChainResources() {
         if (!m_initialised) {
-            Reload(ReloadFlags::EVERYTHING);
+            Reload(ReloadFlags::Everything);
             m_initialised = true;
         }
     }
@@ -123,9 +124,9 @@ namespace vpa {
 
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
-        if (flag & ReloadFlagBits::RENDER_PASS) { VPA_PASS_ERROR(CreateRenderPass()); }
-        if (flag & ReloadFlagBits::SHADERS) { VPA_PASS_ERROR(CreateShaders()); }
-        if (flag & ReloadFlagBits::PIPELINE) { VPA_PASS_ERROR(CreatePipeline()); }
+        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass()); }
+        if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
+        if (flag & ReloadFlagBits::Pipeline) { VPA_PASS_ERROR(CreatePipeline()); }
         m_creationCallback();
         return VPA_OK;
     }
@@ -343,11 +344,11 @@ namespace vpa {
         m_shaderStageInfos.clear();
         VPA_PASS_ERROR(m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv"));//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
         VkPipelineShaderStageCreateInfo shaderCreateInfo;
-        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::VERTEX, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
-        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::FRAGMENT, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
-        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_CONTROL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
-        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TESS_EVAL, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
-        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::GEOMETRY, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Vertex, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Fragment, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TessellationControl, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::TessellationEvaluation, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
+        if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Geometry, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
 
         if (m_vertexInput) delete m_vertexInput;
         VPAError err = VPA_OK;

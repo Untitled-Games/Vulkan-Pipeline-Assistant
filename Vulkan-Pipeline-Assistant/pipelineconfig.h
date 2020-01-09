@@ -26,7 +26,7 @@ namespace vpa {
         std::ostream& WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const;
 
         // Shader Data
-        QByteArray shaderBlobs[size_t(ShaderStage::count_)] = {
+        QByteArray shaderBlobs[size_t(ShaderStage::Count_)] = {
                 QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0')
         };
 

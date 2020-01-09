@@ -13,7 +13,7 @@
 namespace vpa {
     struct PipelineConfig;
 
-    class ShaderAnalytics {
+    class ShaderAnalytics final {
     public:
         ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config);
         ~ShaderAnalytics();
@@ -49,9 +49,9 @@ namespace vpa {
         VkDevice m_device;
         PipelineConfig* m_config;
 
-        VkShaderModule m_modules[size_t(ShaderStage::count_)];
-        spirv_cross::Compiler* m_compilers[size_t(ShaderStage::count_)];
-        spirv_cross::ShaderResources m_resources[size_t(ShaderStage::count_)];
+        VkShaderModule m_modules[size_t(ShaderStage::Count_)];
+        spirv_cross::Compiler* m_compilers[size_t(ShaderStage::Count_)];
+        spirv_cross::ShaderResources m_resources[size_t(ShaderStage::Count_)];
 
         QVector<SpvResource*> m_inputAttributes;
         QVector<SpvResource*> m_pushConstants;

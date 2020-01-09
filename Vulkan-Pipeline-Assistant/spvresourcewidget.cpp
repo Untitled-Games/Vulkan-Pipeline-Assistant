@@ -18,26 +18,26 @@ namespace vpa {
         layout->setAlignment(Qt::AlignTop);
         m_groupWidget = new QLabel(SpvGroupNameStrings[size_t(m_resource->group->Group())] + " " + m_resource->name, parent); // TODO more specific info
 
-        if (m_resource->type->Type() == SpvTypeName::VECTOR) {
+        if (m_resource->type->Type() == SpvTypeName::Vector) {
             m_typeWidget = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_resource->type), this);
         }
-        else if (m_resource->type->Type() == SpvTypeName::MATRIX) {
+        else if (m_resource->type->Type() == SpvTypeName::Matrix) {
             m_typeWidget = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_resource->type), this);
         }
-        else if (m_resource->type->Type() == SpvTypeName::STRUCT) {
+        else if (m_resource->type->Type() == SpvTypeName::Struct) {
             m_typeWidget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_resource->type), this);
         }
-        else if (m_resource->type->Type() == SpvTypeName::ARRAY) {
+        else if (m_resource->type->Type() == SpvTypeName::Array) {
             m_typeWidget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(m_resource->type), this);
         }
-        else if (m_resource->type->Type() == SpvTypeName::IMAGE) {
+        else if (m_resource->type->Type() == SpvTypeName::Image) {
             m_typeWidget = new SpvImageWidget(reinterpret_cast<SpvImageType*>(m_resource->type), this);
         }
         else {
             qWarning("Invalid type found in spv array.");
         }
 
-        if (m_resource->group->Group() == SpvGroupName::PUSH_CONSTANT) {
+        if (m_resource->group->Group() == SpvGroupName::PushConstant) {
             m_typeWidget->Data(m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage));
         }
         else {
@@ -65,13 +65,13 @@ namespace vpa {
     bool SpvResourceWidget::event(QEvent* event) {
         if (event->type() == SpvGuiImageChangeType) {
             if (m_typeWidget == nullptr) return true;
-            if (m_resource->group->Group() == SpvGroupName::IMAGE) {
+            if (m_resource->group->Group() == SpvGroupName::Image) {
                 m_descriptors->LoadImage(m_set, m_index, reinterpret_cast<ImageChangeEvent*>(event)->FileName());
             }
         }
         else if (event->type() == SpvGuiDataChangeType) {
             if (m_typeWidget == nullptr) return true;
-            if (m_resource->group->Group() == SpvGroupName::PUSH_CONSTANT) {
+            if (m_resource->group->Group() == SpvGroupName::PushConstant) {
                 unsigned char* dataPtr = m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage);
                 if (dataPtr != nullptr) {
                     m_typeWidget->Data(dataPtr);

@@ -2,13 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QPushButton>
-#include <QFileDialog>
-#include <QTextEdit>
-#include <QLabel>
-#include <QLayout>
-#include <QComboBox>
-#include <QPair>
 
 #include "vulkanmain.h"
 #include "common.h"
@@ -16,6 +9,12 @@
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class QLineEdit;
+class QLabel;
+class QPushButton;
+class QComboBox;
+class QGridLayout;
 
 namespace vpa {
     class MainWindow : public QMainWindow {
@@ -47,6 +46,7 @@ namespace vpa {
         void HandleViewChangeApply(QVector<QLineEdit*> v);
 
     private:
+        void CreateInterface();
         void AddConfigButtons();
         void AddConfigBlocks();
 
@@ -60,6 +60,7 @@ namespace vpa {
         void MakeDescriptorBlock();
 
         void VulkanCreationCallback();
+        void WriteAndReload(ReloadFlags flag) const;
 
         Ui::MainWindow* m_ui;
         VulkanMain* m_vulkan;

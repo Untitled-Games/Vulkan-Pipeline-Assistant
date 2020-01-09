@@ -11,7 +11,7 @@ class QVulkanWindow;
 class QImage;
 namespace vpa {
     enum class AllocationType {
-        BUFFER, IMAGE
+        Buffer, Image
     };
 
     struct Allocation {
@@ -26,7 +26,7 @@ namespace vpa {
         };
     };
 
-    class MemoryAllocator {
+    class MemoryAllocator final {
     public:
         MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window, VPAError& err);
         ~MemoryAllocator();

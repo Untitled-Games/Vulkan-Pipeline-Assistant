@@ -12,18 +12,21 @@
 namespace vpa {
     class VulkanWindow : public QVulkanWindow {
     public:
-        VulkanWindow(VulkanMain* main) : m_main(main) { }
+        VulkanWindow(VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
+            : m_main(main), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) { }
         QVulkanWindowRenderer* createRenderer() override {
-            return new VulkanRenderer(this, m_main, m_main->m_creationCallback);
+            return new VulkanRenderer(this, m_main, m_creationCallback, m_postInitCallback);
         }
     private:
         VulkanMain* m_main;
+        std::function<void(void)> m_creationCallback;
+        std::function<void(void)> m_postInitCallback;
     };
 
-    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
-        : m_vkWindow(nullptr), m_renderer(nullptr), m_container(nullptr), m_creationCallback(creationCallback) {
+    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
+        : m_vkWindow(nullptr), m_renderer(nullptr), m_container(nullptr) {
         CreateVkInstance();
-        m_vkWindow = new VulkanWindow(this);
+        m_vkWindow = new VulkanWindow(this, creationCallback, postInitCallback);
         m_vkWindow->setVulkanInstance(&m_instance);
         m_vkWindow->show();
 
@@ -68,6 +71,10 @@ namespace vpa {
 
     Descriptors* VulkanMain::GetDescriptors() {
         return m_renderer ? m_renderer->GetDescriptors() : nullptr;
+    }
+
+    const VkPhysicalDeviceLimits& VulkanMain::Limits() const {
+        return m_vkWindow->physicalDeviceProperties()->limits;
     }
 
     void VulkanMain::Reload(const ReloadFlags flag) {

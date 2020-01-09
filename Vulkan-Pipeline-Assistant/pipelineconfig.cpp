@@ -41,11 +41,11 @@ namespace vpa {
         ///////////////////////////////////////////////////////
         //// SHADER DATA
         ///////////////////////////////////////////////////////
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::VERTEX)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::FRAGMENT)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_CONTROL)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_EVAL)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::GEOMETRY)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::Vertex)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::Fragment)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TessellationControl)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TessellationEvaluation)]));
+        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::Geometry)]));
 
         ///////////////////////////////////////////////////////
         //// VERTEX INPUT
@@ -145,7 +145,7 @@ namespace vpa {
             ///////////////////////////////////////////////////////
             //// SHADER DATA
             ///////////////////////////////////////////////////////
-            for(size_t i = 0; i < size_t(ShaderStage::count_); i++) {
+            for(size_t i = 0; i < size_t(ShaderStage::Count_); i++) {
                 int shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
                 std::string shaderData = GetNextLine(&readPosition, &buffer);
                 bool complete = false;
