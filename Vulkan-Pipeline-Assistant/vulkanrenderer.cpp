@@ -14,25 +14,27 @@
 
 namespace vpa {
     VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
-        : m_initialised(false), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
+        : m_initialised(false), m_valid(false), m_main(main), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr),
           m_vertexInput(nullptr), m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
-        main->m_renderer = this;
+        m_main->m_renderer = this;
         m_config = {};
     }
 
     void VulkanRenderer::initResources() {
-        m_postInitCallback();
-        m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
-        VPAError err = VPA_OK;
-        m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
-        if (err.level != VPAErrorLevel::Ok) VPA_FATAL("Device memory allocator fatal error. " + err.message)
-        m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
+        if (!m_initialised) {
+            m_postInitCallback();
+            m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
+            VPAError err = VPA_OK;
+            m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
+            if (err.level != VPAErrorLevel::Ok) VPA_FATAL("Device memory allocator fatal error. " + err.message)
+            m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
+        }
     }
 
     void VulkanRenderer::initSwapChainResources() {
         if (!m_initialised) {
-            Reload(ReloadFlags::Everything);
+            m_main->Reload(ReloadFlags::Everything);
             m_initialised = true;
         }
     }
@@ -53,14 +55,13 @@ namespace vpa {
 
     void VulkanRenderer::startNextFrame() {
         VkClearValue clearValues[2];
-        clearValues[0].color = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+        clearValues[0].color = m_valid ? VkClearColorValue({{0.0f, 0.0f, 0.0f, 1.0f}}) : VkClearColorValue({{1.0f, 0.0f, 0.0f, 1.0f}});
         clearValues[1].depthStencil = { 1.0f, 0 };
 
         VkRenderPassBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        beginInfo.renderPass = m_renderPass;
+        beginInfo.renderPass = m_valid ? m_renderPass : m_window->defaultRenderPass();
         beginInfo.framebuffer = m_window->currentFramebuffer();
-
         const QSize imageSize = m_window->swapChainImageSize();
         beginInfo.renderArea.extent.width = uint32_t(imageSize.width());
         beginInfo.renderArea.extent.height = uint32_t(imageSize.height());
@@ -70,16 +71,19 @@ namespace vpa {
         VkCommandBuffer cmdBuf = m_window->currentCommandBuffer();
         m_deviceFuncs->vkCmdBeginRenderPass(cmdBuf, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        m_descriptors->CmdPushConstants(cmdBuf, m_pipelineLayout);
-        m_descriptors->CmdBindSets(cmdBuf, m_pipelineLayout);
-        m_vertexInput->BindBuffers(cmdBuf);
-        m_deviceFuncs->vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-        if (m_vertexInput->IsIndexed()) {
-            m_deviceFuncs->vkCmdDrawIndexed(cmdBuf, m_vertexInput->IndexCount(), 1, 0, 0, 0);
+        if (m_valid) {
+            m_descriptors->CmdPushConstants(cmdBuf, m_pipelineLayout);
+            m_descriptors->CmdBindSets(cmdBuf, m_pipelineLayout);
+            m_vertexInput->BindBuffers(cmdBuf);
+            m_deviceFuncs->vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+            if (m_vertexInput->IsIndexed()) {
+                m_deviceFuncs->vkCmdDrawIndexed(cmdBuf, m_vertexInput->IndexCount(), 1, 0, 0, 0);
+            }
+            else {
+                m_deviceFuncs->vkCmdDraw(cmdBuf, 4, 1, 0, 0);
+            }
         }
-        else {
-            m_deviceFuncs->vkCmdDraw(cmdBuf, 4, 1, 0, 0);
-        }
+
         m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
 
         m_window->frameReady();
@@ -341,7 +345,7 @@ namespace vpa {
 
     VPAError VulkanRenderer::CreateShaders() {
         m_shaderStageInfos.clear();
-        VPA_PASS_ERROR(m_shaderAnalytics->LoadShaders("/../shaders/vs_test.spv", "/../shaders/fs_test.spv"));//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
+        VPA_PASS_ERROR(m_shaderAnalytics->LoadShaders(m_config.vertShader, m_config.fragShader));//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
         VkPipelineShaderStageCreateInfo shaderCreateInfo;
         if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Vertex, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
         if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Fragment, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);

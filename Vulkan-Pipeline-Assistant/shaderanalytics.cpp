@@ -95,7 +95,7 @@ namespace vpa {
     }
 
     VPAError ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
-        QFile file(QCoreApplication::applicationDirPath() + name);
+        QFile file(name);
         if (!file.open(QIODevice::ReadOnly)) {
             m_modules[size_t(stage)] = VK_NULL_HANDLE;
             return VPA_WARN("Failed to read shader " + name);

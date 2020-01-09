@@ -24,13 +24,9 @@ namespace vpa {
 
         void startNextFrame() override;
 
-        PipelineConfig& GetConfig() {
-            return m_config;
-        }
-
-        Descriptors* GetDescriptors() {
-            return m_descriptors;
-        }
+        void SetValid(bool valid) { m_valid = valid; }
+        PipelineConfig& GetConfig() { return m_config; }
+        Descriptors* GetDescriptors() { return m_descriptors; }
 
         VPAError WritePipelineCache();
 
@@ -51,6 +47,8 @@ namespace vpa {
             VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
 
         bool m_initialised;
+        bool m_valid;
+        VulkanMain* m_main;
         QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;
 

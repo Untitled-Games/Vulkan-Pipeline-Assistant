@@ -41,7 +41,6 @@ namespace vpa {
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
     private slots:
-        void HandleShaderFileDialog(QLineEdit* field);
         void HandleConfigAreaChange(int toIdx);
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
@@ -52,7 +51,7 @@ namespace vpa {
         void AddConfigButtons();
         void AddConfigBlocks();
 
-        void MakeShaderBlock(QWidget* parent, QString labelStr);
+        void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
         QWidget* MakeVertexInputBlock();
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRasterizerBlock();

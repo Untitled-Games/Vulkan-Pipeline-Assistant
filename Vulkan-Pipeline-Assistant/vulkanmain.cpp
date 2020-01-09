@@ -78,6 +78,12 @@ namespace vpa {
     }
 
     void VulkanMain::Reload(const ReloadFlags flag) {
-        m_renderer->Reload(flag); // TODO handle vpa error
+        VPAError err = m_renderer->Reload(flag);
+        if (err.level != VPAErrorLevel::Ok) {
+            m_renderer->SetValid(false);
+        }
+        else {
+            m_renderer->SetValid(true);
+        }
     }
 }

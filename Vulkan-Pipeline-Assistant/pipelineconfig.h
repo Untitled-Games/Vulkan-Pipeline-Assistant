@@ -78,17 +78,14 @@ namespace vpa {
     };
 
     struct PipelineConfig {
-
-        //TODO: can a pipeline config can have multiple writables?
         VPAError LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
 
-        //todo: Note down the size of these shaders somewhere so that we can  serialize this into binary format
         // Shaders
-        char* vertShader = nullptr;
-        char* fragShader = nullptr;
-        char* tescShader = nullptr;
-        char* teseShader = nullptr;
-        char* geomShader = nullptr;
+        QString vertShader = "";
+        QString fragShader = "";
+        QString tescShader = "";
+        QString teseShader = "";
+        QString geomShader = "";
 
         // Pipeline layout ##
         //TODO: Make viewport and scissor rects more configurable

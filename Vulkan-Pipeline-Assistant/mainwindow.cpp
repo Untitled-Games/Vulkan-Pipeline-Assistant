@@ -49,9 +49,7 @@ namespace vpa {
 
         m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
         m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
-        QObject::connect(m_cacheBtn, &QPushButton::released, [this]{
-            this->m_vulkan->WritePipelineCache();
-        });
+        QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
     void MainWindow::AddConfigButtons() {
@@ -81,11 +79,11 @@ namespace vpa {
         QWidget* shaderWidget = new QWidget(m_rightTopContainer);
         shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
         m_configBlocks.push_back(shaderWidget);
-        MakeShaderBlock(shaderWidget, "Vertex");
-        MakeShaderBlock(shaderWidget, "Fragment");
-        MakeShaderBlock(shaderWidget, "Tess Control");
-        MakeShaderBlock(shaderWidget, "Tess Eval");
-        MakeShaderBlock(shaderWidget, "Geometry");
+        MakeShaderBlock(shaderWidget, "Vertex", Config().vertShader, QCoreApplication::applicationDirPath() + "/../shaders/vs_test.spv");
+        MakeShaderBlock(shaderWidget, "Fragment", Config().fragShader, QCoreApplication::applicationDirPath() + "/../shaders/fs_test.spv");
+        MakeShaderBlock(shaderWidget, "Tess Control", Config().tescShader);
+        MakeShaderBlock(shaderWidget, "Tess Eval", Config().teseShader);
+        MakeShaderBlock(shaderWidget, "Geometry", Config().geomShader);
 
         m_configBlocks.push_back(MakeVertexInputBlock());
         m_configBlocks.push_back(MakeViewportStateBlock());
@@ -105,11 +103,6 @@ namespace vpa {
         m_configBlocks[m_unhiddenIdx]->hide();
         m_configBlocks[toIdx]->show();
         m_unhiddenIdx = toIdx;
-    }
-
-    void MainWindow::HandleShaderFileDialog(QLineEdit* field) {
-        field->setText(QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)")));
-        // TODO change shaders
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
@@ -139,12 +132,14 @@ namespace vpa {
         WriteAndReload(reloadFlag);
     }
 
-    void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr) {
+    void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader) {
+        if (defaultShader != "") shaderConfig = defaultShader;
+
         QWidget* container = new QWidget(parent);
 
         QLabel* label = new QLabel(labelStr, container);
 
-        QLineEdit* field = new QLineEdit("", container);
+        QLineEdit* field = new QLineEdit(defaultShader, container);
         field->setReadOnly(true);
 
         QPushButton* dialogBtn = new QPushButton(container);
@@ -158,7 +153,12 @@ namespace vpa {
         container->setLayout(layout);
         parent->layout()->addWidget(container);
 
-        QObject::connect(dialogBtn, &QPushButton::released, [this, field]{ this->HandleShaderFileDialog(field); });
+        QObject::connect(dialogBtn, &QPushButton::released, [this, field, &shaderConfig](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            field->setText(str);
+            shaderConfig = field->text();
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
     }
 
     QWidget* MainWindow::MakeVertexInputBlock() {
@@ -183,7 +183,7 @@ namespace vpa {
 
         // ----------- Patch Points -------------
         QSpinBox* spinBox = MakeConfigWidget(container, "Patch Points", 0, 2, 1, 2, new QSpinBox(container));
-        spinBox->setRange(0, 32); // TODO int(m_vulkan->Limits().maxTessellationPatchSize)
+        spinBox->setRange(0, int(m_vulkan->Limits().maxTessellationPatchSize));
         QObject::connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this](int value) {
            HandleConfigValueChange<uint32_t>(Config().writables.patchControlPoints, ReloadFlags::Pipeline, value);
         });
@@ -366,57 +366,38 @@ namespace vpa {
 
     QWidget* MainWindow::MakeDepthStencilBlock() {
         QWidget* container = new QWidget(m_rightTopContainer);
+        container->setLayout(new QGridLayout(container));
 
         // ----------- Depth Test -------------
-        QLabel* testLabel = new QLabel("Test Enable");
-        QComboBox* testBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(testBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+        QComboBox* comboBox = MakeConfigWidget(container, "Test Enable", 0, 0, 1, 0, MakeComboBox(container, BoolComboOptions));
+        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkBool32>(Config().writables.depthTestEnable, ReloadFlags::Pipeline, index);
         });
 
         // ----------- Depth Write -------------
-        QLabel* writeLabel = new QLabel("Write Enable");
-        QComboBox* writeBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(writeBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+        comboBox = MakeConfigWidget(container, "Write Enable", 0, 1, 1, 1, MakeComboBox(container, BoolComboOptions));
+        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, index);
         });
 
         // ----------- Bounds Enable -------------
-        QLabel* boundsLabel = new QLabel("Bounds Enable");
-        QComboBox* boundsBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(boundsBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+        comboBox = MakeConfigWidget(container, "Bounds Enable", 2, 0, 3, 0, MakeComboBox(container, BoolComboOptions));
+        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, index);
         });
 
         // ----------- Stencil Test -------------
-        QLabel* stencilLabel = new QLabel("Stencil Test Enable");
-        QComboBox* stencilBox = MakeComboBox(container, {"False", "True"});
-        QObject::connect(stencilBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+        comboBox = MakeConfigWidget(container, "Stencil Test Enable", 2, 1, 3, 1, MakeComboBox(container, BoolComboOptions));
+        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkBool32>(Config().writables.stencilTestEnable, ReloadFlags::Pipeline, index);
         });
 
         // ----------- Compare Op -------------
-        QLabel* compareLabel = new QLabel("Compare Op");
-        QComboBox* compareBox = MakeComboBox(container, { "Never", "Less", "Equal",
-                "Less or Equal", "Greater", "Not Equal", "Greater or Equal", "Always"
-        });
-        QObject::connect(compareBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+        comboBox = MakeConfigWidget(container, "Compare Op", 4, 0, 5, 0, MakeComboBox(container, {
+                "Never", "Less", "Equal", "Less or Equal", "Greater", "Not Equal", "Greater or Equal", "Always" }));
+        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
         });
-
-        QGridLayout* layout = new QGridLayout(container);
-        container->setLayout(layout);
-
-        layout->addWidget(testLabel, 0, 0);
-        layout->addWidget(testBox, 1, 0);
-        layout->addWidget(writeLabel, 0, 1);
-        layout->addWidget(writeBox, 1, 1);
-        layout->addWidget(boundsLabel, 2, 0);
-        layout->addWidget(boundsBox, 3, 0);
-        layout->addWidget(stencilLabel, 2, 1);
-        layout->addWidget(stencilBox, 3, 1);
-        layout->addWidget(compareLabel, 4, 0);
-        layout->addWidget(compareBox, 5, 0);
 
         return container;
     }
