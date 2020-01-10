@@ -15,8 +15,8 @@
 namespace vpa {
     VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
         : m_initialised(false), m_valid(false), m_main(main), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
-          m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr),
-          m_vertexInput(nullptr), m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
+          m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr), m_vertexInput(nullptr),
+          m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true) {
         m_main->m_renderer = this;
         m_config = {};
     }
@@ -37,6 +37,12 @@ namespace vpa {
             m_main->Reload(ReloadFlags::Everything);
             m_initialised = true;
         }
+        QVector<VkImageView> imageViews;
+        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+            if (size_t(i) == m_activeAttachment) m_attachmentImages[i].view = m_window->swapChainImageView(0);
+            imageViews.push_back(m_attachmentImages[i].view);
+        }
+        MakeFrameBuffers(imageViews, uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()));
     }
 
     void VulkanRenderer::releaseSwapChainResources() { }
@@ -46,6 +52,9 @@ namespace vpa {
         DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout)
         DESTROY_HANDLE(m_window->device(), m_pipelineCache, m_deviceFuncs->vkDestroyPipelineCache)
         DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass)
+        for (int i = 0; i < m_frameBuffers.size(); ++i) {
+            DESTROY_HANDLE(m_window->device(), m_frameBuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
+        }
         delete m_shaderAnalytics;
         if (m_vertexInput) delete m_vertexInput;
         if (m_descriptors) delete m_descriptors;
@@ -61,7 +70,7 @@ namespace vpa {
         VkRenderPassBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         beginInfo.renderPass = m_valid ? m_renderPass : m_window->defaultRenderPass();
-        beginInfo.framebuffer = m_window->currentFramebuffer();
+        beginInfo.framebuffer =  m_valid ? m_frameBuffers[m_window->currentFrame()] : m_window->currentFramebuffer();
         const QSize imageSize = m_window->swapChainImageSize();
         beginInfo.renderArea.extent.width = uint32_t(imageSize.width());
         beginInfo.renderArea.extent.height = uint32_t(imageSize.height());
@@ -85,6 +94,9 @@ namespace vpa {
         }
 
         m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
+        if (m_useDepth && m_activeAttachment == size_t(m_attachmentImages.size()) - 1) {
+            // TODO depth to linear image post-pass
+        }
 
         m_window->frameReady();
         m_window->requestUpdate();
@@ -128,13 +140,13 @@ namespace vpa {
 
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
-        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass()); }
         if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
+        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass()); }
         if (flag & ReloadFlagBits::Pipeline) { VPA_PASS_ERROR(CreatePipeline()); }
         return VPA_OK;
     }
 
-    VkAttachmentDescription VulkanRenderer::makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
+    VkAttachmentDescription VulkanRenderer::MakeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
         VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout) {
         VkAttachmentDescription attachment = {};
         attachment.format = format;
@@ -148,7 +160,7 @@ namespace vpa {
         return attachment;
     }
 
-    VkSubpassDescription VulkanRenderer::makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences, VkAttachmentReference* depthReference, VkAttachmentReference* resolve) {
+    VkSubpassDescription VulkanRenderer::MakeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences, VkAttachmentReference* depthReference, VkAttachmentReference* resolve) {
         VkSubpassDescription subpass = {};
         subpass.pipelineBindPoint = pipelineType;
         subpass.colorAttachmentCount = uint32_t(colourReferences.size());
@@ -158,7 +170,7 @@ namespace vpa {
         return subpass;
     }
 
-    VkSubpassDependency VulkanRenderer::makeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
+    VkSubpassDependency VulkanRenderer::MakeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
         VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess) {
         VkSubpassDependency dependency = {};
         dependency.srcSubpass = srcIdx;
@@ -171,36 +183,131 @@ namespace vpa {
         return dependency;
     }
 
+     VPAError VulkanRenderer::MakeAttachmentImage(AttachmentImage& image, uint32_t height, uint32_t width, VkFormat format, VkImageUsageFlags usage, QString name, bool present) {
+        VkImageCreateInfo createInfo = {
+            VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            nullptr, 0,
+            VK_IMAGE_TYPE_2D, format,
+            { width, height, 1 }, 1, 1,
+            VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+            usage,
+            VK_SHARING_MODE_EXCLUSIVE,
+            0, nullptr,
+            VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        size_t size = width * height * 4;
+        VPA_PASS_ERROR(m_allocator->Allocate(size, createInfo, name, image.allocation));
+
+        if (!present) {
+            VkImageViewCreateInfo viewInfo = {};
+            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.image = image.allocation.image;
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format = createInfo.format;
+            viewInfo.subresourceRange.aspectMask = usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+            viewInfo.subresourceRange.baseMipLevel = 0;
+            viewInfo.subresourceRange.levelCount = createInfo.mipLevels;
+            viewInfo.subresourceRange.baseArrayLayer = 0;
+            viewInfo.subresourceRange.layerCount = createInfo.arrayLayers;
+
+            VPAError err = VPA_OK;
+            VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &image.view),
+                             qPrintable("create attachment image view for allocation '" + name + "'"), err)
+            if (err.level != VPAErrorLevel::Ok) {
+                DESTROY_HANDLE(m_window->device(), image.view, m_deviceFuncs->vkDestroyImageView)
+                m_allocator->Deallocate(image.allocation);
+                return err;
+            }
+        }
+        else {
+            image.view = m_window->swapChainImageView(0);
+        }
+
+        return VPA_OK;
+    }
+
+    VPAError VulkanRenderer::MakeFrameBuffers(QVector<VkImageView>& imageViews, uint32_t width, uint32_t height) {
+        for (int i = 0; i < m_frameBuffers.size(); ++i) {
+            DESTROY_HANDLE(m_window->device(), m_frameBuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
+        }
+        m_frameBuffers.clear();
+        m_frameBuffers.resize(m_window->swapChainImageCount());
+        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = m_renderPass;
+            framebufferInfo.attachmentCount = uint32_t(imageViews.size());
+            framebufferInfo.pAttachments = imageViews.data();
+            framebufferInfo.width = width;
+            framebufferInfo.height =  height;
+            framebufferInfo.layers = 1;
+
+            VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateFramebuffer(m_window->device(), &framebufferInfo, nullptr, &m_frameBuffers[i]), "Failed to create framebuffer")
+        }
+        return VPA_OK;
+    }
+
     VPAError VulkanRenderer::CreateRenderPass() {
         DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass)
+        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+            if (!m_attachmentImages[i].isPresenting) {
+                DESTROY_HANDLE(m_window->device(), m_attachmentImages[i].view, m_deviceFuncs->vkDestroyImageView)
+            }
+            m_allocator->Deallocate(m_attachmentImages[i].allocation);
+        }
+        m_attachmentImages.clear();
 
+        size_t attachmentCount = m_shaderAnalytics->NumColourAttachments();
+        uint32_t width = uint32_t(m_window->swapChainImageSize().width());
+        uint32_t height = uint32_t(m_window->swapChainImageSize().height());
         QVector<VkAttachmentDescription> attachments;
         QVector<VkSubpassDescription> subpasses;
         QVector<VkSubpassDependency> dependencies;
-
-        // Colour
-        attachments.push_back(makeAttachment(m_window->colorFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR));
-        // Depth
-        attachments.push_back(makeAttachment(m_window->depthStencilFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL));
-
+        QVector<VkAttachmentReference> colourAttachmentRefs = QVector<VkAttachmentReference>(int(attachmentCount));
         VkAttachmentReference depthAttachmentRef = {};
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        QVector<VkImageView> attachmentImageViews = QVector<VkImageView>(int(attachmentCount) + (m_useDepth ? 1 : 0));
 
-        QVector<VkAttachmentReference> colourAttachmentRefs;
-        VkAttachmentReference positionsRef = {};
-        positionsRef.attachment = 0;
-        positionsRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colourAttachmentRefs.push_back(positionsRef);
+        m_attachmentImages.resize(attachmentImageViews.size());
+        for (size_t i = 0; i < attachmentCount; ++i) {
+            bool present = i == m_activeAttachment;
+            attachments.push_back(MakeAttachment(m_window->colorFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL));
+            if (present) attachments[int(i)].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-        dependencies.push_back(makeSubpassDependency(VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VkAttachmentReference positionsRef = {};
+            positionsRef.attachment = uint32_t(i);
+            positionsRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colourAttachmentRefs[int(i)] = positionsRef;
+
+            VPA_PASS_ERROR(MakeAttachmentImage(m_attachmentImages[int(i)], height, width,
+                    m_window->colorFormat(), VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, "colour attachment " + QString::number(i), present));
+            attachmentImageViews[int(i)] = m_attachmentImages[int(i)].view;
+        }
+
+        if (m_useDepth) {
+            int index = m_attachmentImages.size() - 1;
+            bool present = (size_t(index) == m_activeAttachment);
+            attachments.push_back(MakeAttachment(m_window->depthStencilFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL));
+            if (present) attachments[int(index)].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO setup linear depth post pass
+
+            depthAttachmentRef.attachment = uint32_t(attachmentCount);
+            depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            VPA_PASS_ERROR(MakeAttachmentImage(m_attachmentImages[index], height, width,
+                    m_window->depthStencilFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment ", present));
+            attachmentImageViews[index] = m_attachmentImages[index].view;
+        }
+        else if (m_config.writables.depthWriteEnable) {
+            return VPA_WARN("Depth write is enabled but there is no depth buffer.");
+        }
+
+        subpasses.push_back(MakeSubpass(VK_PIPELINE_BIND_POINT_GRAPHICS, colourAttachmentRefs, &depthAttachmentRef, nullptr));
+
+        dependencies.push_back(MakeSubpassDependency(VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT));
-        dependencies.push_back(makeSubpassDependency(0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        dependencies.push_back(MakeSubpassDependency(0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT));
-
-        subpasses.push_back(makeSubpass(VK_PIPELINE_BIND_POINT_GRAPHICS, colourAttachmentRefs, &depthAttachmentRef, nullptr));
 
         VkRenderPassCreateInfo renderPassInfo = {};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -212,6 +319,8 @@ namespace vpa {
         renderPassInfo.pDependencies = dependencies.data();
 
         VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateRenderPass(m_window->device(), &renderPassInfo, nullptr, &m_renderPass), "Failed to create render pass")
+
+        VPA_PASS_ERROR(MakeFrameBuffers(attachmentImageViews, width, height));
 
         return VPA_OK;
     }
@@ -368,7 +477,6 @@ namespace vpa {
             return err;
         }
 
-        // TODO Determine new colour attachment count
         m_creationCallback();
         return VPA_OK;
     }

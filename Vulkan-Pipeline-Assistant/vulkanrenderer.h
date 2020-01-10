@@ -8,10 +8,17 @@
 #include "reloadflags.h"
 
 namespace vpa {
+    struct ImageInfo;
     class VulkanMain;
     class ShaderAnalytics;
     class VertexInput;
     class Descriptors;
+
+    struct AttachmentImage {
+        VkImageView view;
+        Allocation allocation;
+        bool isPresenting;
+    };
 
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
@@ -33,18 +40,21 @@ namespace vpa {
         VPAError WritePipelineConfig();
         VPAError ReadPipelineConfig();
         VPAError Reload(const ReloadFlags flag);
+
     private:
         VPAError CreateRenderPass();
         VPAError CreatePipeline();
         VPAError CreatePipelineCache();
         VPAError CreateShaders();
 
-        VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
+        VkAttachmentDescription MakeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
-        VkSubpassDescription makeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences,
+        VkSubpassDescription MakeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences,
             VkAttachmentReference* depthReference, VkAttachmentReference* resolve);
-        VkSubpassDependency makeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
+        VkSubpassDependency MakeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
             VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
+        VPAError MakeAttachmentImage(AttachmentImage& image, uint32_t height, uint32_t width, VkFormat format, VkImageUsageFlags usage, QString name, bool present);
+        VPAError MakeFrameBuffers(QVector<VkImageView>& imageViews, uint32_t width, uint32_t height);
 
         bool m_initialised;
         bool m_valid;
@@ -68,6 +78,10 @@ namespace vpa {
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
         std::function<void(void)> m_postInitCallback;
+
+        size_t m_activeAttachment;
+        bool m_useDepth;
+        QVector<AttachmentImage> m_attachmentImages;
     };
 }
 
