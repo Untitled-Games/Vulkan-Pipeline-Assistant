@@ -1,48 +1,38 @@
 #ifndef VERTEXINPUT_H
 #define VERTEXINPUT_H
 
+#include <QVector>
+
 #include "spirvresource.h"
 #include "memoryallocator.h"
 
-#include <QVector>
 
 class QVulkanDeviceFunctions;
 class QVulkanWindow;
 namespace vpa {
     enum class VertexAttribute {
-        POSITION,
-        TEX_COORD,
-        NORMAL,
-        RGBA_COLOUR,
-        count_
+        Position,
+        TexCoord,
+        Normal,
+        RgbaColour,
+        Count_
     };
 
     enum class SupportedFormats {
-        OBJ,
-        count_
+        Obj,
+        Count_
     };
 
-    class VertexInput {
+    class VertexInput final {
     public:
-        VertexInput(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    QVector<SpvResource*> inputResources, QString meshName, bool isIndexed);
+        VertexInput(QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+                    QVector<SpvResource*> inputResources, QString meshName, bool isIndexed, VPAError& err);
         ~VertexInput();
 
-        VkBuffer VertexBuffer() const {
-            return m_vertexAllocation.buffer;
-        }
-
-        VkBuffer IndexBuffer() const {
-            return m_indexAllocation.buffer;
-        }
-
-        bool IsIndexed() const {
-            return m_indexed;
-        }
-
-        uint32_t IndexCount() const {
-            return m_indexCount;
-        }
+        VkBuffer VertexBuffer() const { return m_vertexAllocation.buffer;  }
+        VkBuffer IndexBuffer() const { return m_indexAllocation.buffer; }
+        bool IsIndexed() const {  return m_indexed; }
+        uint32_t IndexCount() const { return m_indexCount; }
 
         void BindBuffers(VkCommandBuffer& cmdBuffer);
 
@@ -50,8 +40,10 @@ namespace vpa {
         QVector<VkVertexInputAttributeDescription> InputAttribDescription();
 
     private:
+        VPAError LoadMesh(QString& meshName, SupportedFormats format);
+        VPAError LoadObj(QString& meshName);
+
         void AssignDefaultMeaning(QVector<SpvResource*>& inputResources);
-        void LoadMesh(QString& meshName, SupportedFormats format);
         void CalculateData(QVector<SpvResource*>& inputResources);
         uint32_t CalculateStride();
 

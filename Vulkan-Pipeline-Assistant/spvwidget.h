@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <QEvent>
 
+#include "common.h"
+
 #define SPV_DATA_CHANGE_EVENT(parent) QEvent evnt = QEvent(SpvGuiDataChangeType); \
     QCoreApplication::sendEvent(parent, &evnt)
 
@@ -26,13 +28,13 @@ namespace vpa {
         Q_OBJECT
     public:
         SpvWidget(QWidget* parent = nullptr) : QWidget(parent) { }
-        virtual ~SpvWidget() = default;
+        virtual ~SpvWidget() override = default;
 
         // Get data from the widget, passed in to dataPtr
         virtual void Data(unsigned char* dataPtr) const = 0;
 
         // Fill the widget with data
-        virtual void Fill(unsigned char* data) = 0;
+        virtual void Fill(const unsigned char* data) = 0;
 
         virtual bool event(QEvent* event) override {
             if (event->type() == SpvGuiDataChangeType || event->type() == SpvGuiImageChangeType) {

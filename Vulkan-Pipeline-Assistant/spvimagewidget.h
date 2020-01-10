@@ -5,12 +5,13 @@
 
 namespace vpa {
     struct SpvImageType;
+
     class SpvImageWidget : public SpvWidget {
     public:
         SpvImageWidget(SpvImageType* type, QWidget* parent);
 
-        void Data(unsigned char* dataPtr) const override { };
-        void Fill(unsigned char* data) override { };
+        void Data(unsigned char*) const override { }
+        void Fill(const unsigned char*) override { }
 
     private:
         SpvImageType* m_type;

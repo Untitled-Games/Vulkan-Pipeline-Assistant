@@ -5,6 +5,7 @@
 
 namespace vpa {
     struct SpvArrayType;
+
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
@@ -12,7 +13,7 @@ namespace vpa {
         ~SpvArrayWidget() override;
 
         void Data(unsigned char* dataPtr) const override;
-        void Fill(unsigned char* data) override;
+        void Fill(const unsigned char* data) override;
 
     private slots:
         void HandleArrayElementChange();

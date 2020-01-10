@@ -12,9 +12,10 @@ namespace vpa {
     class ShaderAnalytics;
     class VertexInput;
     class Descriptors;
+
     class VulkanRenderer : public QVulkanWindowRenderer {
     public:
-        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback);
+        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
 
         void initResources() override;
         void initSwapChainResources() override;
@@ -23,24 +24,20 @@ namespace vpa {
 
         void startNextFrame() override;
 
-        PipelineConfig& GetConfig() {
-            return m_config;
-        }
+        void SetValid(bool valid) { m_valid = valid; }
+        PipelineConfig& GetConfig() { return m_config; }
+        Descriptors* GetDescriptors() { return m_descriptors; }
 
-        Descriptors* GetDescriptors() {
-            return m_descriptors;
-        }
+        VPAError WritePipelineCache();
 
-        bool WritePipelineCache();
-
-        bool WritePipelineConfig();
-        bool ReadPipelineConfig();
-        void Reload(const ReloadFlags flag);
+        VPAError WritePipelineConfig();
+        VPAError ReadPipelineConfig();
+        VPAError Reload(const ReloadFlags flag);
     private:
-        void CreateRenderPass();
-        void CreatePipeline();
-        void CreatePipelineCache();
-        void CreateShaders();
+        VPAError CreateRenderPass();
+        VPAError CreatePipeline();
+        VPAError CreatePipelineCache();
+        VPAError CreateShaders();
 
         VkAttachmentDescription makeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
@@ -50,6 +47,8 @@ namespace vpa {
             VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
 
         bool m_initialised;
+        bool m_valid;
+        VulkanMain* m_main;
         QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;
 
@@ -68,6 +67,7 @@ namespace vpa {
 
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
+        std::function<void(void)> m_postInitCallback;
     };
 }
 

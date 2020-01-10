@@ -6,13 +6,14 @@
 class QLineEdit;
 namespace vpa {
     struct SpvMatrixType;
+
     class SpvMatrixWidget : public SpvWidget {
         Q_OBJECT
     public:
         SpvMatrixWidget(SpvMatrixType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
-        void Fill(unsigned char* data) override;
+        void Fill(const unsigned char* data) override;
 
     private slots:
         void HandleInverse();

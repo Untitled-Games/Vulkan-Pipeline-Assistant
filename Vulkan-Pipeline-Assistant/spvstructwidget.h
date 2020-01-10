@@ -6,12 +6,13 @@
 class QPushButton;
 namespace vpa {
     struct SpvStructType;
+
     class SpvStructWidget : public SpvWidget {
     public:
         SpvStructWidget(SpvStructType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
-        void Fill(unsigned char* data) override;
+        void Fill(const unsigned char* data) override;
 
     private slots:
         void HandleMemberButtonPress(int idx);

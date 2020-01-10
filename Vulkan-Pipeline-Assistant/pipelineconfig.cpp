@@ -41,78 +41,78 @@ namespace vpa {
         ///////////////////////////////////////////////////////
         //// SHADER DATA
         ///////////////////////////////////////////////////////
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::VERTEX)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::FRAGMENT)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_CONTROL)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::TESS_EVAL)]));
-        config.writablePipelineConfig.WriteShaderDataToFile(out, &(config.writablePipelineConfig.shaderBlobs[size_t(ShaderStage::GEOMETRY)]));
+        config.writables.WriteShaderDataToFile(out, &(config.writables.shaderBlobs[size_t(ShaderStage::Vertex)]));
+        config.writables.WriteShaderDataToFile(out, &(config.writables.shaderBlobs[size_t(ShaderStage::Fragment)]));
+        config.writables.WriteShaderDataToFile(out, &(config.writables.shaderBlobs[size_t(ShaderStage::TessellationControl)]));
+        config.writables.WriteShaderDataToFile(out, &(config.writables.shaderBlobs[size_t(ShaderStage::TessellationEvaluation)]));
+        config.writables.WriteShaderDataToFile(out, &(config.writables.shaderBlobs[size_t(ShaderStage::Geometry)]));
 
         ///////////////////////////////////////////////////////
         //// VERTEX INPUT
         ///////////////////////////////////////////////////////
-        WRITE_FILE_LINE(config.writablePipelineConfig.vertexBindingCount);
-        WRITE_FILE_LINE(config.writablePipelineConfig.vertexAttribCount);
-        WRITE_FILE_LINE(config.writablePipelineConfig.vertexBindingDescriptions.binding << ' '
-                        << config.writablePipelineConfig.vertexBindingDescriptions.stride << ' '
-                        << config.writablePipelineConfig.vertexBindingDescriptions.inputRate);
-        WRITE_FILE_LINE(config.writablePipelineConfig.numAttribDescriptions);
-        for(int i = 0; i < config.writablePipelineConfig.numAttribDescriptions; i++) {
-            WRITE_FILE_LINE(config.writablePipelineConfig.vertexAttribDescriptions[i].location << ' '
-                            << config.writablePipelineConfig.vertexAttribDescriptions[i].binding << ' '
-                            << config.writablePipelineConfig.vertexAttribDescriptions[i].format << ' '
-                            << config.writablePipelineConfig.vertexAttribDescriptions[i].offset);
+        WRITE_FILE_LINE(config.writables.vertexBindingCount);
+        WRITE_FILE_LINE(config.writables.vertexAttribCount);
+        WRITE_FILE_LINE(config.writables.vertexBindingDescriptions.binding << ' '
+                        << config.writables.vertexBindingDescriptions.stride << ' '
+                        << config.writables.vertexBindingDescriptions.inputRate);
+        WRITE_FILE_LINE(config.writables.numAttribDescriptions);
+        for(int i = 0; i < config.writables.numAttribDescriptions; i++) {
+            WRITE_FILE_LINE(config.writables.vertexAttribDescriptions[i].location << ' '
+                            << config.writables.vertexAttribDescriptions[i].binding << ' '
+                            << config.writables.vertexAttribDescriptions[i].format << ' '
+                            << config.writables.vertexAttribDescriptions[i].offset);
         }
-        for(int i = config.writablePipelineConfig.numAttribDescriptions; i < 4; i++) {
+        for(int i = config.writables.numAttribDescriptions; i < 4; i++) {
             WRITE_FILE_LINE('-');
         }
 
         // vertex input assembly
-        WRITE_FILE_LINE(config.writablePipelineConfig.topology);
-        WRITE_FILE_LINE(config.writablePipelineConfig.primitiveRestartEnable);
+        WRITE_FILE_LINE(config.writables.topology);
+        WRITE_FILE_LINE(config.writables.primitiveRestartEnable);
 
         // Tesselation state
-        WRITE_FILE_LINE(config.writablePipelineConfig.patchControlPoints);
+        WRITE_FILE_LINE(config.writables.patchControlPoints);
 
         // Rasteriser state
-        WRITE_FILE_LINE(config.writablePipelineConfig.rasterizerDiscardEnable);
-        WRITE_FILE_LINE(config.writablePipelineConfig.polygonMode);
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.lineWidth));
-        WRITE_FILE_LINE(config.writablePipelineConfig.cullMode);
-        WRITE_FILE_LINE(config.writablePipelineConfig.frontFace);
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthClampEnable);
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthBiasEnable);
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.depthBiasConstantFactor));
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.depthBiasClamp));
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.depthBiasSlopeFactor));
+        WRITE_FILE_LINE(config.writables.rasterizerDiscardEnable);
+        WRITE_FILE_LINE(config.writables.polygonMode);
+        WRITE_FILE_LINE(FloatToString(config.writables.lineWidth));
+        WRITE_FILE_LINE(config.writables.cullMode);
+        WRITE_FILE_LINE(config.writables.frontFace);
+        WRITE_FILE_LINE(config.writables.depthClampEnable);
+        WRITE_FILE_LINE(config.writables.depthBiasEnable);
+        WRITE_FILE_LINE(FloatToString(config.writables.depthBiasConstantFactor));
+        WRITE_FILE_LINE(FloatToString(config.writables.depthBiasClamp));
+        WRITE_FILE_LINE(FloatToString(config.writables.depthBiasSlopeFactor));
 
         // Multisample state
-        WRITE_FILE_LINE(config.writablePipelineConfig.msaaSamples);
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.minSampleShading));
+        WRITE_FILE_LINE(config.writables.msaaSamples);
+        WRITE_FILE_LINE(FloatToString(config.writables.minSampleShading));
 
         // Depth stencil state
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthTestEnable);
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthWriteEnable);
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthCompareOp);
-        WRITE_FILE_LINE(config.writablePipelineConfig.depthBoundsTest);
-        WRITE_FILE_LINE(config.writablePipelineConfig.stencilTestEnable);
+        WRITE_FILE_LINE(config.writables.depthTestEnable);
+        WRITE_FILE_LINE(config.writables.depthWriteEnable);
+        WRITE_FILE_LINE(config.writables.depthCompareOp);
+        WRITE_FILE_LINE(config.writables.depthBoundsTest);
+        WRITE_FILE_LINE(config.writables.stencilTestEnable);
 
         // Colour blend attachment states (vector)
-        WRITE_FILE_LINE(config.writablePipelineConfig.attachments.blendEnable << ' '
-                       << config.writablePipelineConfig.attachments.writeMask << ' '
-                       << config.writablePipelineConfig.attachments.alphaBlendOp << ' '
-                       << config.writablePipelineConfig.attachments.colourBlendOp << ' '
-                       << config.writablePipelineConfig.attachments.srcColourBlendFactor << ' '
-                       << config.writablePipelineConfig.attachments.dstColourBlendFactor << ' '
-                       << config.writablePipelineConfig.attachments.srcAlphaBlendFactor << ' '
-                       << config.writablePipelineConfig.attachments.dstAlphaBlendFactor);
+        WRITE_FILE_LINE(config.writables.attachments.blendEnable << ' '
+                       << config.writables.attachments.writeMask << ' '
+                       << config.writables.attachments.alphaBlendOp << ' '
+                       << config.writables.attachments.colourBlendOp << ' '
+                       << config.writables.attachments.srcColourBlendFactor << ' '
+                       << config.writables.attachments.dstColourBlendFactor << ' '
+                       << config.writables.attachments.srcAlphaBlendFactor << ' '
+                       << config.writables.attachments.dstAlphaBlendFactor);
 
         // Colour blend state
-        WRITE_FILE_LINE(config.writablePipelineConfig.logicOpEnable);
-        WRITE_FILE_LINE(config.writablePipelineConfig.logicOp);
-        WRITE_FILE_LINE(FloatToString(config.writablePipelineConfig.blendConstants[0]) << ' '
-                       << FloatToString(config.writablePipelineConfig.blendConstants[1]) << ' '
-                       << FloatToString(config.writablePipelineConfig.blendConstants[2]) << ' '
-                       << FloatToString(config.writablePipelineConfig.blendConstants[3]) );
+        WRITE_FILE_LINE(config.writables.logicOpEnable);
+        WRITE_FILE_LINE(config.writables.logicOp);
+        WRITE_FILE_LINE(FloatToString(config.writables.blendConstants[0]) << ' '
+                       << FloatToString(config.writables.blendConstants[1]) << ' '
+                       << FloatToString(config.writables.blendConstants[2]) << ' '
+                       << FloatToString(config.writables.blendConstants[3]) );
 
         ///////////////////////////////////////////////////////
         //// END OF CONFIG
@@ -132,7 +132,7 @@ namespace vpa {
         return "";
     }
 
-    bool PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize) {
+    VPAError PipelineConfig::LoadConfiguration(std::vector<char>& buffer, const int bufferSize) {
         // Keep a reference to the current position we are reading from
         auto readPosition = buffer.begin();
 
@@ -140,15 +140,12 @@ namespace vpa {
         //// START OF CONFIG
         ///////////////////////////////////////////////////////
         std::string activeData = GetNextLine(&readPosition, &buffer);
-        if(!(activeData == "VPA_CONFIG_BEGIN")) {
-            qCritical("VPA_CONFIG_BEGIN format invalid, missing object header.");
-            return false;
-        }
+        if(!(activeData == "VPA_CONFIG_BEGIN")) return VPA_CRITICAL("VPA_CONFIG_BEGIN format invalid, missing object header.");
         try {
             ///////////////////////////////////////////////////////
             //// SHADER DATA
             ///////////////////////////////////////////////////////
-            for(size_t i = 0; i < size_t(ShaderStage::count_); i++) {
+            for(size_t i = 0; i < size_t(ShaderStage::Count_); i++) {
                 int shaderSize = std::stoi(GetNextLine(&readPosition, &buffer));
                 std::string shaderData = GetNextLine(&readPosition, &buffer);
                 bool complete = false;
@@ -166,130 +163,126 @@ namespace vpa {
                     }
                 }
                 QByteArray blob(shaderData.data(), shaderData.size());
-                writablePipelineConfig.shaderBlobs[i] = blob;
+                writables.shaderBlobs[i] = blob;
             }
 
             ///////////////////////////////////////////////////////
             //// VERTEX INPUT
             ///////////////////////////////////////////////////////
-            writablePipelineConfig.vertexBindingCount = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.vertexAttribCount = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.vertexBindingCount = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.vertexAttribCount = std::stoi(GetNextLine(&readPosition, &buffer));
             activeData = GetNextLine(&readPosition, &buffer);
 
             std::stringstream ss(activeData);
             std::string bufferString;
             ss >> bufferString;
-            writablePipelineConfig.vertexBindingDescriptions.binding = std::stoi(bufferString);
+            writables.vertexBindingDescriptions.binding = std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.vertexBindingDescriptions.stride = std::stoi(bufferString);
+            writables.vertexBindingDescriptions.stride = std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.vertexBindingDescriptions.inputRate = (VkVertexInputRate) std::stoi(bufferString);
+            writables.vertexBindingDescriptions.inputRate = (VkVertexInputRate) std::stoi(bufferString);
 
             // attribute descriptions
-            writablePipelineConfig.numAttribDescriptions = std::stoi(GetNextLine(&readPosition, &buffer));
-            assert(writablePipelineConfig.numAttribDescriptions >= 0 && writablePipelineConfig.numAttribDescriptions <= 4);
+            writables.numAttribDescriptions = std::stoi(GetNextLine(&readPosition, &buffer));
+            assert(writables.numAttribDescriptions >= 0 && writables.numAttribDescriptions <= 4);
             
             // attribute descriptions
-            for(int i = 0; i < writablePipelineConfig.numAttribDescriptions; i++) {
+            for(int i = 0; i < writables.numAttribDescriptions; i++) {
                 activeData = GetNextLine(&readPosition, &buffer);
                 ss = std::stringstream(activeData);
                 ss >> bufferString;
-                writablePipelineConfig.vertexAttribDescriptions[i].location = std::stoi(bufferString);
+                writables.vertexAttribDescriptions[i].location = std::stoi(bufferString);
                 ss >> bufferString;
-                writablePipelineConfig.vertexAttribDescriptions[i].binding = std::stoi(bufferString);
+                writables.vertexAttribDescriptions[i].binding = std::stoi(bufferString);
                 ss >> bufferString;
-                writablePipelineConfig.vertexAttribDescriptions[i].format = (VkFormat) std::stoi(bufferString);
+                writables.vertexAttribDescriptions[i].format = (VkFormat) std::stoi(bufferString);
                 ss >> bufferString;
-                writablePipelineConfig.vertexAttribDescriptions[i].offset = std::stoi(bufferString);
+                writables.vertexAttribDescriptions[i].offset = std::stoi(bufferString);
             }
 
             // read in rest of pipeline data in order to move the iterator position
-            for(int i = writablePipelineConfig.numAttribDescriptions; i < 4; i++) {
+            for(int i = writables.numAttribDescriptions; i < 4; i++) {
                 activeData = GetNextLine(&readPosition, &buffer);
             }
 
             // Vertex Input Assembly
-            writablePipelineConfig.topology = (VkPrimitiveTopology) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.primitiveRestartEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.topology = (VkPrimitiveTopology) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.primitiveRestartEnable = std::stoi(GetNextLine(&readPosition, &buffer));
 
             // Tesselation state
-            writablePipelineConfig.patchControlPoints = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.patchControlPoints = std::stoi(GetNextLine(&readPosition, &buffer));
 
             // Rasteriser state
-            writablePipelineConfig.rasterizerDiscardEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.polygonMode = (VkPolygonMode) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.lineWidth = std::stof(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.cullMode = (VkCullModeFlagBits) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.frontFace = (VkFrontFace) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthClampEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthBiasEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthBiasConstantFactor = std::stof(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthBiasClamp = std::stof(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthBiasSlopeFactor = std::stof(GetNextLine(&readPosition, &buffer));
+            writables.rasterizerDiscardEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.polygonMode = (VkPolygonMode) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.lineWidth = std::stof(GetNextLine(&readPosition, &buffer));
+            writables.cullMode = (VkCullModeFlagBits) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.frontFace = (VkFrontFace) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthClampEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthBiasEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthBiasConstantFactor = std::stof(GetNextLine(&readPosition, &buffer));
+            writables.depthBiasClamp = std::stof(GetNextLine(&readPosition, &buffer));
+            writables.depthBiasSlopeFactor = std::stof(GetNextLine(&readPosition, &buffer));
 
             // Multisample state
-            writablePipelineConfig.msaaSamples = (VkSampleCountFlagBits) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.minSampleShading = std::stof(GetNextLine(&readPosition, &buffer));
+            writables.msaaSamples = (VkSampleCountFlagBits) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.minSampleShading = std::stof(GetNextLine(&readPosition, &buffer));
 
             // Depth stencil state
-            writablePipelineConfig.depthTestEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthWriteEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthCompareOp = (VkCompareOp) std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.depthBoundsTest = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.stencilTestEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthTestEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthWriteEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthCompareOp = (VkCompareOp) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.depthBoundsTest = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.stencilTestEnable = std::stoi(GetNextLine(&readPosition, &buffer));
 
             // Colour blend attachment states (vector)
             activeData = GetNextLine(&readPosition, &buffer);
             ss = std::stringstream(activeData);
             ss >> bufferString;
-            writablePipelineConfig.attachments.blendEnable = std::stoi(bufferString);
+            writables.attachments.blendEnable = std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.writeMask = std::stoi(bufferString);
+            writables.attachments.writeMask = std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.alphaBlendOp = (VkBlendOp) std::stoi(bufferString);
+            writables.attachments.alphaBlendOp = (VkBlendOp) std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.colourBlendOp = (VkBlendOp) std::stoi(bufferString);
+            writables.attachments.colourBlendOp = (VkBlendOp) std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.srcColourBlendFactor = (VkBlendFactor) std::stoi(bufferString);
+            writables.attachments.srcColourBlendFactor = (VkBlendFactor) std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.dstColourBlendFactor = (VkBlendFactor) std::stoi(bufferString);
+            writables.attachments.dstColourBlendFactor = (VkBlendFactor) std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.srcAlphaBlendFactor = (VkBlendFactor) std::stoi(bufferString);
+            writables.attachments.srcAlphaBlendFactor = (VkBlendFactor) std::stoi(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.attachments.dstAlphaBlendFactor = (VkBlendFactor) std::stoi(bufferString);
+            writables.attachments.dstAlphaBlendFactor = (VkBlendFactor) std::stoi(bufferString);
 
             // Colour blend state
-            writablePipelineConfig.logicOpEnable = std::stoi(GetNextLine(&readPosition, &buffer));
-            writablePipelineConfig.logicOp = (VkLogicOp) std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.logicOpEnable = std::stoi(GetNextLine(&readPosition, &buffer));
+            writables.logicOp = (VkLogicOp) std::stoi(GetNextLine(&readPosition, &buffer));
 
             // 1
             activeData = GetNextLine(&readPosition, &buffer);
             ss = std::stringstream(activeData);
             ss >> bufferString;
-            writablePipelineConfig.blendConstants[0] = std::stof(bufferString);
+            writables.blendConstants[0] = std::stof(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.blendConstants[1] = std::stof(bufferString);
+            writables.blendConstants[1] = std::stof(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.blendConstants[2] = std::stof(bufferString);
+            writables.blendConstants[2] = std::stof(bufferString);
             ss >> bufferString;
-            writablePipelineConfig.blendConstants[3] = std::stof(bufferString);
+            writables.blendConstants[3] = std::stof(bufferString);
         }
         catch (std::invalid_argument const &e) {
-            qCritical("Bad input: std::invalid_argument was thrown");
-            qDebug(e.what());
+            return VPA_CRITICAL("Bad input: std::invalid_argument was thrown");
         }
         catch (std::out_of_range const &e) {
-            qCritical("Data Overflow: std::out_of_range was thrown");
-            qDebug(e.what());
-
+            return VPA_CRITICAL("Data Overflow: std::out_of_range was thrown");
         }
 
         activeData = GetNextLine(&readPosition, &buffer);
         if(!(activeData == "VPA_CONFIG_END" || activeData == "\rVPA_CONFIG_END")) {
-            qCritical("VPA_CONFIG_END format invalid, missing object footer.");
-            return false;
+            return VPA_CRITICAL("VPA_CONFIG_END format invalid, missing object footer.");
         }
-        return true;
+        return VPA_OK;
     }
 
 }

@@ -1,50 +1,49 @@
 #ifndef DESCRIPTORS_H
 #define DESCRIPTORS_H
 
-#define TEXDIR "../../Resources/Textures/"
-
 #include <QVector>
 #include <QHash>
 #include <QMap>
 #include <QMatrix4x4>
 
+#include "common.h"
 #include "spirvresource.h"
 #include "memoryallocator.h"
 
 namespace vpa {
     struct DescriptorInfo {
-        uint32_t set;
-        uint32_t binding;
+        uint32_t set = 0;
+        uint32_t binding = 0;
         VkDescriptorSetLayoutBinding layoutBinding;
         VkWriteDescriptorSet writeSet;
         SpvGroupName type;
         Allocation allocation;
-        SpvResource* resource;
+        SpvResource* resource = nullptr;
     };
 
     struct BufferInfo {
         VkDescriptorBufferInfo bufferInfo;
-        VkBufferUsageFlags usage;
+        VkBufferUsageFlags usage = 0;
         DescriptorInfo descriptor;
     };
 
     struct ImageInfo {
         VkDescriptorImageInfo imageInfo;
-        VkImageView view;
-        VkSampler sampler;
+        VkImageView view = VK_NULL_HANDLE;
+        VkSampler sampler = VK_NULL_HANDLE;
         DescriptorInfo descriptor;
     };
 
     struct PushConstantInfo {
         ShaderStage stage;
-        SpvResource* resource;
+        SpvResource* resource = nullptr;
         QVector<unsigned char> data;
     };
 
-    class Descriptors {
+    class Descriptors final {
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
+                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err);
         ~Descriptors();
 
         const QHash<uint32_t, QVector<BufferInfo>>& Buffers() const { return m_buffers; }
@@ -68,13 +67,15 @@ namespace vpa {
         static const QMatrix4x4 DefaultMVPMatrix();
 
     private:
-        void BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
-        BufferInfo CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource);
-        void CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
+        VPAError BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
+        VPAError CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource, BufferInfo& info);
+        VPAError CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
         VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);
         void DestroyImage(ImageInfo& imageInfo);
+
+        VkImageCreateInfo MakeImageCreateInfo(const SpvImageType* type, uint32_t width, uint32_t height, uint32_t depth) const;
 
         QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;

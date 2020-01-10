@@ -5,10 +5,11 @@
 
 #include <iostream>
 #include <QFile>
+
 #include "spirvresource.h"
+#include "common.h"
 
 namespace vpa {
-
     struct ColourAttachmentConfig {
         VkBool32 blendEnable = VK_TRUE;
         VkColorComponentFlags writeMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -25,7 +26,7 @@ namespace vpa {
         std::ostream& WriteShaderDataToFile(std::ostream& out, const QByteArray* byteArray) const;
 
         // Shader Data
-        QByteArray shaderBlobs[size_t(ShaderStage::count_)] = {
+        QByteArray shaderBlobs[size_t(ShaderStage::Count_)] = {
                 QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0'), QByteArray(1, '0')
         };
 
@@ -77,17 +78,14 @@ namespace vpa {
     };
 
     struct PipelineConfig {
+        VPAError LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
 
-        //TODO: can a pipeline config can have multiple writables?
-        bool LoadConfiguration(std::vector<char>& buffer, const int bufferSize);
-
-        //todo: Note down the size of these shaders somewhere so that we can  serialize this into binary format
         // Shaders
-        char* vertShader = nullptr;
-        char* fragShader = nullptr;
-        char* tescShader = nullptr;
-        char* teseShader = nullptr;
-        char* geomShader = nullptr;
+        QString vertShader = "";
+        QString fragShader = "";
+        QString tescShader = "";
+        QString teseShader = "";
+        QString geomShader = "";
 
         // Pipeline layout ##
         //TODO: Make viewport and scissor rects more configurable
@@ -110,7 +108,7 @@ namespace vpa {
         uint32_t outputAttachmentIndex = 0;
         uint32_t attachmentCount = 0;
 
-        WritablePipelineConfig writablePipelineConfig;
+        WritablePipelineConfig writables;
     };
 
     std::ostream& operator<<(std::ostream& out, const WritablePipelineConfig& config);
