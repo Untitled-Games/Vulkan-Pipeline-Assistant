@@ -8,7 +8,7 @@
 #include <QVulkanDeviceFunctions>
 
 #include "spirvresource.h"
-#include "common.h"
+#include "../common.h"
 
 namespace vpa {
     struct PipelineConfig;

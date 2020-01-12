@@ -7,7 +7,7 @@
 #include <QVector>
 #include <QDebug>
 
-#include "common.h"
+#include "../common.h"
 
 namespace vpa {
     enum class ShaderStage {

@@ -22,4 +22,17 @@
 # ... TODO
 #
 
-<"TopologyAdjacency", "Valid usage in VkPrimitiveTopology online specification", Topology NOT_EQUAL VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY IF primitiveRestartEnable EQUALS false>
+<"", "Valid usage in https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineVertexInputStateCreateInfo.html", 
+
+
+
+
+/*
+vertexBindingDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputBindings --LIMITS
+vertexAttributeDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputAttributes --LIMITS
+For every binding specified by each element of pVertexAttributeDescriptions, a VkVertexInputBindingDescription must exist in pVertexBindingDescriptions with the same value of binding --INTERNAL
+All elements of pVertexBindingDescriptions must describe distinct binding numbers --INTERNAL
+All elements of pVertexAttributeDescriptions must describe distinct attribute locations --INTERNAL
+
+
+*/

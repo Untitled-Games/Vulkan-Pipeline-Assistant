@@ -8,8 +8,8 @@
 #include "spvarraywidget.h"
 #include "spvstructwidget.h"
 #include "spvimagewidget.h"
-#include "spirvresource.h"
-#include "descriptors.h"
+#include "../Vulkan/spirvresource.h"
+#include "../Vulkan/descriptors.h"
 
 namespace vpa {
     SpvResourceWidget::SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent)

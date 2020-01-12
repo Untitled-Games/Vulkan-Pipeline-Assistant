@@ -49,6 +49,8 @@ namespace vpa {
         VPAError CreatePipelineCache();
         VPAError CreateShaders();
 
+        bool DepthDrawing() const { return m_useDepth && m_attachmentImages.size() == 1; }
+
         // Helper functions for making a render pass
         VkAttachmentDescription MakeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);

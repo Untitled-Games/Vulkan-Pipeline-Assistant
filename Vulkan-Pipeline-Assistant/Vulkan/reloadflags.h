@@ -1,7 +1,7 @@
 #ifndef RELOADFLAGS_H
 #define RELOADFLAGS_H
 
-#include "common.h"
+#include "../common.h"
 
 namespace vpa {
     // Underlying bits for each individual part of the renderer

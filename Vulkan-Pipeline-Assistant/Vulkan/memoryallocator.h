@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <QString>
 
-#include "common.h"
+#include "../common.h"
 
 class QVulkanDeviceFunctions;
 class QVulkanWindow;

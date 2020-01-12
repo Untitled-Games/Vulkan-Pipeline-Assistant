@@ -8,7 +8,7 @@
 #include "spvvectorwidget.h"
 #include "spvarraywidget.h"
 #include "spvstructwidget.h"
-#include "spirvresource.h"
+#include "../Vulkan/spirvresource.h"
 
 namespace vpa {
     SpvStructWidget::SpvStructWidget(SpvStructType* type, QWidget* parent)

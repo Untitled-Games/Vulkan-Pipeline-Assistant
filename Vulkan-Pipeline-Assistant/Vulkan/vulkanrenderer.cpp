@@ -38,7 +38,7 @@ namespace vpa {
             m_main->Reload(ReloadFlags::Everything);
             m_initialised = true;
         }
-        if (!(m_useDepth && m_attachmentImages.size() == 1)) {
+        if (!DepthDrawing()) {
             QVector<VkImageView> imageViews;
             for (int i = 0; i < m_attachmentImages.size(); ++i) {
                 if (i == m_activeAttachment) m_attachmentImages[i].view = m_window->swapChainImageView(0);
@@ -105,7 +105,7 @@ namespace vpa {
             }
             m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
 
-            if (m_useDepth && m_attachmentImages.size() == 1) {
+            if (DepthDrawing()) {
                 beginInfo.renderPass = m_window->defaultRenderPass();
                 beginInfo.framebuffer =  m_window->currentFramebuffer();
                 beginInfo.clearValueCount = 2;

@@ -6,7 +6,7 @@
 #include <QMap>
 #include <QMatrix4x4>
 
-#include "common.h"
+#include "../common.h"
 #include "spirvresource.h"
 #include "memoryallocator.h"
 

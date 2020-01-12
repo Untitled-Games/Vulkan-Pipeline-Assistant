@@ -9,7 +9,7 @@
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
 #include "spvstructwidget.h"
-#include "spirvresource.h"
+#include "../Vulkan/spirvresource.h"
 
 namespace vpa {
     SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, QWidget* parent)

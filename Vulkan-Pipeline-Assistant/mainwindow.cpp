@@ -4,9 +4,9 @@
 #include <QPushButton>
 #include <QFileDialog>
 
-#include "pipelineconfig.h"
-#include "descriptors.h"
-#include "spvresourcewidget.h"
+#include "Vulkan/pipelineconfig.h"
+#include "Vulkan/descriptors.h"
+#include "Widgets/spvresourcewidget.h"
 
 namespace vpa {
     const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
