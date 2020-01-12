@@ -396,7 +396,7 @@ namespace vpa {
 
     const QMatrix4x4 Descriptors::DefaultProjectionMatrix() {
         QMatrix4x4 projection;
-        projection.perspective(45.0f, float(s_aspectRatio), 1.0f, 100.0f);
+        projection.perspective(45.0f, float(s_aspectRatio), NearPlane, FarPlane);
         projection.data()[5] *= -1;
         return projection;
     }

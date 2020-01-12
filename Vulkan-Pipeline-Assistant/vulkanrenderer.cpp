@@ -142,7 +142,7 @@ namespace vpa {
             return err;
         }
 
-        QString path = QCoreApplication::applicationDirPath() + "/test.vpac";
+        QString path = CONFIGDIR"cache.vpac";
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly)) {
              delete[] data;

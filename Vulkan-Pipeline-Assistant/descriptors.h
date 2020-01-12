@@ -41,6 +41,8 @@ namespace vpa {
     };
 
     class Descriptors final {
+        static constexpr float NearPlane = 1.0f;
+        static constexpr float FarPlane = 100.0f;
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err);
