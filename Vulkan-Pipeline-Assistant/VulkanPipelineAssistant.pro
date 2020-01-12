@@ -11,6 +11,7 @@ CONFIG += c++14
 DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
+    Vulkan/configvalidator.cpp \
     Vulkan/descriptors.cpp \
     Vulkan/memoryallocator.cpp \
     Vulkan/pipelineconfig.cpp \
@@ -28,6 +29,7 @@ SOURCES += \
     mainwindow.cpp \
 
 HEADERS += \
+    Vulkan/configvalidator.h \
     Vulkan/descriptors.h \
     Vulkan/memoryallocator.h \
     Vulkan/pipelineconfig.h \

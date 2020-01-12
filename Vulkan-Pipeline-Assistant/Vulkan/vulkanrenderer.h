@@ -13,6 +13,7 @@ namespace vpa {
     class ShaderAnalytics;
     class VertexInput;
     class Descriptors;
+    class ConfigValidator;
 
     struct AttachmentImage {
         VkImageView view;
@@ -93,6 +94,7 @@ namespace vpa {
         MemoryAllocator* m_allocator;
         VertexInput* m_vertexInput;
         Descriptors* m_descriptors;
+        ConfigValidator* m_validator;
 
         QVector<VkFramebuffer> m_framebuffers;
         QVector<VkPipelineShaderStageCreateInfo> m_shaderStageInfos;

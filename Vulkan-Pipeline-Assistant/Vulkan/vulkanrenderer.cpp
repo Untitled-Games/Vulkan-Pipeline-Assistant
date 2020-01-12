@@ -11,12 +11,13 @@
 #include "filemanager.h"
 #include "vertexinput.h"
 #include "descriptors.h"
+#include "configvalidator.h"
 
 namespace vpa {
     VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
         : m_initialised(false), m_valid(false), m_main(main), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr), m_vertexInput(nullptr),
-          m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true),
+          m_descriptors(nullptr), m_validator(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true),
           m_depthPipeline(VK_NULL_HANDLE), m_depthPipelineLayout(VK_NULL_HANDLE), m_depthSampler(VK_NULL_HANDLE) {
         m_main->m_renderer = this;
         m_config = {};
@@ -30,6 +31,7 @@ namespace vpa {
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
             if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message)
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
+            m_validator = new ConfigValidator(m_config);
         }
     }
 
@@ -72,6 +74,7 @@ namespace vpa {
         if (m_descriptors) delete m_descriptors;
         if (m_config.viewports) delete[] m_config.viewports;
         delete m_allocator;
+        delete m_validator;
     }
 
     void VulkanRenderer::startNextFrame() {

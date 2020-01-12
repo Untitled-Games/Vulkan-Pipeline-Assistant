@@ -13,11 +13,12 @@
 
 #include <QString>
 
-#define TEXDIR "../../Resources/Textures/"
-#define CONFIGDIR "../../Resources/Configs/"
-#define IMAGEDIR "../../Resources/Images/"
-#define MESHDIR "../../Resources/Meshes/"
-#define SHADERDIR "../../Resources/Shaders/"
+#define RESDIR "../../Resources/"
+#define TEXDIR RESDIR"Textures/"
+#define CONFIGDIR RESDIR"Configs/"
+#define IMAGEDIR RESDIR"Images/"
+#define MESHDIR RESDIR"Meshes/"
+#define SHADERDIR RESDIR"Shaders/"
 
 #define BYTE_CPTR(ptr) reinterpret_cast<const unsigned char*>(ptr)
 
