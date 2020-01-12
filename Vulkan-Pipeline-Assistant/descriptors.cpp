@@ -265,7 +265,7 @@ namespace vpa {
 
         VPAError err = VPA_OK;
         err = m_allocator->TransferImageMemory(imageInfo.descriptor.allocation, createInfo.extent, image, finalStageFlags);
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             DestroyImage(imageInfo);
             return err;
         }
@@ -283,7 +283,7 @@ namespace vpa {
 
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &imageInfo.view),
                          qPrintable("create image view for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             DestroyImage(imageInfo);
             return err;
         }
@@ -307,7 +307,7 @@ namespace vpa {
         samplerInfo.maxLod = 1.0f;
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &imageInfo.sampler),
                          qPrintable("create sampler for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             DestroyImage(imageInfo);
             return err;
         }

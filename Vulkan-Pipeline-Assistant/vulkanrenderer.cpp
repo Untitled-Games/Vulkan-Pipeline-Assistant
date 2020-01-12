@@ -28,7 +28,7 @@ namespace vpa {
             m_deviceFuncs = m_window->vulkanInstance()->deviceFunctions(m_window->device());
             VPAError err = VPA_OK;
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
-            if (err.level != VPAErrorLevel::Ok) VPA_FATAL("Device memory allocator fatal error. " + err.message)
+            if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message)
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
         }
     }
@@ -137,7 +137,7 @@ namespace vpa {
         VPAError err = VPA_OK;
         data = new char[size];
         VPA_VKCRITICAL(m_deviceFuncs->vkGetPipelineCacheData(m_window->device(), m_pipelineCache, &size, data), "Failed to get pipeline cache data", err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             delete[] data;
             return err;
         }
@@ -254,7 +254,7 @@ namespace vpa {
             VPAError err = VPA_OK;
             VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &image.view),
                              qPrintable("create attachment image view for allocation '" + name + "'"), err)
-            if (err.level != VPAErrorLevel::Ok) {
+            if (err != VPA_OK) {
                 DESTROY_HANDLE(m_window->device(), image.view, m_deviceFuncs->vkDestroyImageView)
                 m_allocator->Deallocate(image.allocation);
                 return err;
@@ -422,14 +422,14 @@ namespace vpa {
         if (m_vertexInput) delete m_vertexInput;
         VPAError err = VPA_OK;
         m_vertexInput = new VertexInput(m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true, err);
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             delete m_vertexInput;
             return err;
         }
 
         if (m_descriptors) delete m_descriptors;
         m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), err);
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             delete m_descriptors;
             return err;
         }
@@ -449,10 +449,10 @@ namespace vpa {
         QByteArray blob;
         VkShaderModule vertModule;
         VkShaderModule fragModule;
-        VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, QCoreApplication::applicationDirPath() + "/../shaders/fullscreen.spv", &blob)); // TODO destroy module if failed after this point, or at end anyway
+        VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, SHADERDIR"fullscreen.spv", &blob));
         blob.clear();
-        VPAError err = m_shaderAnalytics->CreateModule(fragModule, QCoreApplication::applicationDirPath() + "/../shaders/depth_frag.spv", &blob);
-        if (err.level != VPAErrorLevel::Ok) {
+        VPAError err = m_shaderAnalytics->CreateModule(fragModule, SHADERDIR"depth_frag.spv", &blob);
+        if (err != VPA_OK) {
             DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
             return err;
         }
@@ -473,7 +473,7 @@ namespace vpa {
         VkRenderPass pass = m_window->defaultRenderPass();
         VkPipelineCache cache = VK_NULL_HANDLE;
         err =CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_depthPipelineLayout, m_depthPipeline, cache);
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
             DESTROY_HANDLE(m_window->device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
             return err;
@@ -500,7 +500,7 @@ namespace vpa {
         DESTROY_HANDLE(m_window->device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
 
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &m_depthSampler), "create sampler for depth post pass", err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
             DESTROY_HANDLE(m_window->device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
             DESTROY_HANDLE(m_window->device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
