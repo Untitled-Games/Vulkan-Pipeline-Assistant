@@ -42,11 +42,14 @@ namespace vpa {
         VPAError Reload(const ReloadFlags flag);
 
     private:
-        VPAError CreateRenderPass();
-        VPAError CreatePipeline();
+        VPAError CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth);
+        VPAError CreatePipeline(const PipelineConfig& config, const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions,
+                                QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos, VkPipelineLayoutCreateInfo& layoutInfo, VkRenderPass& renderPass, VkPipelineLayout& layout,
+                                VkPipeline& pipeline, VkPipelineCache& cache);
         VPAError CreatePipelineCache();
         VPAError CreateShaders();
 
+        // Helper functions for making a render pass
         VkAttachmentDescription MakeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
             VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout);
         VkSubpassDescription MakeSubpass(VkPipelineBindPoint pipelineType, QVector<VkAttachmentReference>& colourReferences,
@@ -54,7 +57,24 @@ namespace vpa {
         VkSubpassDependency MakeSubpassDependency(uint32_t srcIdx, uint32_t dstIdx, VkPipelineStageFlags srcStage,
             VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
         VPAError MakeAttachmentImage(AttachmentImage& image, uint32_t height, uint32_t width, VkFormat format, VkImageUsageFlags usage, QString name, bool present);
-        VPAError MakeFrameBuffers(QVector<VkImageView>& imageViews, uint32_t width, uint32_t height);
+        VPAError MakeFrameBuffers(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<VkImageView>& imageViews, uint32_t width, uint32_t height);
+        VPAError MakeDepthPresentPostPass(VkImageView& imageView);
+
+        // Helper functions for making a graphics pipeline
+        VkPipelineVertexInputStateCreateInfo MakeVertexInputStateCI(const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions) const;
+        VkPipelineInputAssemblyStateCreateInfo MakeInputAssemblyStateCI(const PipelineConfig& config) const;
+        VkViewport MakeViewport(const PipelineConfig& config) const;
+        VkRect2D MakeScissor(const PipelineConfig& config) const;
+        VkPipelineViewportStateCreateInfo MakeViewportStateCI(const QVector<VkViewport>& viewports, const QVector<VkRect2D>& scissors) const;
+        VkPipelineRasterizationStateCreateInfo MakeRasterizerStateCI(const PipelineConfig& config) const;
+        VkPipelineMultisampleStateCreateInfo MakeMsaaCI(const PipelineConfig& config) const;
+        VkPipelineDepthStencilStateCreateInfo MakeDepthStencilCI(const PipelineConfig& config) const;
+        VkPipelineColorBlendAttachmentState MakeColourBlendAttachmentState(const ColourAttachmentConfig& config) const;
+        VkPipelineColorBlendStateCreateInfo MakeColourBlendStateCI(const PipelineConfig& config, QVector<VkPipelineColorBlendAttachmentState>& colorBlendAttachments) const;
+        VkGraphicsPipelineCreateInfo MakeGraphicsPipelineCI(const PipelineConfig& config, QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos,
+                VkPipelineVertexInputStateCreateInfo& vertexInputInfo, VkPipelineInputAssemblyStateCreateInfo& inputAssembly, VkPipelineViewportStateCreateInfo& viewportState,
+                VkPipelineRasterizationStateCreateInfo& rasterizer, VkPipelineMultisampleStateCreateInfo& multisampling, VkPipelineDepthStencilStateCreateInfo& depthStencil,
+                VkPipelineColorBlendStateCreateInfo& colorBlending, VkPipelineLayout& layout, VkRenderPass& renderPass) const;
 
         bool m_initialised;
         bool m_valid;
@@ -72,16 +92,20 @@ namespace vpa {
         VertexInput* m_vertexInput;
         Descriptors* m_descriptors;
 
-        QVector<VkFramebuffer> m_frameBuffers;
+        QVector<VkFramebuffer> m_framebuffers;
         QVector<VkPipelineShaderStageCreateInfo> m_shaderStageInfos;
 
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
         std::function<void(void)> m_postInitCallback;
 
-        size_t m_activeAttachment;
+        int m_activeAttachment;
         bool m_useDepth;
         QVector<AttachmentImage> m_attachmentImages;
+
+        VkPipeline m_depthPipeline;
+        VkPipelineLayout m_depthPipelineLayout;
+        VkSampler m_depthSampler;
     };
 }
 

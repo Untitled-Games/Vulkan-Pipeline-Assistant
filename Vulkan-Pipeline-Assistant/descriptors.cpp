@@ -18,7 +18,7 @@ namespace vpa {
         QVector<VkDescriptorPoolSize> poolSizes = {
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
         };
 
         if (!layoutMap.empty()) {
@@ -39,12 +39,12 @@ namespace vpa {
             poolInfo.pNext = nullptr;
             poolInfo.poolSizeCount = uint32_t(poolSizes.size());
             poolInfo.pPoolSizes = poolSizes.data();
-            poolInfo.maxSets = uint32_t(setIndicesVec.size());
+            poolInfo.maxSets = uint32_t(setIndicesVec.size() + 1);
 
             VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool", err)
 
-            m_descriptorSets.resize(setIndicesVec.size());
-            m_descriptorLayouts.resize(setIndicesVec.size());
+            m_descriptorSets.resize(setIndicesVec.size() + 1);
+            m_descriptorLayouts.resize(setIndicesVec.size() + 1);
             for (int i = 0; i < setIndicesVec.size(); ++i) {
                 uint32_t set = *(setIndicesVec.begin() + i);
                 m_descriptorSetIndexMap[set] = i;
@@ -64,6 +64,20 @@ namespace vpa {
                 VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[i]), qPrintable("create descriptor set layout for set " + QString(set)), err)
             }
 
+            // Depth set layout
+            VkDescriptorSetLayoutBinding depthLayoutBinding = {};
+            depthLayoutBinding.binding = 0;
+            depthLayoutBinding.descriptorCount = 1;
+            depthLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            depthLayoutBinding.pImmutableSamplers = nullptr;
+            depthLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layoutInfo.bindingCount = 1;
+            layoutInfo.pBindings = &depthLayoutBinding;
+            layoutInfo.pNext = nullptr;
+            VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[setIndicesVec.size()]), "create descriptor set layout for depth set ", err)
+
             VkDescriptorSetAllocateInfo allocInfo = {};
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             allocInfo.descriptorPool = m_descriptorPool;
@@ -71,6 +85,11 @@ namespace vpa {
             allocInfo.pSetLayouts = m_descriptorLayouts.data();
 
             VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate all descriptor sets", err)
+
+            m_depthSet = m_descriptorSets.last();
+            m_descriptorSets.pop_back();
+            m_depthSetLayout = m_descriptorLayouts.last();
+            m_descriptorLayouts.pop_back();
 
             QVector<VkWriteDescriptorSet> writes;
             for (auto& buffers : m_buffers) {
@@ -120,6 +139,7 @@ namespace vpa {
         for (auto& layout : m_descriptorLayouts) {
             DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
         }
+        DESTROY_HANDLE(m_window->device(), m_depthSetLayout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
         DESTROY_HANDLE(m_window->device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool)
     }
 

@@ -81,6 +81,7 @@ namespace vpa {
         VPAError err = m_renderer->Reload(flag);
         if (err.level != VPAErrorLevel::Ok) {
             m_renderer->SetValid(false);
+            qDebug(qPrintable(err.message));
         }
         else {
             m_renderer->SetValid(true);

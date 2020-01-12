@@ -16,7 +16,8 @@ namespace vpa {
     VulkanRenderer::VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
         : m_initialised(false), m_valid(false), m_main(main), m_window(window), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr), m_vertexInput(nullptr),
-          m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true) {
+          m_descriptors(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true),
+          m_depthPipeline(VK_NULL_HANDLE), m_depthPipelineLayout(VK_NULL_HANDLE), m_depthSampler(VK_NULL_HANDLE) {
         m_main->m_renderer = this;
         m_config = {};
     }
@@ -37,23 +38,34 @@ namespace vpa {
             m_main->Reload(ReloadFlags::Everything);
             m_initialised = true;
         }
-        QVector<VkImageView> imageViews;
-        for (int i = 0; i < m_attachmentImages.size(); ++i) {
-            if (size_t(i) == m_activeAttachment) m_attachmentImages[i].view = m_window->swapChainImageView(0);
-            imageViews.push_back(m_attachmentImages[i].view);
+        if (!(m_useDepth && m_attachmentImages.size() == 1)) {
+            QVector<VkImageView> imageViews;
+            for (int i = 0; i < m_attachmentImages.size(); ++i) {
+                if (i == m_activeAttachment) m_attachmentImages[i].view = m_window->swapChainImageView(0);
+                imageViews.push_back(m_attachmentImages[i].view);
+            }
+            MakeFrameBuffers(m_renderPass, m_framebuffers, imageViews, uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()));
         }
-        MakeFrameBuffers(imageViews, uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()));
     }
 
     void VulkanRenderer::releaseSwapChainResources() { }
 
     void VulkanRenderer::releaseResources() {
+        DESTROY_HANDLE(m_window->device(), m_depthPipeline, m_deviceFuncs->vkDestroyPipeline)
+        DESTROY_HANDLE(m_window->device(), m_depthPipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout)
+        DESTROY_HANDLE(m_window->device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
         DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline)
         DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout)
         DESTROY_HANDLE(m_window->device(), m_pipelineCache, m_deviceFuncs->vkDestroyPipelineCache)
         DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass)
-        for (int i = 0; i < m_frameBuffers.size(); ++i) {
-            DESTROY_HANDLE(m_window->device(), m_frameBuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
+        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+            if (!m_attachmentImages[i].isPresenting) {
+                DESTROY_HANDLE(m_window->device(), m_attachmentImages[i].view, m_deviceFuncs->vkDestroyImageView)
+            }
+            m_allocator->Deallocate(m_attachmentImages[i].allocation);
+        }
+        for (int i = 0; i < m_framebuffers.size(); ++i) {
+            DESTROY_HANDLE(m_window->device(), m_framebuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
         }
         delete m_shaderAnalytics;
         if (m_vertexInput) delete m_vertexInput;
@@ -64,17 +76,17 @@ namespace vpa {
 
     void VulkanRenderer::startNextFrame() {
         VkClearValue clearValues[2];
-        clearValues[0].color = m_valid ? VkClearColorValue({{0.0f, 0.0f, 0.0f, 1.0f}}) : VkClearColorValue({{1.0f, 0.0f, 0.0f, 1.0f}});
+        clearValues[0].color = m_valid ? VkClearColorValue({{0.0f, 0.0f, 0.0f, 1.0f}}) : VkClearColorValue({{1.0f, 0.0f, 0.0f, 1.0f}}); // clear colour for each attachment
         clearValues[1].depthStencil = { 1.0f, 0 };
 
         VkRenderPassBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         beginInfo.renderPass = m_valid ? m_renderPass : m_window->defaultRenderPass();
-        beginInfo.framebuffer =  m_valid ? m_frameBuffers[m_window->currentFrame()] : m_window->currentFramebuffer();
+        beginInfo.framebuffer =  m_valid ? m_framebuffers[m_window->currentFrame()] : m_window->currentFramebuffer();
         const QSize imageSize = m_window->swapChainImageSize();
         beginInfo.renderArea.extent.width = uint32_t(imageSize.width());
         beginInfo.renderArea.extent.height = uint32_t(imageSize.height());
-        beginInfo.clearValueCount = 2;
+        beginInfo.clearValueCount = m_useDepth ? 2 : 1;
         beginInfo.pClearValues = clearValues;
 
         VkCommandBuffer cmdBuf = m_window->currentCommandBuffer();
@@ -89,13 +101,27 @@ namespace vpa {
                 m_deviceFuncs->vkCmdDrawIndexed(cmdBuf, m_vertexInput->IndexCount(), 1, 0, 0, 0);
             }
             else {
-                m_deviceFuncs->vkCmdDraw(cmdBuf, 4, 1, 0, 0);
+                m_deviceFuncs->vkCmdDraw(cmdBuf, 3, 1, 0, 0);
+            }
+            m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
+
+            if (m_useDepth && m_attachmentImages.size() == 1) {
+                beginInfo.renderPass = m_window->defaultRenderPass();
+                beginInfo.framebuffer =  m_window->currentFramebuffer();
+                beginInfo.clearValueCount = 2;
+                beginInfo.pClearValues = clearValues;
+
+                VkDescriptorSet depthSet = m_descriptors->DepthDescriptorSet();
+                m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineLayout, 0, 1, &depthSet, 0, nullptr);
+
+                m_deviceFuncs->vkCmdBeginRenderPass(cmdBuf, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+                m_deviceFuncs->vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipeline);
+                m_deviceFuncs->vkCmdDraw(cmdBuf, 3, 1, 0, 0);
+                m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
             }
         }
-
-        m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
-        if (m_useDepth && m_activeAttachment == size_t(m_attachmentImages.size()) - 1) {
-            // TODO depth to linear image post-pass
+        else {
+            m_deviceFuncs->vkCmdEndRenderPass(cmdBuf);
         }
 
         m_window->frameReady();
@@ -141,8 +167,20 @@ namespace vpa {
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
         if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
-        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass()); }
-        if (flag & ReloadFlagBits::Pipeline) { VPA_PASS_ERROR(CreatePipeline()); }
+        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth)); }
+        if (flag & ReloadFlagBits::Pipeline) {
+            VkPipelineLayoutCreateInfo layoutInfo = {};
+            layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            layoutInfo.setLayoutCount = uint32_t(m_descriptors->DescriptorSetLayouts().size());
+            layoutInfo.pSetLayouts = m_descriptors->DescriptorSetLayouts().data();
+            layoutInfo.pushConstantRangeCount = uint32_t(m_descriptors->PushConstantRanges().size());
+            layoutInfo.pPushConstantRanges = m_descriptors->PushConstantRanges().data();
+
+            auto bindingDescription = m_vertexInput->InputBindingDescription();
+            auto attribDescriptions = m_vertexInput->InputAttribDescription();
+
+            VPA_PASS_ERROR(CreatePipeline(m_config, bindingDescription, attribDescriptions, m_shaderStageInfos, layoutInfo, m_renderPass, m_pipelineLayout, m_pipeline, m_pipelineCache));
+        }
         return VPA_OK;
     }
 
@@ -184,6 +222,8 @@ namespace vpa {
     }
 
      VPAError VulkanRenderer::MakeAttachmentImage(AttachmentImage& image, uint32_t height, uint32_t width, VkFormat format, VkImageUsageFlags usage, QString name, bool present) {
+        image.isPresenting = present;
+
         VkImageCreateInfo createInfo = {
             VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             nullptr, 0,
@@ -205,7 +245,7 @@ namespace vpa {
             viewInfo.image = image.allocation.image;
             viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = createInfo.format;
-            viewInfo.subresourceRange.aspectMask = usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+            viewInfo.subresourceRange.aspectMask = usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
             viewInfo.subresourceRange.baseMipLevel = 0;
             viewInfo.subresourceRange.levelCount = createInfo.mipLevels;
             viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -227,76 +267,79 @@ namespace vpa {
         return VPA_OK;
     }
 
-    VPAError VulkanRenderer::MakeFrameBuffers(QVector<VkImageView>& imageViews, uint32_t width, uint32_t height) {
-        for (int i = 0; i < m_frameBuffers.size(); ++i) {
-            DESTROY_HANDLE(m_window->device(), m_frameBuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
+    VPAError VulkanRenderer::MakeFrameBuffers(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<VkImageView>& imageViews, uint32_t width, uint32_t height) {
+        for (int i = 0; i < framebuffers.size(); ++i) {
+            DESTROY_HANDLE(m_window->device(), framebuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
         }
-        m_frameBuffers.clear();
-        m_frameBuffers.resize(m_window->swapChainImageCount());
-        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+        framebuffers.clear();
+        framebuffers.resize(m_window->swapChainImageCount());
+        for (int i = 0; i < imageViews.size(); ++i) {
             VkFramebufferCreateInfo framebufferInfo = {};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = m_renderPass;
+            framebufferInfo.renderPass = renderPass;
             framebufferInfo.attachmentCount = uint32_t(imageViews.size());
             framebufferInfo.pAttachments = imageViews.data();
             framebufferInfo.width = width;
             framebufferInfo.height =  height;
             framebufferInfo.layers = 1;
 
-            VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateFramebuffer(m_window->device(), &framebufferInfo, nullptr, &m_frameBuffers[i]), "Failed to create framebuffer")
+            VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateFramebuffer(m_window->device(), &framebufferInfo, nullptr, &framebuffers[i]), "Failed to create framebuffer")
         }
         return VPA_OK;
     }
 
-    VPAError VulkanRenderer::CreateRenderPass() {
-        DESTROY_HANDLE(m_window->device(), m_renderPass, m_deviceFuncs->vkDestroyRenderPass)
-        for (int i = 0; i < m_attachmentImages.size(); ++i) {
-            if (!m_attachmentImages[i].isPresenting) {
-                DESTROY_HANDLE(m_window->device(), m_attachmentImages[i].view, m_deviceFuncs->vkDestroyImageView)
+    VPAError VulkanRenderer::CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth) {
+        // Clean Up
+        DESTROY_HANDLE(m_window->device(), renderPass, m_deviceFuncs->vkDestroyRenderPass)
+        for (int i = 0; i < attachmentImages.size(); ++i) {
+            if (!attachmentImages[i].isPresenting) {
+                DESTROY_HANDLE(m_window->device(), attachmentImages[i].view, m_deviceFuncs->vkDestroyImageView)
             }
-            m_allocator->Deallocate(m_attachmentImages[i].allocation);
+            m_allocator->Deallocate(attachmentImages[i].allocation);
         }
-        m_attachmentImages.clear();
+        attachmentImages.clear();
 
-        size_t attachmentCount = m_shaderAnalytics->NumColourAttachments();
+        // Create
         uint32_t width = uint32_t(m_window->swapChainImageSize().width());
         uint32_t height = uint32_t(m_window->swapChainImageSize().height());
         QVector<VkAttachmentDescription> attachments;
         QVector<VkSubpassDescription> subpasses;
         QVector<VkSubpassDependency> dependencies;
-        QVector<VkAttachmentReference> colourAttachmentRefs = QVector<VkAttachmentReference>(int(attachmentCount));
+        QVector<VkAttachmentReference> colourAttachmentRefs = QVector<VkAttachmentReference>(int(colourAttachmentCount));
         VkAttachmentReference depthAttachmentRef = {};
-        QVector<VkImageView> attachmentImageViews = QVector<VkImageView>(int(attachmentCount) + (m_useDepth ? 1 : 0));
+        QVector<VkImageView> attachmentImageViews = QVector<VkImageView>(int(colourAttachmentCount) + (hasDepth ? 1 : 0));
 
-        m_attachmentImages.resize(attachmentImageViews.size());
-        for (size_t i = 0; i < attachmentCount; ++i) {
+        attachmentImages.resize(attachmentImageViews.size());
+        for (int i = 0; i < colourAttachmentCount; ++i) {
             bool present = i == m_activeAttachment;
             attachments.push_back(MakeAttachment(m_window->colorFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                 VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL));
-            if (present) attachments[int(i)].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            if (present) attachments[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
             VkAttachmentReference positionsRef = {};
             positionsRef.attachment = uint32_t(i);
             positionsRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colourAttachmentRefs[int(i)] = positionsRef;
+            colourAttachmentRefs[i] = positionsRef;
 
-            VPA_PASS_ERROR(MakeAttachmentImage(m_attachmentImages[int(i)], height, width,
+            VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[i], height, width,
                     m_window->colorFormat(), VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, "colour attachment " + QString::number(i), present));
-            attachmentImageViews[int(i)] = m_attachmentImages[int(i)].view;
+            attachmentImageViews[i] = attachmentImages[i].view;
         }
 
-        if (m_useDepth) {
-            int index = m_attachmentImages.size() - 1;
-            bool present = (size_t(index) == m_activeAttachment);
+        if (hasDepth) {
+            int index = attachmentImages.size() - 1;
+            bool present = index == m_activeAttachment;
             attachments.push_back(MakeAttachment(m_window->depthStencilFormat(), VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL));
-            if (present) attachments[int(index)].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO setup linear depth post pass
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL));
+            if (present) attachments[index].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-            depthAttachmentRef.attachment = uint32_t(attachmentCount);
+            depthAttachmentRef.attachment = uint32_t(colourAttachmentCount);
             depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            VPA_PASS_ERROR(MakeAttachmentImage(m_attachmentImages[index], height, width,
-                    m_window->depthStencilFormat(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment ", present));
-            attachmentImageViews[index] = m_attachmentImages[index].view;
+            VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[index], height, width,
+                    m_window->depthStencilFormat(), VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment", false));
+            attachmentImageViews[index] = attachmentImages[index].view;
+
+            if (present) { VPA_PASS_ERROR(MakeDepthPresentPostPass(attachmentImageViews[index])); }
         }
         else if (m_config.writables.depthWriteEnable) {
             return VPA_WARN("Depth write is enabled but there is no depth buffer.");
@@ -318,136 +361,50 @@ namespace vpa {
         renderPassInfo.dependencyCount = uint32_t(dependencies.size());
         renderPassInfo.pDependencies = dependencies.data();
 
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateRenderPass(m_window->device(), &renderPassInfo, nullptr, &m_renderPass), "Failed to create render pass")
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateRenderPass(m_window->device(), &renderPassInfo, nullptr, &renderPass), "Failed to create render pass")
 
-        VPA_PASS_ERROR(MakeFrameBuffers(attachmentImageViews, width, height));
+        VPA_PASS_ERROR(MakeFrameBuffers(renderPass, framebuffers, attachmentImageViews, width, height));
 
         return VPA_OK;
     }
 
-    VPAError VulkanRenderer::CreatePipeline() {
-        DESTROY_HANDLE(m_window->device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline)
-        DESTROY_HANDLE(m_window->device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout)
+    VPAError VulkanRenderer::CreatePipeline(const PipelineConfig& config, const VkVertexInputBindingDescription& bindingDescription,
+            const QVector<VkVertexInputAttributeDescription>& attribDescriptions, QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos,
+            VkPipelineLayoutCreateInfo& layoutInfo, VkRenderPass& renderPass, VkPipelineLayout& layout, VkPipeline& pipeline, VkPipelineCache& cache) {
+        DESTROY_HANDLE(m_window->device(), pipeline, m_deviceFuncs->vkDestroyPipeline)
+        DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyPipelineLayout)
 
-        VkPipelineLayoutCreateInfo layoutInfo = {};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        layoutInfo.setLayoutCount = uint32_t(m_descriptors->DescriptorSetLayouts().size());
-        layoutInfo.pSetLayouts = m_descriptors->DescriptorSetLayouts().data();
-        layoutInfo.pushConstantRangeCount = uint32_t(m_descriptors->PushConstantRanges().size());
-        layoutInfo.pPushConstantRanges = m_descriptors->PushConstantRanges().data();
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo = MakeVertexInputStateCI(bindingDescription, attribDescriptions);
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly = MakeInputAssemblyStateCI(config);
+        QVector<VkViewport> viewports = { MakeViewport(config) };
 
-        auto bindingDesc = m_vertexInput->InputBindingDescription();
-        auto attribDescs = m_vertexInput->InputAttribDescription();
-
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
-        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = uint32_t(attribDescs.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
-        vertexInputInfo.pVertexAttributeDescriptions = attribDescs.data();
-
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssembly.topology = m_config.writables.topology;
-        inputAssembly.primitiveRestartEnable = m_config.writables.primitiveRestartEnable;
-
-        VkViewport viewport = {};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = float(m_window->swapChainImageSize().width());
-        viewport.height = float(m_window->swapChainImageSize().height());
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        if (m_config.viewports) delete[] m_config.viewports;
+        if (m_config.viewports) delete[] m_config.viewports; // TODO move this
         m_config.viewports = new VkViewport[1];
-        m_config.viewports[0] = viewport;
+        m_config.viewports[0] = viewports[0];
         m_config.viewportCount = 1;
 
-        VkRect2D scissor = {};
-        scissor.offset = { 0, 0 };
-        scissor.extent = { uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()) };
-
-        VkPipelineViewportStateCreateInfo viewportState = {};
-        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewportState.viewportCount = 1;
-        viewportState.pViewports = &viewport;
-        viewportState.scissorCount = 1;
-        viewportState.pScissors = &scissor;
-
-        VkPipelineRasterizationStateCreateInfo rasterizer = {};
-        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = m_config.writables.depthClampEnable;
-        rasterizer.rasterizerDiscardEnable = m_config.writables.rasterizerDiscardEnable;
-        rasterizer.polygonMode = m_config.writables.polygonMode;
-        rasterizer.lineWidth = m_config.writables.lineWidth;
-        rasterizer.cullMode = m_config.writables.cullMode;
-        rasterizer.frontFace = m_config.writables.frontFace;
-        rasterizer.depthBiasEnable = m_config.writables.depthBiasEnable;
-
-        VkPipelineMultisampleStateCreateInfo multisampling = {};
-        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable = m_config.writables.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
-        //TODO change this back if multisampling is working
-        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-        //multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
-        multisampling.minSampleShading = m_config.writables.minSampleShading;
-
-        VkPipelineDepthStencilStateCreateInfo depthStencil = {};
-        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = m_config.writables.depthTestEnable;
-        depthStencil.depthWriteEnable = m_config.writables.depthWriteEnable;
-        depthStencil.depthCompareOp = m_config.writables.depthCompareOp;
-        depthStencil.depthBoundsTestEnable = m_config.writables.depthBoundsTest;
-        depthStencil.stencilTestEnable = m_config.writables.stencilTestEnable;
+        QVector<VkRect2D> scissors = { MakeScissor(config) };
+        VkPipelineViewportStateCreateInfo viewportState = MakeViewportStateCI(viewports, scissors);
+        VkPipelineRasterizationStateCreateInfo rasterizer = MakeRasterizerStateCI(config);
+        VkPipelineMultisampleStateCreateInfo multisampling = MakeMsaaCI(config);
+        VkPipelineDepthStencilStateCreateInfo depthStencil = MakeDepthStencilCI(config);
 
         QVector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
-        for (size_t i = 0; i < 1; ++i) {
-            VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-            colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable = m_config.writables.attachments.blendEnable;
-            colorBlendAttachment.alphaBlendOp = m_config.writables.attachments.alphaBlendOp;
-            colorBlendAttachment.srcAlphaBlendFactor = m_config.writables.attachments.srcAlphaBlendFactor;
-            colorBlendAttachment.dstAlphaBlendFactor = m_config.writables.attachments.dstAlphaBlendFactor;
-            colorBlendAttachment.colorBlendOp = m_config.writables.attachments.colourBlendOp;
-            colorBlendAttachment.srcColorBlendFactor = m_config.writables.attachments.srcColourBlendFactor;
-            colorBlendAttachment.dstColorBlendFactor = m_config.writables.attachments.dstColourBlendFactor;
-            colorBlendAttachments.push_back(colorBlendAttachment);
-        }
+        colorBlendAttachments.push_back(MakeColourBlendAttachmentState(config.writables.attachments));
+        VkPipelineColorBlendStateCreateInfo colourBlending = MakeColourBlendStateCI(config, colorBlendAttachments);
 
-        VkPipelineColorBlendStateCreateInfo colorBlending = {};
-        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable = m_config.writables.logicOpEnable;
-        colorBlending.logicOp = m_config.writables.logicOp;
-        colorBlending.attachmentCount = uint32_t(colorBlendAttachments.size());
-        colorBlending.pAttachments = colorBlendAttachments.data();
-        memcpy(colorBlending.blendConstants, m_config.writables.blendConstants, 4 * sizeof(float));
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreatePipelineLayout(m_window->device(), &layoutInfo, nullptr, &layout), "Failed to create pipeline layout")
 
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreatePipelineLayout(m_window->device(), &layoutInfo, nullptr, &m_pipelineLayout), "Failed to create pipeline layout")
+        VkGraphicsPipelineCreateInfo pipelineInfo = MakeGraphicsPipelineCI(config, shaderStageInfos, vertexInputInfo, inputAssembly, viewportState, rasterizer, multisampling, depthStencil, colourBlending, layout, renderPass);
 
-        VkGraphicsPipelineCreateInfo pipelineInfo = {};
-        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount = uint32_t(m_shaderStageInfos.size());
-        pipelineInfo.pStages = m_shaderStageInfos.data();
-        pipelineInfo.pVertexInputState = &vertexInputInfo;
-        pipelineInfo.pInputAssemblyState = &inputAssembly;
-        pipelineInfo.pViewportState = &viewportState;
-        pipelineInfo.pRasterizationState = &rasterizer;
-        pipelineInfo.pMultisampleState = &multisampling;
-        pipelineInfo.pColorBlendState = &colorBlending;
-        pipelineInfo.pDepthStencilState = &depthStencil;
-        pipelineInfo.layout = m_pipelineLayout;
-        pipelineInfo.renderPass = m_renderPass;
-        pipelineInfo.subpass = m_config.subpassIdx;
-        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-        if (m_pipelineCache == VK_NULL_HANDLE) {
+        if (cache == VK_NULL_HANDLE) {
             VkPipelineCacheCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
             createInfo.initialDataSize = 0;
-            m_deviceFuncs->vkCreatePipelineCache(m_window->device(), &createInfo, nullptr, &m_pipelineCache);
+            m_deviceFuncs->vkCreatePipelineCache(m_window->device(), &createInfo, nullptr, &cache);
         }
 
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateGraphicsPipelines(m_window->device(), m_pipelineCache, 1, &pipelineInfo, nullptr, &m_pipeline), "Failed to create pipeline")
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateGraphicsPipelines(m_window->device(), cache, 1, &pipelineInfo, nullptr, &pipeline), "Failed to create pipeline")
 
         return VPA_OK;
     }
@@ -479,5 +436,222 @@ namespace vpa {
 
         m_creationCallback();
         return VPA_OK;
+    }
+
+    VPAError VulkanRenderer::MakeDepthPresentPostPass(VkImageView& imageView) {
+        VkPipelineLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        layoutInfo.setLayoutCount = 1;
+        layoutInfo.pSetLayouts = m_descriptors->DepthDescriptorSetLayout();
+        layoutInfo.pushConstantRangeCount = 0;
+        layoutInfo.pPushConstantRanges = nullptr;
+
+        QByteArray blob;
+        VkShaderModule vertModule;
+        VkShaderModule fragModule;
+        VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, QCoreApplication::applicationDirPath() + "/../shaders/fullscreen.spv", &blob)); // TODO destroy module if failed after this point, or at end anyway
+        blob.clear();
+        VPAError err = m_shaderAnalytics->CreateModule(fragModule, QCoreApplication::applicationDirPath() + "/../shaders/depth_frag.spv", &blob);
+        if (err.level != VPAErrorLevel::Ok) {
+            DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
+            return err;
+        }
+
+        QVector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
+        shaderStageInfos.push_back({ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
+                                     VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr });
+        shaderStageInfos.push_back({ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
+                                     VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", nullptr });
+
+        PipelineConfig config = {};
+        config.writables.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        config.writables.cullMode = VK_CULL_MODE_BACK_BIT;
+        config.writables.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        config.writables.depthTestEnable = VK_FALSE;
+        config.writables.depthWriteEnable = VK_FALSE;
+
+        VkRenderPass pass = m_window->defaultRenderPass();
+        VkPipelineCache cache = VK_NULL_HANDLE;
+        err =CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_depthPipelineLayout, m_depthPipeline, cache);
+        if (err.level != VPAErrorLevel::Ok) {
+            DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
+            DESTROY_HANDLE(m_window->device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
+            return err;
+        }
+
+        VkSamplerCreateInfo samplerInfo = {};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = 0.0f;
+        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 1.0f;
+
+        DESTROY_HANDLE(m_window->device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
+
+        VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &m_depthSampler), "create sampler for depth post pass", err)
+        if (err.level != VPAErrorLevel::Ok) {
+            DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
+            DESTROY_HANDLE(m_window->device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
+            DESTROY_HANDLE(m_window->device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
+            return err;
+        }
+
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo = {};
+        imageInfo.imageView = imageView;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.sampler = m_depthSampler;
+
+        VkWriteDescriptorSet writeSet = {};
+        writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeSet.dstSet = m_descriptors->DepthDescriptorSet();
+        writeSet.dstBinding = 0;
+        writeSet.dstArrayElement = 0;
+        writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeSet.descriptorCount = 1;
+        writeSet.pImageInfo = &imageInfo;
+
+        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), 1, &writeSet, 0, nullptr);
+
+        DESTROY_HANDLE(m_window->device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
+        DESTROY_HANDLE(m_window->device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
+        return VPA_OK;
+    }
+
+    VkPipelineVertexInputStateCreateInfo VulkanRenderer::MakeVertexInputStateCI(const VkVertexInputBindingDescription& bindingDescription,
+            const QVector<VkVertexInputAttributeDescription>& attribDescriptions) const {
+        VkPipelineVertexInputStateCreateInfo vertexInput = {};
+        vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInput.vertexBindingDescriptionCount = 1;
+        vertexInput.vertexAttributeDescriptionCount = uint32_t(attribDescriptions.size());
+        vertexInput.pVertexBindingDescriptions = &bindingDescription;
+        vertexInput.pVertexAttributeDescriptions = attribDescriptions.data();
+        return vertexInput;
+    }
+
+    VkPipelineInputAssemblyStateCreateInfo VulkanRenderer::MakeInputAssemblyStateCI(const PipelineConfig& config) const {
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
+        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.topology = config.writables.topology;
+        inputAssembly.primitiveRestartEnable = config.writables.primitiveRestartEnable;
+        return inputAssembly;
+    }
+
+    VkViewport VulkanRenderer::MakeViewport(const PipelineConfig& config) const {
+        VkViewport viewport = {};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = float(m_window->swapChainImageSize().width());
+        viewport.height = float(m_window->swapChainImageSize().height());
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        return viewport;
+    }
+
+    VkRect2D VulkanRenderer::MakeScissor(const PipelineConfig& config) const {
+        VkRect2D scissor = {};
+        scissor.offset = { 0, 0 };
+        scissor.extent = { uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()) };
+        return scissor;
+    }
+
+    VkPipelineViewportStateCreateInfo VulkanRenderer::MakeViewportStateCI(const QVector<VkViewport>& viewports, const QVector<VkRect2D>& scissors) const {
+        VkPipelineViewportStateCreateInfo viewportState = {};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = uint32_t(viewports.size());
+        viewportState.pViewports = viewports.data();
+        viewportState.scissorCount = uint32_t(scissors.size());
+        viewportState.pScissors = scissors.data();
+        return viewportState;
+    }
+
+    VkPipelineRasterizationStateCreateInfo VulkanRenderer::MakeRasterizerStateCI(const PipelineConfig& config) const {
+        VkPipelineRasterizationStateCreateInfo rasterizer = {};
+        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizer.depthClampEnable = config.writables.depthClampEnable;
+        rasterizer.rasterizerDiscardEnable = config.writables.rasterizerDiscardEnable;
+        rasterizer.polygonMode = config.writables.polygonMode;
+        rasterizer.lineWidth = config.writables.lineWidth;
+        rasterizer.cullMode = config.writables.cullMode;
+        rasterizer.frontFace = config.writables.frontFace;
+        rasterizer.depthBiasEnable = config.writables.depthBiasEnable;
+        return rasterizer;
+    }
+    VkPipelineMultisampleStateCreateInfo VulkanRenderer::MakeMsaaCI(const PipelineConfig& config) const {
+        VkPipelineMultisampleStateCreateInfo multisampling = {};
+        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampling.sampleShadingEnable = config.writables.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
+        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; //TODO change this back if multisampling is working
+        //multisampling.rasterizationSamples = m_config.writablePipelineConfig.msaaSamples;
+        multisampling.minSampleShading = config.writables.minSampleShading;
+        return multisampling;
+    }
+
+    VkPipelineDepthStencilStateCreateInfo VulkanRenderer::MakeDepthStencilCI(const PipelineConfig& config) const {
+        VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = config.writables.depthTestEnable;
+        depthStencil.depthWriteEnable = config.writables.depthWriteEnable;
+        depthStencil.depthCompareOp = config.writables.depthCompareOp;
+        depthStencil.depthBoundsTestEnable = config.writables.depthBoundsTest;
+        depthStencil.stencilTestEnable = config.writables.stencilTestEnable;
+        return depthStencil;
+    }
+
+    VkPipelineColorBlendAttachmentState VulkanRenderer::MakeColourBlendAttachmentState(const ColourAttachmentConfig& config) const {
+        VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = config.blendEnable;
+        colorBlendAttachment.alphaBlendOp = config.alphaBlendOp;
+        colorBlendAttachment.srcAlphaBlendFactor = config.srcAlphaBlendFactor;
+        colorBlendAttachment.dstAlphaBlendFactor = config.dstAlphaBlendFactor;
+        colorBlendAttachment.colorBlendOp = config.colourBlendOp;
+        colorBlendAttachment.srcColorBlendFactor = config.srcColourBlendFactor;
+        colorBlendAttachment.dstColorBlendFactor = config.dstColourBlendFactor;
+        return colorBlendAttachment;
+    }
+
+    VkPipelineColorBlendStateCreateInfo VulkanRenderer::MakeColourBlendStateCI(const PipelineConfig& config, QVector<VkPipelineColorBlendAttachmentState>& colorBlendAttachments) const {
+        VkPipelineColorBlendStateCreateInfo colorBlending = {};
+        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlending.logicOpEnable = config.writables.logicOpEnable;
+        colorBlending.logicOp = config.writables.logicOp;
+        colorBlending.attachmentCount = uint32_t(colorBlendAttachments.size());
+        colorBlending.pAttachments = colorBlendAttachments.data();
+        memcpy(colorBlending.blendConstants, config.writables.blendConstants, 4 * sizeof(float));
+        return colorBlending;
+    }
+
+    VkGraphicsPipelineCreateInfo VulkanRenderer::MakeGraphicsPipelineCI(const PipelineConfig& config, QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos,
+            VkPipelineVertexInputStateCreateInfo& vertexInputInfo, VkPipelineInputAssemblyStateCreateInfo& inputAssembly, VkPipelineViewportStateCreateInfo& viewportState,
+            VkPipelineRasterizationStateCreateInfo& rasterizer, VkPipelineMultisampleStateCreateInfo& multisampling, VkPipelineDepthStencilStateCreateInfo& depthStencil,
+            VkPipelineColorBlendStateCreateInfo& colourBlending, VkPipelineLayout& layout, VkRenderPass& renderPass) const {
+        VkGraphicsPipelineCreateInfo pipelineInfo = {};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = uint32_t(shaderStageInfos.size());
+        pipelineInfo.pStages = shaderStageInfos.data();
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pDepthStencilState = &depthStencil;
+        pipelineInfo.pColorBlendState = &colourBlending;
+        pipelineInfo.layout = layout;
+        pipelineInfo.renderPass = renderPass;
+        pipelineInfo.subpass = config.subpassIdx;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+        return pipelineInfo;
     }
 }

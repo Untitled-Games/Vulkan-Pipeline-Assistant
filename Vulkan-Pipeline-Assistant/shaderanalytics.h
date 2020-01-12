@@ -28,6 +28,8 @@ namespace vpa {
         const DescriptorLayoutMap& DescriptorLayoutMap() const { return m_descriptorLayoutMap; }
         const QVector<SpvResource*>& PushConstantRanges() const { return m_pushConstants; }
 
+        VPAError CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob);
+
     private:
         VPAError CreateModule(ShaderStage stage, const QString& name);
 

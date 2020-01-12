@@ -89,10 +89,10 @@ namespace vpa {
         int newIndex = 0;
         size_t lengthMult = 1;
         for (int i = m_dimensionIndices.size() - 1; i >= 0; --i) {
-            newIndex += m_dimensionIndices[i] * lengthMult;
+            newIndex += int(m_dimensionIndices[i] * lengthMult);
             lengthMult *= m_type->lengths[i];
         }
-        newIndex *= m_stride;
+        newIndex *= int(m_stride);
 
         m_inputWidget->Data(&m_data[m_activeWidgetIdx]);
         m_activeWidgetIdx = newIndex;

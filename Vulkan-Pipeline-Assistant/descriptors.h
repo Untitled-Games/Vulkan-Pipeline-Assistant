@@ -61,6 +61,9 @@ namespace vpa {
         const QVector<VkDescriptorSetLayout>& DescriptorSetLayouts() const;
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
 
+        VkDescriptorSetLayout* DepthDescriptorSetLayout() { return &m_depthSetLayout; }
+        VkDescriptorSet DepthDescriptorSet() const { return m_depthSet; }
+
         static const QMatrix4x4 DefaultModelMatrix();
         static const QMatrix4x4 DefaultViewMatrix();
         static const QMatrix4x4 DefaultProjectionMatrix();
@@ -90,6 +93,9 @@ namespace vpa {
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
         VkDescriptorPool m_descriptorPool;
+
+        VkDescriptorSetLayout m_depthSetLayout;
+        VkDescriptorSet m_depthSet;
 
         static double s_aspectRatio;
     };
