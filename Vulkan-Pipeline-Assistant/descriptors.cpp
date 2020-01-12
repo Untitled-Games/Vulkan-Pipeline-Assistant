@@ -14,114 +14,44 @@ namespace vpa {
                              const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err)
         : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
         s_aspectRatio = m_window->width() / m_window->height();
-        QSet<uint32_t> setIndices;
+
         QVector<VkDescriptorPoolSize> poolSizes = {
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1}
         };
 
-        if (!layoutMap.empty()) {
-            BuildDescriptors(setIndices, poolSizes, layoutMap);
-        }
-        for (auto res : pushConstants) {
-            m_pushConstants[reinterpret_cast<const SpvPushConstantGroup*>(res->group)->stage] = CreatePushConstant(res);
-        }
-        BuildPushConstantRanges();
+        uint32_t setCount = 0;
+        EnumerateShaderRequirements(poolSizes, m_descriptorLayouts, setCount, layoutMap, pushConstants);
+        EnumerateBuiltInRequirements(poolSizes, m_builtInLayouts, setCount);
 
-        if (!setIndices.empty()) {
-            QVector<uint32_t> setIndicesVec(setIndices.begin(), setIndices.end());
-            std::sort(setIndicesVec.begin(), setIndicesVec.end(), std::less<uint32_t>());
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.flags = 0;
+        poolInfo.pNext = nullptr;
+        poolInfo.poolSizeCount = uint32_t(poolSizes.size());
+        poolInfo.pPoolSizes = poolSizes.data();
+        poolInfo.maxSets = setCount;
 
-            VkDescriptorPoolCreateInfo poolInfo = {};
-            poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            poolInfo.flags = 0;
-            poolInfo.pNext = nullptr;
-            poolInfo.poolSizeCount = uint32_t(poolSizes.size());
-            poolInfo.pPoolSizes = poolSizes.data();
-            poolInfo.maxSets = uint32_t(setIndicesVec.size() + 1);
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool", err)
 
-            VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool", err)
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_descriptorPool;
+        allocInfo.descriptorSetCount = uint32_t(m_descriptorLayouts.size());
+        allocInfo.pSetLayouts = m_descriptorLayouts.data();
 
-            m_descriptorSets.resize(setIndicesVec.size() + 1);
-            m_descriptorLayouts.resize(setIndicesVec.size() + 1);
-            for (int i = 0; i < setIndicesVec.size(); ++i) {
-                uint32_t set = *(setIndicesVec.begin() + i);
-                m_descriptorSetIndexMap[set] = i;
-                QVector<VkDescriptorSetLayoutBinding> bindings;
-                for (auto& buf : m_buffers[set]) {
-                    bindings.push_back(buf.descriptor.layoutBinding);
-                }
-                for (auto& img : m_images[set]) {
-                    bindings.push_back(img.descriptor.layoutBinding);
-                }
+        m_descriptorSets.resize(m_descriptorLayouts.size());
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate shader descriptor sets", err)
 
-                VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-                layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-                layoutInfo.bindingCount = uint32_t(bindings.size());
-                layoutInfo.pBindings = bindings.data();
-                layoutInfo.pNext = nullptr;
-                VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[i]), qPrintable("create descriptor set layout for set " + QString(set)), err)
-            }
+        allocInfo.descriptorSetCount = uint32_t(m_builtInLayouts.size());
+        allocInfo.pSetLayouts = m_builtInLayouts.data();
 
-            // Depth set layout
-            VkDescriptorSetLayoutBinding depthLayoutBinding = {};
-            depthLayoutBinding.binding = 0;
-            depthLayoutBinding.descriptorCount = 1;
-            depthLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            depthLayoutBinding.pImmutableSamplers = nullptr;
-            depthLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = 1;
-            layoutInfo.pBindings = &depthLayoutBinding;
-            layoutInfo.pNext = nullptr;
-            VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &m_descriptorLayouts[setIndicesVec.size()]), "create descriptor set layout for depth set ", err)
+        m_builtInSets.resize(m_builtInLayouts.size());
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_builtInSets[0]), "allocate built in descriptor sets", err)
 
-            VkDescriptorSetAllocateInfo allocInfo = {};
-            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            allocInfo.descriptorPool = m_descriptorPool;
-            allocInfo.descriptorSetCount = uint32_t(m_descriptorLayouts.size());
-            allocInfo.pSetLayouts = m_descriptorLayouts.data();
+        WriteShaderDescriptors();
 
-            VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate all descriptor sets", err)
-
-            m_depthSet = m_descriptorSets.last();
-            m_descriptorSets.pop_back();
-            m_depthSetLayout = m_descriptorLayouts.last();
-            m_descriptorLayouts.pop_back();
-
-            QVector<VkWriteDescriptorSet> writes;
-            for (auto& buffers : m_buffers) {
-                for (BufferInfo& buffer : buffers) {
-                    buffer.descriptor.writeSet = {};
-                    buffer.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    buffer.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[buffer.descriptor.set]];
-                    buffer.descriptor.writeSet.dstBinding = buffer.descriptor.binding;
-                    buffer.descriptor.writeSet.dstArrayElement = 0;
-                    buffer.descriptor.writeSet.descriptorType = buffer.descriptor.layoutBinding.descriptorType;
-                    buffer.descriptor.writeSet.descriptorCount = 1;
-                    buffer.descriptor.writeSet.pBufferInfo = &buffer.bufferInfo;
-                    writes.push_back(buffer.descriptor.writeSet);
-                }
-            }
-
-            for (auto& images : m_images) {
-                for (ImageInfo& image : images) {
-                    image.descriptor.writeSet = {};
-                    image.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    image.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[image.descriptor.set]];
-                    image.descriptor.writeSet.dstBinding = image.descriptor.binding;
-                    image.descriptor.writeSet.dstArrayElement = 0;
-                    image.descriptor.writeSet.descriptorType = image.descriptor.layoutBinding.descriptorType;
-                    image.descriptor.writeSet.descriptorCount = 1;
-                    image.descriptor.writeSet.pImageInfo = &image.imageInfo;
-                    writes.push_back(image.descriptor.writeSet);
-                }
-            }
-
-            m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
-        }
         err = VPA_OK;
     }
 
@@ -139,7 +69,9 @@ namespace vpa {
         for (auto& layout : m_descriptorLayouts) {
             DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
         }
-        DESTROY_HANDLE(m_window->device(), m_depthSetLayout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
+        for (auto& layout : m_builtInLayouts) {
+            DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
+        }
         DESTROY_HANDLE(m_window->device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool)
     }
 
@@ -185,6 +117,73 @@ namespace vpa {
 
     const QVector<VkPushConstantRange>& Descriptors::PushConstantRanges() const {
         return m_pushConstantRanges;
+    }
+
+    VPAError Descriptors::EnumerateShaderRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants) {
+
+        QSet<uint32_t> setIndices;
+        if (!layoutMap.empty()) {
+            BuildDescriptors(setIndices, poolSizes, layoutMap);
+        }
+        for (auto res : pushConstants) {
+            m_pushConstants[reinterpret_cast<const SpvPushConstantGroup*>(res->group)->stage] = CreatePushConstant(res);
+        }
+        BuildPushConstantRanges();
+
+        setCount += uint32_t(setIndices.size());
+
+        if (!setIndices.empty()) {
+            QVector<uint32_t> setIndicesVec(setIndices.begin(), setIndices.end());
+            std::sort(setIndicesVec.begin(), setIndicesVec.end(), std::less<uint32_t>());
+
+            layouts.resize(setIndicesVec.size());
+            for (int i = 0; i < setIndicesVec.size(); ++i) {
+                uint32_t set = *(setIndicesVec.begin() + i);
+                m_descriptorSetIndexMap[set] = i; // TODO think about this issue
+                QVector<VkDescriptorSetLayoutBinding> bindings;
+                for (auto& buf : m_buffers[set]) {
+                    bindings.push_back(buf.descriptor.layoutBinding);
+                }
+                for (auto& img : m_images[set]) {
+                    bindings.push_back(img.descriptor.layoutBinding);
+                }
+
+                VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+                layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+                layoutInfo.bindingCount = uint32_t(bindings.size());
+                layoutInfo.pBindings = bindings.data();
+                layoutInfo.pNext = nullptr;
+                VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &layouts[i]), qPrintable("create descriptor set layout for set " + QString(set)))
+            }
+        }
+
+        return VPA_OK;
+    }
+
+    VPAError Descriptors::EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount) {
+
+        setCount += uint32_t(BuiltInSets::Count_);
+        layouts.resize(int(BuiltInSets::Count_));
+
+        // ------- Depth post pass ------
+        VkDescriptorSetLayoutBinding depthLayoutBinding = {};
+        depthLayoutBinding.binding = 0;
+        depthLayoutBinding.descriptorCount = 1;
+        depthLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        depthLayoutBinding.pImmutableSamplers = nullptr;
+        depthLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        poolSizes[4].descriptorCount++;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &depthLayoutBinding;
+        layoutInfo.pNext = nullptr;
+
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::DepthPostPass)]), "create descriptor set layout for depth set ")
+
+        return VPA_OK;
     }
 
     VPAError Descriptors::BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap) {
@@ -339,6 +338,39 @@ namespace vpa {
             m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
         }
         return VPA_OK;
+    }
+
+    void Descriptors::WriteShaderDescriptors() {
+        QVector<VkWriteDescriptorSet> writes;
+        for (auto& buffers : m_buffers) {
+            for (BufferInfo& buffer : buffers) {
+                buffer.descriptor.writeSet = {};
+                buffer.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                buffer.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[buffer.descriptor.set]];
+                buffer.descriptor.writeSet.dstBinding = buffer.descriptor.binding;
+                buffer.descriptor.writeSet.dstArrayElement = 0;
+                buffer.descriptor.writeSet.descriptorType = buffer.descriptor.layoutBinding.descriptorType;
+                buffer.descriptor.writeSet.descriptorCount = 1;
+                buffer.descriptor.writeSet.pBufferInfo = &buffer.bufferInfo;
+                writes.push_back(buffer.descriptor.writeSet);
+            }
+        }
+
+        for (auto& images : m_images) {
+            for (ImageInfo& image : images) {
+                image.descriptor.writeSet = {};
+                image.descriptor.writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                image.descriptor.writeSet.dstSet = m_descriptorSets[m_descriptorSetIndexMap[image.descriptor.set]];
+                image.descriptor.writeSet.dstBinding = image.descriptor.binding;
+                image.descriptor.writeSet.dstArrayElement = 0;
+                image.descriptor.writeSet.descriptorType = image.descriptor.layoutBinding.descriptorType;
+                image.descriptor.writeSet.descriptorCount = 1;
+                image.descriptor.writeSet.pImageInfo = &image.imageInfo;
+                writes.push_back(image.descriptor.writeSet);
+            }
+        }
+
+        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
     }
 
     PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {

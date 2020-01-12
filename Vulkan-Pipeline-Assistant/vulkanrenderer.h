@@ -63,8 +63,8 @@ namespace vpa {
         // Helper functions for making a graphics pipeline
         VkPipelineVertexInputStateCreateInfo MakeVertexInputStateCI(const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions) const;
         VkPipelineInputAssemblyStateCreateInfo MakeInputAssemblyStateCI(const PipelineConfig& config) const;
-        VkViewport MakeViewport(const PipelineConfig& config) const;
-        VkRect2D MakeScissor(const PipelineConfig& config) const;
+        VkViewport MakeViewport() const;
+        VkRect2D MakeScissor() const;
         VkPipelineViewportStateCreateInfo MakeViewportStateCI(const QVector<VkViewport>& viewports, const QVector<VkRect2D>& scissors) const;
         VkPipelineRasterizationStateCreateInfo MakeRasterizerStateCI(const PipelineConfig& config) const;
         VkPipelineMultisampleStateCreateInfo MakeMsaaCI(const PipelineConfig& config) const;

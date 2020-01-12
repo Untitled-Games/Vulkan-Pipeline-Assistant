@@ -40,6 +40,11 @@ namespace vpa {
         QVector<unsigned char> data;
     };
 
+    enum class BuiltInSets : uint32_t {
+        DepthPostPass = 0, //, EnvironmentMap //, ShadowMap
+        Count_
+    };
+
     class Descriptors final {
         static constexpr float NearPlane = 1.0f;
         static constexpr float FarPlane = 100.0f;
@@ -63,8 +68,8 @@ namespace vpa {
         const QVector<VkDescriptorSetLayout>& DescriptorSetLayouts() const;
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
 
-        VkDescriptorSetLayout* DepthDescriptorSetLayout() { return &m_depthSetLayout; }
-        VkDescriptorSet DepthDescriptorSet() const { return m_depthSet; }
+        VkDescriptorSetLayout* BuiltInSetLayout(BuiltInSets set) { return &m_builtInLayouts[int(set)]; }
+        VkDescriptorSet BuiltInSet(BuiltInSets set) const { return m_builtInSets[int(set)]; }
 
         static const QMatrix4x4 DefaultModelMatrix();
         static const QMatrix4x4 DefaultViewMatrix();
@@ -72,11 +77,17 @@ namespace vpa {
         static const QMatrix4x4 DefaultMVPMatrix();
 
     private:
+        VPAError EnumerateShaderRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
+        VPAError EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount);
+
         VPAError BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
         VPAError CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource, BufferInfo& info);
         VPAError CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
+        void WriteShaderDescriptors();
+
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
+
         VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);
         void DestroyImage(ImageInfo& imageInfo);
 
@@ -94,10 +105,9 @@ namespace vpa {
         QHash<uint32_t, int> m_descriptorSetIndexMap;
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
+        QVector<VkDescriptorSet> m_builtInSets;
+        QVector<VkDescriptorSetLayout> m_builtInLayouts;
         VkDescriptorPool m_descriptorPool;
-
-        VkDescriptorSetLayout m_depthSetLayout;
-        VkDescriptorSet m_depthSet;
 
         static double s_aspectRatio;
     };

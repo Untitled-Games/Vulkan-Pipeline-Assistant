@@ -1,0 +1,25 @@
+# This file determines the validation rules to be run each time the configuration changes. By default, this file only contains
+# validation rules from the Vulkan specification, but rules can be removed or additional rules may be added by the user. Note however
+# that undefined behaviour may occur if not adhering to the Vulkan specification.
+#
+# An expression consists of a config identifier A, a compare op, and a value or config identifier B
+# A rule consists of a name and a reference, then an expression, IF, and a second expression
+# e.g. <"Topology", "Valid usage in VkPrimitiveTopology online specification", Topology NOT_EQUAL VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY IF primitiveRestartEnable EQUALS false>
+#
+# Values may be numbers, boolean constants false and true, or an appropriate Vulkan enumeration name, e.g. VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+#
+# See below for the list of compare ops
+# NOT_EQUAL
+# EQUAL
+# LESSER_THAN
+# LESSER_THAN_EQUAL
+# GREATER_THAN
+# GREATER_THAN_EQUAL
+# 
+# See below for the list of config identifiers
+# VertexBindingCount
+# VertexAttribCount
+# ... TODO
+#
+
+<"TopologyAdjacency", "Valid usage in VkPrimitiveTopology online specification", Topology NOT_EQUAL VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY IF primitiveRestartEnable EQUALS false>

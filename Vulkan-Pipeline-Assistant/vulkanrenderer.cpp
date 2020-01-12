@@ -111,7 +111,7 @@ namespace vpa {
                 beginInfo.clearValueCount = 2;
                 beginInfo.pClearValues = clearValues;
 
-                VkDescriptorSet depthSet = m_descriptors->DepthDescriptorSet();
+                VkDescriptorSet depthSet = m_descriptors->BuiltInSet(BuiltInSets::DepthPostPass);
                 m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineLayout, 0, 1, &depthSet, 0, nullptr);
 
                 m_deviceFuncs->vkCmdBeginRenderPass(cmdBuf, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -376,14 +376,14 @@ namespace vpa {
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = MakeVertexInputStateCI(bindingDescription, attribDescriptions);
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = MakeInputAssemblyStateCI(config);
-        QVector<VkViewport> viewports = { MakeViewport(config) };
+        QVector<VkViewport> viewports = { MakeViewport() };
 
         if (m_config.viewports) delete[] m_config.viewports; // TODO move this
         m_config.viewports = new VkViewport[1];
         m_config.viewports[0] = viewports[0];
         m_config.viewportCount = 1;
 
-        QVector<VkRect2D> scissors = { MakeScissor(config) };
+        QVector<VkRect2D> scissors = { MakeScissor() };
         VkPipelineViewportStateCreateInfo viewportState = MakeViewportStateCI(viewports, scissors);
         VkPipelineRasterizationStateCreateInfo rasterizer = MakeRasterizerStateCI(config);
         VkPipelineMultisampleStateCreateInfo multisampling = MakeMsaaCI(config);
@@ -442,7 +442,7 @@ namespace vpa {
         VkPipelineLayoutCreateInfo layoutInfo = {};
         layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layoutInfo.setLayoutCount = 1;
-        layoutInfo.pSetLayouts = m_descriptors->DepthDescriptorSetLayout();
+        layoutInfo.pSetLayouts = m_descriptors->BuiltInSetLayout(BuiltInSets::DepthPostPass);
         layoutInfo.pushConstantRangeCount = 0;
         layoutInfo.pPushConstantRanges = nullptr;
 
@@ -515,7 +515,7 @@ namespace vpa {
 
         VkWriteDescriptorSet writeSet = {};
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeSet.dstSet = m_descriptors->DepthDescriptorSet();
+        writeSet.dstSet = m_descriptors->BuiltInSet(BuiltInSets::DepthPostPass);
         writeSet.dstBinding = 0;
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -548,7 +548,7 @@ namespace vpa {
         return inputAssembly;
     }
 
-    VkViewport VulkanRenderer::MakeViewport(const PipelineConfig& config) const {
+    VkViewport VulkanRenderer::MakeViewport() const {
         VkViewport viewport = {};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
@@ -559,7 +559,7 @@ namespace vpa {
         return viewport;
     }
 
-    VkRect2D VulkanRenderer::MakeScissor(const PipelineConfig& config) const {
+    VkRect2D VulkanRenderer::MakeScissor() const {
         VkRect2D scissor = {};
         scissor.offset = { 0, 0 };
         scissor.extent = { uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()) };
