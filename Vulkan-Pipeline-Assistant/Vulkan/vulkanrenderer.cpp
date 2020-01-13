@@ -169,6 +169,8 @@ namespace vpa {
 
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
+        VPA_PASS_ERROR(m_validator->Validate(m_config));
+
         if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
         if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth)); }
         if (flag & ReloadFlagBits::Pipeline) {

@@ -28,7 +28,7 @@ namespace vpa {
         struct Val {
             ValueType type;
             union {
-                size_t u;
+                uint32_t u;
                 int i;
                 float f;
             } value;
@@ -53,17 +53,23 @@ namespace vpa {
             QVector<LogicOperator> conditionOps; // conditionOps.size = conditions.size - 1
         };
 
-        static const QVector<QString> ConfigIdentifiers;
+        friend bool operator==(const Ref& ref, const Val& val);
+        friend bool operator!=(const Ref& ref, const Val& val){ return !operator==(ref, val); }
+        friend bool operator<(const Ref& ref, const Val& val);
+        friend bool operator>(const Ref& ref, const Val& val);
+        friend bool operator<=(const Ref& ref, const Val& val){ return !operator>(ref, val); }
+        friend bool operator>=(const Ref& ref, const Val& val){ return !operator<(ref, val); }
 
     public:
         ConfigValidator(const PipelineConfig& config);
         ~ConfigValidator();
 
+        VPAError Validate(const PipelineConfig& config) const;
+
+    private:
         VPAError LoadValidationFile(const PipelineConfig& config, QString fileName);
         VPAError LoadVulkanConstantsFile(QString fileName);
 
-    private:
-        VPAError Validate(const PipelineConfig& config) const;
         // Validation must consider all the rules provided in the validation file
         VPAError ValidateRules() const;
         // The most basic check is against the physical device limits, if these fail then Vulkan cannot draw in the app
@@ -78,9 +84,11 @@ namespace vpa {
 
         bool ExecuteRule(const Rule& rule) const;
         VPAError VPAAssert(const bool expr, const QString msg) const;
+        bool Compare(const Expression& expr) const;
+        QString ExtractStrInStr(QString& str, int& pos) const;
 
         QVector<Rule> m_rules;
-        QMap<QString, size_t> m_vulkanConstants;
+        QMap<QString, uint32_t> m_vulkanConstants;
     };
 }
 

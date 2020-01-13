@@ -6,8 +6,6 @@
 
 namespace vpa {
 
-    const QVector<QString> ConfigValidator::ConfigIdentifiers = { "topology" };
-
     ConfigValidator::ConfigValidator(const PipelineConfig& config) {
         LoadVulkanConstantsFile(RESDIR"vkconstants.txt");
         LoadValidationFile(config, RESDIR"validation.txt");
@@ -82,9 +80,9 @@ namespace vpa {
         //      </IF>
         // </RULE>
         Rule rule;
-        QStringList beginningLine = line.split(" "); // todo this don't work
-        rule.name = beginningLine[1];
-        rule.reference = beginningLine[2];
+        int pos = 0;
+        rule.name = ExtractStrInStr(line, pos);
+        rule.reference = ExtractStrInStr(line, pos);
 
         line = in.readLine().trimmed().replace('>', ' ').replace('<', ' ');
         rule.requirement = ParseExpression(config, line);
@@ -120,6 +118,9 @@ namespace vpa {
         if (symbol == "topology") {
             r.ref = reinterpret_cast<const void*>(&config.writables.topology);
         }
+        else if (symbol == "primitiveRestartEnable") {
+            r.ref = reinterpret_cast<const void*>(&config.writables.primitiveRestartEnable);
+        }
         return r;
     }
 
@@ -145,11 +146,81 @@ namespace vpa {
     }
 
     bool ConfigValidator::ExecuteRule(const Rule& rule) const {
-        return true;
+        bool conditionsMet = Compare(rule.conditions[0]);
+        for (int i = 1; i < rule.conditions.size(); ++i) {
+            if (rule.conditionOps[i - 1] == LogicOperator::And) {
+                conditionsMet = conditionsMet && Compare(rule.conditions[i]);
+            }
+            else {
+                conditionsMet = conditionsMet || Compare(rule.conditions[i]);
+            }
+        }
+        return !conditionsMet || Compare(rule.requirement);
     }
 
     VPAError ConfigValidator::VPAAssert(const bool expr, const QString msg) const {
-        if (expr) return VPA_WARN(msg);
+        if (!expr) return VPA_WARN(msg);
         else return VPA_OK;
+    }
+
+    bool ConfigValidator::Compare(const Expression& expr) const {
+        switch (expr.compareOp) {
+        case ComparisonOperator::Equal:
+            return expr.refA == expr.valB;
+        case ComparisonOperator::NotEqual:
+            return expr.refA != expr.valB;
+        case ComparisonOperator::Lesser:
+            return expr.refA < expr.valB;
+        case ComparisonOperator::LesserEqual:
+            return expr.refA <= expr.valB;
+        case ComparisonOperator::Greater:
+            return expr.refA > expr.valB;
+        case ComparisonOperator::GreaterEqual:
+            return expr.refA >= expr.valB;
+        }
+        return false;
+    }
+
+    QString ConfigValidator::ExtractStrInStr(QString& str, int& pos) const {
+        int startPos = str.indexOf("\"", pos);
+        pos = str.indexOf("\"", startPos + 1) + 1;
+        return str.mid(startPos, pos - startPos);
+    }
+
+    bool operator==(const ConfigValidator::Ref& ref, const ConfigValidator::Val& val) {
+        if (ref.type == ConfigValidator::ValueType::Uint) {
+            return *reinterpret_cast<const uint32_t*>(ref.ref) == val.value.u;
+        }
+        else if (ref.type == ConfigValidator::ValueType::Float) {
+            return *reinterpret_cast<const float*>(ref.ref) < val.value.f + FLT_EPSILON &&
+                    *reinterpret_cast<const float*>(ref.ref) > val.value.f - FLT_EPSILON;
+        }
+        else {
+            return *reinterpret_cast<const int*>(ref.ref) == val.value.i;
+        }
+    }
+
+    bool operator<(const ConfigValidator::Ref& ref, const ConfigValidator::Val& val) {
+        if (ref.type == ConfigValidator::ValueType::Uint) {
+            return *reinterpret_cast<const uint32_t*>(ref.ref) < val.value.u;
+        }
+        else if (ref.type == ConfigValidator::ValueType::Float) {
+            return *reinterpret_cast<const float*>(ref.ref) < val.value.f;
+        }
+        else {
+            return *reinterpret_cast<const int*>(ref.ref) < val.value.i;
+        }
+    }
+
+    bool operator>(const ConfigValidator::Ref& ref, const ConfigValidator::Val& val) {
+        if (ref.type == ConfigValidator::ValueType::Uint) {
+            return *reinterpret_cast<const uint32_t*>(ref.ref) > val.value.u;
+        }
+        else if (ref.type == ConfigValidator::ValueType::Float) {
+            return *reinterpret_cast<const float*>(ref.ref) > val.value.f;
+        }
+        else {
+            return *reinterpret_cast<const int*>(ref.ref) > val.value.i;
+        }
     }
 }
