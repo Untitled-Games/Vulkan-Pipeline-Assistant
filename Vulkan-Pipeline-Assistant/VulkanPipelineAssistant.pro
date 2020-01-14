@@ -11,43 +11,45 @@ CONFIG += c++14
 DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
-    descriptors.cpp \
+    Vulkan/configvalidator.cpp \
+    Vulkan/descriptors.cpp \
+    Vulkan/memoryallocator.cpp \
+    Vulkan/pipelineconfig.cpp \
+    Vulkan/shaderanalytics.cpp \
+    Vulkan/vertexinput.cpp \
+    Vulkan/vulkanmain.cpp \
+    Vulkan/vulkanrenderer.cpp \
+    Widgets/spvarraywidget.cpp \
+    Widgets/spvimagewidget.cpp \
+    Widgets/spvmatrixwidget.cpp \
+    Widgets/spvresourcewidget.cpp \
+    Widgets/spvstructwidget.cpp \
+    Widgets/spvvectorwidget.cpp \
     main.cpp \
     mainwindow.cpp \
-    pipelineconfig.cpp \
-    memoryallocator.cpp \
-    shaderanalytics.cpp \
-    spvarraywidget.cpp \
-    spvimagewidget.cpp \
-    spvmatrixwidget.cpp \
-    spvresourcewidget.cpp \
-    spvstructwidget.cpp \
-    spvvectorwidget.cpp \
-    vertexinput.cpp \
-    vulkanmain.cpp \
-    vulkanrenderer.cpp
 
 HEADERS += \
+    Vulkan/configvalidator.h \
+    Vulkan/descriptors.h \
+    Vulkan/memoryallocator.h \
+    Vulkan/pipelineconfig.h \
+    Vulkan/reloadflags.h \
+    Vulkan/shaderanalytics.h \
+    Vulkan/spirvresource.h \
+    Vulkan/vertexinput.h \
+    Vulkan/vulkanmain.h \
+    Vulkan/vulkanrenderer.h \
+    Widgets/spvarraywidget.h \
+    Widgets/spvimagewidget.h \
+    Widgets/spvmatrixwidget.h \
+    Widgets/spvresourcewidget.h \
+    Widgets/spvstructwidget.h \
+    Widgets/spvvectorwidget.h \
+    Widgets/spvwidget.h \
     common.h \
-    descriptors.h \
     filemanager.h \
     mainwindow.h \
-    memoryallocator.h \
-    pipelineconfig.h \
-    reloadflags.h \
-    shaderanalytics.h \
-    spirvresource.h \
-    spvarraywidget.h \
-    spvimagewidget.h \
-    spvmatrixwidget.h \
-    spvresourcewidget.h \
-    spvstructwidget.h \
-    spvvectorwidget.h \
-    spvwidget.h \
-    tiny_obj_loader.h \
-    vertexinput.h \
-    vulkanmain.h \
-    vulkanrenderer.h
+    tiny_obj_loader.h
 
 FORMS += \
     mainwindow.ui

@@ -6,7 +6,7 @@
 #include <QMap>
 #include <QMatrix4x4>
 
-#include "common.h"
+#include "../common.h"
 #include "spirvresource.h"
 #include "memoryallocator.h"
 
@@ -40,10 +40,17 @@ namespace vpa {
         QVector<unsigned char> data;
     };
 
+    enum class BuiltInSets : uint32_t {
+        DepthPostPass = 0, //, EnvironmentMap //, ShadowMap
+        Count_
+    };
+
     class Descriptors final {
+        static constexpr float NearPlane = 1.0f;
+        static constexpr float FarPlane = 100.0f;
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err);
+                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err);
         ~Descriptors();
 
         const QHash<uint32_t, QVector<BufferInfo>>& Buffers() const { return m_buffers; }
@@ -61,17 +68,27 @@ namespace vpa {
         const QVector<VkDescriptorSetLayout>& DescriptorSetLayouts() const;
         const QVector<VkPushConstantRange>& PushConstantRanges() const;
 
+        VkDescriptorSetLayout* BuiltInSetLayout(BuiltInSets set) { return &m_builtInLayouts[int(set)]; }
+        VkDescriptorSet BuiltInSet(BuiltInSets set) const { return m_builtInSets[int(set)]; }
+
         static const QMatrix4x4 DefaultModelMatrix();
         static const QMatrix4x4 DefaultViewMatrix();
         static const QMatrix4x4 DefaultProjectionMatrix();
         static const QMatrix4x4 DefaultMVPMatrix();
 
     private:
+        VPAError EnumerateShaderRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
+        VPAError EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount);
+
+        VPAError Validate(size_t numSets, const QVector<VkDescriptorPoolSize>& poolSizes);
         VPAError BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
         VPAError CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource, BufferInfo& info);
         VPAError CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
+        void WriteShaderDescriptors();
+
         PushConstantInfo CreatePushConstant(SpvResource* resource);
         void BuildPushConstantRanges();
+
         VkPipelineStageFlags StageFlagsToPipelineFlags(VkShaderStageFlags stageFlags);
         void DestroyImage(ImageInfo& imageInfo);
 
@@ -89,7 +106,11 @@ namespace vpa {
         QHash<uint32_t, int> m_descriptorSetIndexMap;
         QVector<VkDescriptorSet> m_descriptorSets;
         QVector<VkDescriptorSetLayout> m_descriptorLayouts;
+        QVector<VkDescriptorSet> m_builtInSets;
+        QVector<VkDescriptorSetLayout> m_builtInLayouts;
         VkDescriptorPool m_descriptorPool;
+
+        VkPhysicalDeviceLimits m_limits;
 
         static double s_aspectRatio;
     };

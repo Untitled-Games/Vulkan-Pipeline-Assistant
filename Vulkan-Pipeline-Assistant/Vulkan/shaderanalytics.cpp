@@ -29,7 +29,7 @@ namespace vpa {
 
     void ShaderAnalytics::Destroy() {
         for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
-            if (m_modules[i] != VK_NULL_HANDLE) m_deviceFuncs->vkDestroyShaderModule(m_device, m_modules[i], nullptr);
+            DESTROY_HANDLE(m_device, m_modules[i], m_deviceFuncs->vkDestroyShaderModule)
             if (m_compilers[i] != nullptr) delete m_compilers[i];
         }
         memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
@@ -94,29 +94,35 @@ namespace vpa {
         return m_modules[size_t(ShaderStage::Fragment)] != VK_NULL_HANDLE ? m_resources[size_t(ShaderStage::Fragment)].stage_outputs.size() : 0;
     }
 
-    VPAError ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
+    VPAError ShaderAnalytics::CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob) {
         QFile file(name);
         if (!file.open(QIODevice::ReadOnly)) {
-            m_modules[size_t(stage)] = VK_NULL_HANDLE;
             return VPA_WARN("Failed to read shader " + name);
         }
 
-        QByteArray blob = file.readAll();
+        *blob = file.readAll();
         file.close();
 
         VkShaderModuleCreateInfo shaderInfo;
         memset(&shaderInfo, 0, sizeof(shaderInfo));
         shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderInfo.codeSize = size_t(blob.size());
-        shaderInfo.pCode = reinterpret_cast<const uint32_t*>(blob.constData());
-        VkShaderModule shaderModule = VK_NULL_HANDLE;
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &shaderModule), "shader module creation")
+        shaderInfo.codeSize = size_t(blob->size());
+        shaderInfo.pCode = reinterpret_cast<const uint32_t*>(blob->constData());
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &module), "shader module creation")
+
+        return VPA_OK;
+    }
+
+    VPAError ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
+        m_modules[size_t(stage)] = VK_NULL_HANDLE;
+
+        QByteArray blob;
+        CreateModule(m_modules[size_t(stage)], name, &blob);
 
         if (m_compilers[size_t(stage)] != nullptr) {
             delete m_compilers[size_t(stage)];
         }
 
-        m_modules[size_t(stage)] = shaderModule;
         std::vector<uint32_t> spirvCrossBuf((size_t(blob.size()) / (sizeof(uint32_t) / sizeof(unsigned char))));
         memcpy(spirvCrossBuf.data(), blob.data(), size_t(blob.size()));
         m_compilers[size_t(stage)] = new Compiler(std::move(spirvCrossBuf));

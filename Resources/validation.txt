@@ -1,0 +1,65 @@
+# This file determines the validation rules to be run each time the configuration changes. By default, this file only contains
+# validation rules from the Vulkan specification, but rules can be removed or additional rules may be added by the user. Note however
+# that undefined behaviour may occur if not adhering to the Vulkan specification.
+
+# An expression consists of a config identifier A, a compare op, and a value or config identifier B
+# A rule consists of a name, a reference in an opening <RULE> tag, and a body. It's body starts with an expression which defines the 
+# requirement that must be met if all conditions are true. Next, it has an opening <IF> tag to define the start of all
+# condition expressions. Within the <IF>, there are at least one expressions defining conditions. After the first expression,
+# an <AND> tag or <OR> tag must precede expressions to define how the conditions combine. Finally, the IF and RULE tags are closed.
+# Rules always check conditions in the order and manner the conditions appear in the rule. Therefore (A && B) || (C && D) would actually parse as
+# (((A && B) || C) && D). The correct way to implement this is with multiple rules, one defining A && B, and one for C && D.
+
+# Values may be numbers, boolean constants FALSE and TRUE, or an appropriate Vulkan enumeration name, e.g. VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+# Note that all values against the physical device limits are tested internally in the program and do not need to be added here,
+# however stricter limitations could be applied here.
+
+# See below for the list of compare ops
+# NOT_EQUAL
+# EQUAL
+# LESSER
+# LESSER_EQUAL
+# GREATER
+# GREATER_EQUAL
+
+# See below for the list of logical operators
+# AND
+# OR
+
+# See below for the list of config identifiers
+# topology
+# primitiveRestartEnable
+# minSampleShading
+# viewportCount
+# scissorCount
+# primitiveRestartEnable
+
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineInputAssemblyStateCreateInfo.html
+# -----------------------------
+
+<RULE "Prim Restart Rule" "If topology is VK_PRIMITIVE_TOPOLOGY_POINT_LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY or VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, primitiveRestartEnable must be VK_FALSE. https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineInputAssemblyStateCreateInfo.html">
+	<primitiveRestartEnable EQUAL FALSE>
+	<IF>
+		<topology EQUAL VK_PRIMITIVE_TOPOLOGY_POINT_LIST>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_LINE_LIST>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_PATCH_LIST>
+	</IF>
+</RULE>
+
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineViewportStateCreateInfo.html
+# -----------------------------
+
+<RULE "Viewport and Scissor Count" "scissorCount and viewportCount must be identical. https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineViewportStateCreateInfo.html">
+	<viewportCount EQUALS scissorCount>
+	<IF>
+		<TRUE>
+	</IF>
+</RULE>
+
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineColorBlendAttachmentState.html
+# -----------------------------

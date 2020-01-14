@@ -7,7 +7,7 @@
 #include <QFile>
 
 #include "spirvresource.h"
-#include "common.h"
+#include "../common.h"
 
 namespace vpa {
     struct ColourAttachmentConfig {

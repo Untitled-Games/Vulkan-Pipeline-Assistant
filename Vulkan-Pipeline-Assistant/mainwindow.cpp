@@ -4,9 +4,9 @@
 #include <QPushButton>
 #include <QFileDialog>
 
-#include "pipelineconfig.h"
-#include "descriptors.h"
-#include "spvresourcewidget.h"
+#include "Vulkan/pipelineconfig.h"
+#include "Vulkan/descriptors.h"
+#include "Widgets/spvresourcewidget.h"
 
 namespace vpa {
     const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
@@ -79,8 +79,8 @@ namespace vpa {
         QWidget* shaderWidget = new QWidget(m_rightTopContainer);
         shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
         m_configBlocks.push_back(shaderWidget);
-        MakeShaderBlock(shaderWidget, "Vertex", Config().vertShader, QCoreApplication::applicationDirPath() + "/../shaders/vs_test.spv");
-        MakeShaderBlock(shaderWidget, "Fragment", Config().fragShader, QCoreApplication::applicationDirPath() + "/../shaders/fs_test.spv");
+        MakeShaderBlock(shaderWidget, "Vertex", Config().vertShader, SHADERDIR"vs_test.spv");
+        MakeShaderBlock(shaderWidget, "Fragment", Config().fragShader, SHADERDIR"fs_test.spv");
         MakeShaderBlock(shaderWidget, "Tess Control", Config().tescShader);
         MakeShaderBlock(shaderWidget, "Tess Eval", Config().teseShader);
         MakeShaderBlock(shaderWidget, "Geometry", Config().geomShader);

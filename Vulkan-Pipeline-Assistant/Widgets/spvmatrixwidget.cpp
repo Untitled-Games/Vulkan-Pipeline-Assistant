@@ -9,9 +9,9 @@
 #include <QMatrix4x4>
 #include <QValidator>
 
-#include "spirvresource.h"
+#include "../Vulkan/spirvresource.h"
+#include "../Vulkan/descriptors.h"
 #include "mainwindow.h"
-#include "descriptors.h"
 
 namespace vpa {
     SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, QWidget* parent)

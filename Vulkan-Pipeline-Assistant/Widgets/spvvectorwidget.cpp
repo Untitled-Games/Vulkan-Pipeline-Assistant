@@ -7,7 +7,7 @@
 #include <QCoreApplication>
 #include <QValidator>
 
-#include "spirvresource.h"
+#include "../Vulkan/spirvresource.h"
 #include "common.h"
 
 namespace vpa {

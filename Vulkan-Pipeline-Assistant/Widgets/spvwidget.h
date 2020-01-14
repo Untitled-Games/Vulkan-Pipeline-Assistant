@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QEvent>
 
-#include "common.h"
+#include "../common.h"
 
 #define SPV_DATA_CHANGE_EVENT(parent) QEvent evnt = QEvent(SpvGuiDataChangeType); \
     QCoreApplication::sendEvent(parent, &evnt)

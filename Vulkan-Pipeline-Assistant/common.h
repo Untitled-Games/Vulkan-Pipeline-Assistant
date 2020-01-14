@@ -13,10 +13,12 @@
 
 #include <QString>
 
-#define TEXDIR "../../Resources/Textures/"
-#define CONFIGDIR "../../Resources/Configs/"
-#define IMAGEDIR "../../Resources/Images/"
-#define MESHDIR "../../Resources/Meshes/"
+#define RESDIR "../../Resources/"
+#define TEXDIR RESDIR"Textures/"
+#define CONFIGDIR RESDIR"Configs/"
+#define IMAGEDIR RESDIR"Images/"
+#define MESHDIR RESDIR"Meshes/"
+#define SHADERDIR RESDIR"Shaders/"
 
 #define BYTE_CPTR(ptr) reinterpret_cast<const unsigned char*>(ptr)
 
@@ -25,7 +27,7 @@
 #define VPA_WARN(msg) VPAError(VPAErrorLevel::Warning, msg)
 #define VPA_CRITICAL(msg) VPAError(VPAErrorLevel::Critical, msg)
 #define VPA_FATAL(msg) { QMessageBox::critical(nullptr, "VPA Fatal Error", msg);  QCoreApplication::quit(); } // Sources using this macro must include <QMessageBox> and <QCoreApplication>
-#define VPA_PASS_ERROR(err) if (err.level != VPAErrorLevel::Ok) return err
+#define VPA_PASS_ERROR(err) if (err != VPA_OK) return err
 
 // VPAError decoration for vulkan functions which return a VkResult
 #define VKRESULT_MESSAGE(result, name) "VkResult for" + QString(name) + "error code" + QString::number(result)
@@ -50,7 +52,23 @@ namespace vpa {
         VPAErrorLevel level;
         QString message;
         VPAError(VPAErrorLevel lvl, QString msg) : level(lvl), message(msg) { }
+        bool operator==(VPAError err) {
+            return level == err.level;
+        }
+        bool operator!=(VPAError err) {
+            return level != err.level;
+        }
     };
+
+    inline VPAError VPAAssert(const bool expr, const QString msg) {
+        if (!expr) return VPA_WARN(msg);
+        else return VPA_OK;
+    }
+
+    inline VPAError VPAAssert(const bool outer, const bool expr, const QString msg) {
+        if (outer)  return VPAAssert(expr, msg);
+        else return VPA_OK;
+    }
 }
 
 #endif // COMMON_H

@@ -6,8 +6,8 @@
 #include <QFileDialog>
 #include <QCoreApplication>
 
-#include "spirvresource.h"
-#include "descriptors.h"
+#include "../Vulkan/spirvresource.h"
+#include "../Vulkan/descriptors.h"
 
 namespace vpa {
     SpvImageWidget::SpvImageWidget(SpvImageType* type, QWidget* parent)

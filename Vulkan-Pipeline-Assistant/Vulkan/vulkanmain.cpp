@@ -79,8 +79,9 @@ namespace vpa {
 
     void VulkanMain::Reload(const ReloadFlags flag) {
         VPAError err = m_renderer->Reload(flag);
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             m_renderer->SetValid(false);
+            qDebug(qPrintable(err.message));
         }
         else {
             m_renderer->SetValid(true);

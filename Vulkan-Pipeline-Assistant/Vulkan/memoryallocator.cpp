@@ -69,7 +69,7 @@ namespace vpa {
         // TODO buffer alignment
         VPAError err = VPA_OK;
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateBuffer(m_window->device(), &bufInfo, nullptr, &allocation.buffer), qPrintable("create buffer for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
@@ -80,12 +80,12 @@ namespace vpa {
         VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_window->hostVisibleMemoryIndex() };
 
         VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_window->device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate buffer memory for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
         VPA_VKCRITICAL(m_deviceFuncs->vkBindBufferMemory(m_window->device(), allocation.buffer, allocation.memory, 0), qPrintable("bind buffer memory for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
@@ -102,7 +102,7 @@ namespace vpa {
 
         VPAError err = VPA_OK;
         VPA_VKCRITICAL(m_deviceFuncs->vkCreateImage(m_window->device(), &createInfo, nullptr, &allocation.image), qPrintable("create image for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
@@ -112,12 +112,12 @@ namespace vpa {
         VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_window->deviceLocalMemoryIndex() };
 
         VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_window->device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate image memory for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
         VPA_VKCRITICAL(m_deviceFuncs->vkBindImageMemory(m_window->device(), allocation.image, allocation.memory, 0), qPrintable("bind image memory for allocation '" + allocation.name + "'"), err)
-        if (err.level != VPAErrorLevel::Ok) {
+        if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }

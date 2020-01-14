@@ -8,7 +8,7 @@
 #include <QVulkanDeviceFunctions>
 
 #include "spirvresource.h"
-#include "common.h"
+#include "../common.h"
 
 namespace vpa {
     struct PipelineConfig;
@@ -28,8 +28,11 @@ namespace vpa {
         const DescriptorLayoutMap& DescriptorLayoutMap() const { return m_descriptorLayoutMap; }
         const QVector<SpvResource*>& PushConstantRanges() const { return m_pushConstants; }
 
+        VPAError CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob);
+
     private:
         VPAError CreateModule(ShaderStage stage, const QString& name);
+        VPAError Validate(ShaderStage stage);
 
         size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
         SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);
