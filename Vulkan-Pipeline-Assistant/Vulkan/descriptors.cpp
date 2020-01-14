@@ -132,7 +132,7 @@ namespace vpa {
 
         setCount += uint32_t(setIndices.size());
 
-        Validate(uint32_t(setIndices.size()), poolSizes);
+        VPA_PASS_ERROR(Validate(uint32_t(setIndices.size()), poolSizes));
 
         if (!setIndices.empty()) {
             QVector<uint32_t> setIndicesVec(setIndices.begin(), setIndices.end());
