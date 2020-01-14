@@ -11,29 +11,55 @@
 # (((A && B) || C) && D). The correct way to implement this is with multiple rules, one defining A && B, and one for C && D.
 
 # Values may be numbers, boolean constants FALSE and TRUE, or an appropriate Vulkan enumeration name, e.g. VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+# Note that all values against the physical device limits are tested internally in the program and do not need to be added here,
+# however stricter limitations could be applied here.
 
 # See below for the list of compare ops
 # NOT_EQUAL
 # EQUAL
-# LESSER_THAN
-# LESSER_THAN_EQUAL
-# GREATER_THAN
-# GREATER_THAN_EQUAL
+# LESSER
+# LESSER_EQUAL
+# GREATER
+# GREATER_EQUAL
 
 # See below for the list of logical operators
 # AND
 # OR
 
 # See below for the list of config identifiers
-# vertexBindingCount
-# vertexAttribCount
-# ... TODO
-#
+# topology
+# primitiveRestartEnable
+# minSampleShading
+# viewportCount
+# scissorCount
+# primitiveRestartEnable
 
-<RULE "Prim Restart Rule" "Valid usage https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineInputAssemblyStateCreateInfo.html">
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineInputAssemblyStateCreateInfo.html
+# -----------------------------
+
+<RULE "Prim Restart Rule" "If topology is VK_PRIMITIVE_TOPOLOGY_POINT_LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY or VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, primitiveRestartEnable must be VK_FALSE. https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineInputAssemblyStateCreateInfo.html">
 	<primitiveRestartEnable EQUAL FALSE>
 	<IF>
-		<topology NOT_EQUAL VK_PRIMITIVE_TOPOLOGY_POINT_LIST>
-		<AND><topology NOT_EQUAL VK_PRIMITIVE_TOPOLOGY_LINE_LIST>
+		<topology EQUAL VK_PRIMITIVE_TOPOLOGY_POINT_LIST>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_LINE_LIST>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY>
+		<OR><topology EQUAL VK_PRIMITIVE_TOPOLOGY_PATCH_LIST>
 	</IF>
 </RULE>
+
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineViewportStateCreateInfo.html
+# -----------------------------
+
+<RULE "Viewport and Scissor Count" "scissorCount and viewportCount must be identical. https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineViewportStateCreateInfo.html">
+	<viewportCount EQUALS scissorCount>
+	<IF>
+		<TRUE>
+	</IF>
+</RULE>
+
+# -----------------------------
+# ---- Valid usage from https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineColorBlendAttachmentState.html
+# -----------------------------

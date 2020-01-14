@@ -31,13 +31,13 @@ namespace vpa {
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_window, err);
             if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message)
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_window->device(), &m_config);
-            m_validator = new ConfigValidator(m_config);
+            m_validator = new ConfigValidator(m_config, m_main->Limits());
         }
     }
 
     void VulkanRenderer::initSwapChainResources() {
         if (!m_initialised) {
-            m_main->Reload(ReloadFlags::Everything);
+            m_main->Reload(ReloadFlags::EverythingNoValidation);
             m_initialised = true;
         }
         if (!DepthDrawing()) {
@@ -169,8 +169,8 @@ namespace vpa {
 
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
-        VPA_PASS_ERROR(m_validator->Validate(m_config));
 
+        if (flag & ReloadFlagBits::Validation) { VPA_PASS_ERROR(m_validator->Validate(m_config)); }
         if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
         if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth)); }
         if (flag & ReloadFlagBits::Pipeline) {
@@ -433,7 +433,7 @@ namespace vpa {
         }
 
         if (m_descriptors) delete m_descriptors;
-        m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), err);
+        m_descriptors = new Descriptors(m_window, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), m_main->Limits(), err);
         if (err != VPA_OK) {
             delete m_descriptors;
             return err;

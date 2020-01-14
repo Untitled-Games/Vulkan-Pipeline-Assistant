@@ -8,7 +8,8 @@ namespace vpa {
     enum class ReloadFlagBits : size_t {
         Pipeline = 1,
         RenderPass = 2,
-        Shaders = 4
+        Shaders = 4,
+        Validation = 8
     };
 
     inline constexpr size_t operator|(const ReloadFlagBits& f0, const ReloadFlagBits& f1) {
@@ -20,7 +21,8 @@ namespace vpa {
         Pipeline = size_t(ReloadFlagBits::Pipeline), // 0001
         RenderPass = ReloadFlagBits::RenderPass | ReloadFlagBits::Pipeline, // 0011
         Shaders = ReloadFlagBits::Shaders | ReloadFlagBits::Pipeline, // 0101
-        Everything = (ReloadFlagBits::Shaders | ReloadFlagBits::RenderPass) | size_t(ReloadFlagBits::Pipeline) // 1111
+        EverythingNoValidation = (ReloadFlagBits::Shaders | ReloadFlagBits::RenderPass) | size_t(ReloadFlagBits::Pipeline), // 0111
+        Everything = (ReloadFlagBits::Shaders | ReloadFlagBits::RenderPass) | (ReloadFlagBits::Pipeline | ReloadFlagBits::Validation) // 1111
     };
 
     inline constexpr bool operator&(const ReloadFlags& f0, const ReloadFlagBits& f1) {

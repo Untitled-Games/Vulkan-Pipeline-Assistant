@@ -32,6 +32,7 @@ namespace vpa {
 
     private:
         VPAError CreateModule(ShaderStage stage, const QString& name);
+        VPAError Validate(ShaderStage stage);
 
         size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
         SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);

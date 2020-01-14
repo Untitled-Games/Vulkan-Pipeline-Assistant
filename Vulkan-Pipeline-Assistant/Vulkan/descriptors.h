@@ -50,7 +50,7 @@ namespace vpa {
         static constexpr float FarPlane = 100.0f;
     public:
         Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err);
+                    const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err);
         ~Descriptors();
 
         const QHash<uint32_t, QVector<BufferInfo>>& Buffers() const { return m_buffers; }
@@ -80,6 +80,7 @@ namespace vpa {
         VPAError EnumerateShaderRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
         VPAError EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount);
 
+        VPAError Validate(size_t numSets, const QVector<VkDescriptorPoolSize>& poolSizes);
         VPAError BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
         VPAError CreateBuffer(DescriptorInfo& descriptor, const SpvResource* resource, BufferInfo& info);
         VPAError CreateImage(ImageInfo& imageInfo, const QString& name, bool writeSet);
@@ -108,6 +109,8 @@ namespace vpa {
         QVector<VkDescriptorSet> m_builtInSets;
         QVector<VkDescriptorSetLayout> m_builtInLayouts;
         VkDescriptorPool m_descriptorPool;
+
+        VkPhysicalDeviceLimits m_limits;
 
         static double s_aspectRatio;
     };

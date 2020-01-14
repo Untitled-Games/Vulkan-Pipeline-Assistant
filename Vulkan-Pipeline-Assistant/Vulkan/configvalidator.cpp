@@ -6,7 +6,7 @@
 
 namespace vpa {
 
-    ConfigValidator::ConfigValidator(const PipelineConfig& config) {
+    ConfigValidator::ConfigValidator(const PipelineConfig& config, const VkPhysicalDeviceLimits& limits) : m_limits(limits) {
         LoadVulkanConstantsFile(RESDIR"vkconstants.txt");
         LoadValidationFile(config, RESDIR"validation.txt");
         qDebug("Loaded validation");
@@ -63,9 +63,17 @@ namespace vpa {
     }
 
     VPAError ConfigValidator::ValidateLimits(const PipelineConfig& config) const {
-        //vertexBindingDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputBindings
-        //vertexAttributeDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputAttributes
-        VPA_PASS_ERROR(VPAAssert(config.writables.topology != VK_PRIMITIVE_TOPOLOGY_PATCH_LIST, "Topology cannot be patch list test"));
+        VPA_PASS_ERROR(VPAAssert(config.writables.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST,
+                                 config.writables.patchControlPoints > 0 &&
+                                   config.writables.patchControlPoints < m_limits.maxTessellationPatchSize, "patchControlPoints must be greater than zero and less than or equal to VkPhysicalDeviceLimits::maxTessellationPatchSize"));
+        VPA_PASS_ERROR(VPAAssert(config.viewportCount >= 0 && config.viewportCount <= m_limits.maxViewports, "viewportCount must be between 1 and VkPhysicalDeviceLimits::maxViewports, inclusive. Value is " + QString::number(config.viewportCount)));
+        VPA_PASS_ERROR(VPAAssert(config.scissorCount >= 0 && config.scissorCount <= m_limits.maxViewports, "scissorCount must be between 1 and VkPhysicalDeviceLimits::maxViewports, inclusive. Value is " + QString::number(config.scissorCount)));
+        for (uint32_t i = 0; i < config.scissorCount; ++i) {
+            VPA_PASS_ERROR(VPAAssert(config.scissorRects[i].offset.x >= 0 && config.scissorRects[i].offset.y >= 0, "The x and y members of offset member of any element of pScissors must be greater than or equal to 0"));
+            VPA_PASS_ERROR(VPAAssert(CheckSignedIntOverflow(config.scissorRects[i].extent.width, config.scissorRects[i].offset.x), "Evaluation of (offset.x + extent.width) must not cause a signed integer addition overflow for any element of pScissors"));
+            VPA_PASS_ERROR(VPAAssert(CheckSignedIntOverflow(config.scissorRects[i].extent.height, config.scissorRects[i].offset.y), "Evaluation of (offset.y + extent.height) must not cause a signed integer addition overflow for any element of pScissors"));
+        }
+        VPA_PASS_ERROR(VPAAssert(config.writables.minSampleShading >= 0.0f && config.writables.minSampleShading <= 1.0f, "minSampleShading must be in the range [0, 1]"));
 
         return VPA_OK;
     }
@@ -106,9 +114,22 @@ namespace vpa {
     ConfigValidator::Expression ConfigValidator::ParseExpression(const PipelineConfig& config, const QString& line) const {
         QStringList list = line.split(QRegExp("\\s+"), QString::SkipEmptyParts);
         Expression expr;
-        expr.refA = ParseConfigIdentifier(config, list.at(0));
-        expr.compareOp = ParseCompareOp(list.at(1));
-        expr.valB = ParseVulkanConstant(list.at(2));
+        if (list.size() == 1) {
+            expr.refA.type = ValueType::Uint;
+            expr.refA.ref = &True;
+            expr.compareOp = list.at(0) == "TRUE" ? ComparisonOperator::Equal : ComparisonOperator::NotEqual;
+            expr.valB.type = ValueType::Uint;
+            expr.valB.value.u = 1;
+        }
+        else {
+            expr.refA = ParseConfigIdentifier(config, list.at(0));
+            expr.compareOp = ParseCompareOp(list.at(1));
+            bool okFloat;
+            float f = list.at(2).toFloat(&okFloat);
+            bool okInt;
+            float i = list.at(2).toFloat(&okInt);
+            expr.valB = okFloat ? Val(f) : okInt ? Val(i) : ParseVulkanConstant(list.at(2));
+        }
         return expr;
     }
 
@@ -117,6 +138,18 @@ namespace vpa {
         r.type = ValueType::Uint;
         if (symbol == "topology") {
             r.ref = reinterpret_cast<const void*>(&config.writables.topology);
+        }
+        else if (symbol == "primitiveRestartEnable") {
+            r.ref = reinterpret_cast<const void*>(&config.writables.primitiveRestartEnable);
+        }
+        else if (symbol == "minSampleShading") {
+            r.ref = reinterpret_cast<const void*>(&config.writables.minSampleShading);
+        }
+        else if (symbol == "viewportCount") {
+            r.ref = reinterpret_cast<const void*>(&config.viewportCount);
+        }
+        else if (symbol == "scissorCount") {
+            r.ref = reinterpret_cast<const void*>(&config.scissorCount);
         }
         else if (symbol == "primitiveRestartEnable") {
             r.ref = reinterpret_cast<const void*>(&config.writables.primitiveRestartEnable);
@@ -158,11 +191,6 @@ namespace vpa {
         return !conditionsMet || Compare(rule.requirement);
     }
 
-    VPAError ConfigValidator::VPAAssert(const bool expr, const QString msg) const {
-        if (!expr) return VPA_WARN(msg);
-        else return VPA_OK;
-    }
-
     bool ConfigValidator::Compare(const Expression& expr) const {
         switch (expr.compareOp) {
         case ComparisonOperator::Equal:
@@ -185,6 +213,13 @@ namespace vpa {
         int startPos = str.indexOf("\"", pos);
         pos = str.indexOf("\"", startPos + 1) + 1;
         return str.mid(startPos, pos - startPos);
+    }
+
+    bool ConfigValidator::CheckSignedIntOverflow(uint32_t a, int32_t b) const {
+        int64_t c;
+        c = int64_t(a) + b;
+        return c >= INT_MIN || c <= INT_MAX;
+
     }
 
     bool operator==(const ConfigValidator::Ref& ref, const ConfigValidator::Val& val) {

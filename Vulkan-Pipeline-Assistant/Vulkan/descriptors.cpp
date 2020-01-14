@@ -11,8 +11,8 @@ namespace vpa {
     double Descriptors::s_aspectRatio = 0.0;
 
     Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
-                             const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VPAError& err)
-        : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE) {
+                             const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err)
+        : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE), m_limits(limits) {
         s_aspectRatio = m_window->width() / m_window->height();
 
         QVector<VkDescriptorPoolSize> poolSizes = {
@@ -132,6 +132,8 @@ namespace vpa {
 
         setCount += uint32_t(setIndices.size());
 
+        Validate(uint32_t(setIndices.size()), poolSizes);
+
         if (!setIndices.empty()) {
             QVector<uint32_t> setIndicesVec(setIndices.begin(), setIndices.end());
             std::sort(setIndicesVec.begin(), setIndicesVec.end(), std::less<uint32_t>());
@@ -182,6 +184,18 @@ namespace vpa {
         layoutInfo.pNext = nullptr;
 
         VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::DepthPostPass)]), "create descriptor set layout for depth set ")
+
+        return VPA_OK;
+    }
+
+    VPAError Descriptors::Validate(size_t numSets, const QVector<VkDescriptorPoolSize>& poolSizes) {
+        VPA_PASS_ERROR(VPAAssert(numSets <= m_limits.maxBoundDescriptorSets, "setLayoutCount must be less than or equal to VkPhysicalDeviceLimits::maxBoundDescriptorSets"));
+
+        VPA_PASS_ERROR(VPAAssert((poolSizes[4].descriptorCount - 1) <= m_limits.maxDescriptorSetSamplers, "Num samplers beyond maxDescriptorSetSamplers, https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineLayoutCreateInfo.html"));
+        VPA_PASS_ERROR(VPAAssert((poolSizes[0].descriptorCount - 1) <= m_limits.maxDescriptorSetUniformBuffers, "Num uniform buffers beyond maxDescriptorSetUniformBuffers, https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineLayoutCreateInfo.html"));
+        VPA_PASS_ERROR(VPAAssert((poolSizes[2].descriptorCount - 1) <= m_limits.maxDescriptorSetStorageBuffers, "Num storage buffers beyond maxDescriptorSetStorageBuffers, https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineLayoutCreateInfo.html"));
+        VPA_PASS_ERROR(VPAAssert((poolSizes[4].descriptorCount - 1) <= m_limits.maxDescriptorSetSampledImages, "Num sampled images beyond maxDescriptorSetSampledImages, https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineLayoutCreateInfo.html"));
+        VPA_PASS_ERROR(VPAAssert((poolSizes[5].descriptorCount - 1) <= m_limits.maxDescriptorSetStorageImages, "Num storage images beyond maxDescriptorSetStorageImages, https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPipelineLayoutCreateInfo.html"));
 
         return VPA_OK;
     }

@@ -59,6 +59,16 @@ namespace vpa {
             return level != err.level;
         }
     };
+
+    inline VPAError VPAAssert(const bool expr, const QString msg) {
+        if (!expr) return VPA_WARN(msg);
+        else return VPA_OK;
+    }
+
+    inline VPAError VPAAssert(const bool outer, const bool expr, const QString msg) {
+        if (outer)  return VPAAssert(expr, msg);
+        else return VPA_OK;
+    }
 }
 
 #endif // COMMON_H

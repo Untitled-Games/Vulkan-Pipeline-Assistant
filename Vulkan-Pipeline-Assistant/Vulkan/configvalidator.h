@@ -3,6 +3,7 @@
 
 #include <QVector>
 #include <QMap>
+#include <vulkan/vulkan.h>
 
 #include "../common.h"
 
@@ -32,6 +33,18 @@ namespace vpa {
                 int i;
                 float f;
             } value;
+            Val() : type(ValueType::Uint) {
+                value.u = 0;
+            }
+            Val(float f) : type(ValueType::Float) {
+                value.f = f;
+            }
+            Val(uint32_t u) : type(ValueType::Uint) {
+                value.u = u;
+            }
+            Val(int i) : type(ValueType::Int) {
+                value.i = i;
+            }
         };
 
         struct Ref {
@@ -61,7 +74,7 @@ namespace vpa {
         friend bool operator>=(const Ref& ref, const Val& val){ return !operator<(ref, val); }
 
     public:
-        ConfigValidator(const PipelineConfig& config);
+        ConfigValidator(const PipelineConfig& config, const VkPhysicalDeviceLimits& limits);
         ~ConfigValidator();
 
         VPAError Validate(const PipelineConfig& config) const;
@@ -83,12 +96,16 @@ namespace vpa {
         LogicOperator ParseLogicOp(const QString& symbol) const;
 
         bool ExecuteRule(const Rule& rule) const;
-        VPAError VPAAssert(const bool expr, const QString msg) const;
         bool Compare(const Expression& expr) const;
         QString ExtractStrInStr(QString& str, int& pos) const;
+        bool CheckSignedIntOverflow(uint32_t a, int32_t b) const;
 
         QVector<Rule> m_rules;
         QMap<QString, uint32_t> m_vulkanConstants;
+
+        VkPhysicalDeviceLimits m_limits;
+
+        static constexpr uint32_t True = 1;
     };
 }
 
