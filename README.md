@@ -6,7 +6,11 @@
 
 <a name="about"></a>
 ## About
-VPA is a tool Designed to help create Vulkan graphics pipelines.
+VPA is a tool designed to help create Vulkan graphics pipelines through the generation of configuration files and pipeline caches, which can then be used to fill the structs feeding vkCreateGraphicsPipeline in Vulkan.
+This tool is also designed to assist in writing and testing glsl shaders by viewing updates to the pipeline config options in real time, with the ability to change uniform variables, textures, and more through the interface and
+see it change immediately, no setup of a surrounding engine required. It is intended to be a useful assistative tool for anyone learning about graphics for games as well as small spare-time and indie developers, although anyone is welcome to use it for whatever their need.
+
+Please note that VPA is currently in early development pre-release and is not guaranteed to work in all cases yet. Please see the [Trello](https://trello.com/b/80TA000E/vpa) board for progress.
 
 <a name="features"></a>
 ## Features
@@ -38,10 +42,6 @@ You can clone this repository to your local destination using git:
 ```
 git clone https://github.com/Untitled-Games/Vulkan-Pipeline-Assistant
 ```
-
-After cloning, go to [Shaders](Vulkan-Pipeline-Assistant/Shaders) and double click the .bat file to compile the temporary (i.e, these will be removed eventually) shaders.
-
-
 
 <a name="github-issues"></a>
 ## Github Issues
