@@ -5,6 +5,7 @@
 #include <QEvent>
 
 #include "../common.h"
+#include "drawerwidget.h"
 
 #define SPV_DATA_CHANGE_EVENT(parent) QEvent evnt = QEvent(SpvGuiDataChangeType); \
     QCoreApplication::sendEvent(parent, &evnt)
@@ -24,7 +25,7 @@ namespace vpa {
         QString m_fileName;
     };
 
-    class SpvWidget : public QWidget {
+    class SpvWidget : public QWidget, public DrawerItem {
         Q_OBJECT
     public:
         SpvWidget(QWidget* parent = nullptr) : QWidget(parent) { }

@@ -19,6 +19,7 @@ SOURCES += \
     Vulkan/vertexinput.cpp \
     Vulkan/vulkanmain.cpp \
     Vulkan/vulkanrenderer.cpp \
+    Widgets/drawerwidget.cpp \
     Widgets/spvarraywidget.cpp \
     Widgets/spvimagewidget.cpp \
     Widgets/spvmatrixwidget.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     Vulkan/vertexinput.h \
     Vulkan/vulkanmain.h \
     Vulkan/vulkanrenderer.h \
+    Widgets/drawerwidget.h \
     Widgets/spvarraywidget.h \
     Widgets/spvimagewidget.h \
     Widgets/spvmatrixwidget.h \

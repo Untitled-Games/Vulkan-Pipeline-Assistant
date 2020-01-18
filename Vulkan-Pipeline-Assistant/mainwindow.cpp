@@ -7,6 +7,7 @@
 #include "Vulkan/pipelineconfig.h"
 #include "Vulkan/descriptors.h"
 #include "Widgets/spvresourcewidget.h"
+#include "Widgets/drawerwidget.h"
 
 namespace vpa {
     const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
@@ -47,9 +48,9 @@ namespace vpa {
         AddConfigButtons();
         AddConfigBlocks();
 
-        m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
-        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
-        QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
+        //m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
+        //m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
+        //QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
     void MainWindow::AddConfigButtons() {
@@ -73,6 +74,24 @@ namespace vpa {
         for (QPushButton* button : m_configButtons) {
             m_leftColumnContainer->layout()->addWidget(button);
         }
+
+        DrawerWidget* dw = new DrawerWidget(m_leftColumnContainer);
+        {
+            auto d = new DrawerItemWidget(dw, new DrawerItem(), "Test", Qt::lightGray);
+            auto d2 = d->AddChild(new DrawerItem(), "Test Child 1", QColor(200, 200, 200));
+            d->AddChild(new DrawerItemWidget(dw, new DrawerItem(), "Test Child 2", QColor(200, 200, 200)));
+            dw->AddRootItem(d);
+
+            d2->AddChild(new DrawerItem(), "Test Another Child 1", QColor(240,240,240));
+            d2->AddChild(new DrawerItem(), "Test Another Child 2", QColor(240,240,240));
+            d2->AddChild(new DrawerItem(), "Test Another Child 3", QColor(240,240,240));
+        }
+        {
+            auto d = new DrawerItemWidget(dw, new DrawerItem(), "Another Root", Qt::lightGray);
+            d->AddChild(new DrawerItem(), "Holy wowzaz another one", QColor(200, 200, 200));
+            dw->AddRootItem(d);
+        }
+        m_leftColumnContainer->layout()->addWidget(dw);
     }
 
     void MainWindow::AddConfigBlocks() {
