@@ -11,13 +11,25 @@ class QLabel;
 class QPushButton;
 class QVBoxLayout;
 namespace vpa {
+
     class DrawerItem {
+        friend class DrawerItemWidget;
     public:
         DrawerItem() = default;
         virtual ~DrawerItem() = default;
-        // true if no drawer expansion to occur, false otherwise
-        virtual bool Expand() { return false; }
-        virtual bool Close() {return false; }
+        virtual void OnExpand() { }
+        virtual void OnClose() { }
+        virtual void OnClick(bool) { } // Param is true if expanding
+        virtual void OnDrawerInit() { } // Called when widget associated with this item is added to a drawer.
+
+        DrawerItemWidget* GetDrawerItemWidget() { return m_widget; }
+        void SetDrawerItemWidget(DrawerItemWidget* widget) { m_widget = widget; }
+
+    protected:
+        void AddChildWidget(DrawerItem* item, QString name, QColor baseColour);
+
+    private:
+        DrawerItemWidget* m_widget;
     };
 
     class DrawerItemWidget : public QWidget {
@@ -35,6 +47,7 @@ namespace vpa {
 
     private:
         void RotateIcon(int rot);
+        void AddChildrenToDrawer();
 
         QPixmap m_iconPixmap;
         int m_rootIdx;
@@ -59,6 +72,8 @@ namespace vpa {
 
         void ShowItem(DrawerItemWidget* item);
         void HideItem(DrawerItemWidget* item);
+
+        void Clear();
 
     private:
         QVector<DrawerItemWidget*> m_rootWidgets;

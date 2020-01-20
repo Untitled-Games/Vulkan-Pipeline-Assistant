@@ -10,10 +10,11 @@ namespace vpa {
     class SpvVectorWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvVectorWidget(SpvVectorType* type, QWidget* parent);
+        SpvVectorWidget(ContainerWidget* cont, SpvVectorType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
+        void OnClick(bool expanding) override;
 
     private slots:
         void HandleNormalize();

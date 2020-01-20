@@ -10,10 +10,11 @@ namespace vpa {
     class SpvMatrixWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvMatrixWidget(SpvMatrixType* type, QWidget* parent);
+        SpvMatrixWidget(ContainerWidget* cont, SpvMatrixType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
+        void OnClick(bool expanding) override;
 
     private slots:
         void HandleInverse();

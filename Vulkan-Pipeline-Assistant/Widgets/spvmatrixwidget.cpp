@@ -14,8 +14,8 @@
 #include "mainwindow.h"
 
 namespace vpa {
-    SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, QWidget* parent)
-        : SpvWidget(parent), m_type(type) {
+    SpvMatrixWidget::SpvMatrixWidget(ContainerWidget* cont, SpvMatrixType* type, QWidget* parent)
+        : SpvWidget(cont, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -58,6 +58,8 @@ namespace vpa {
         setLayout(layout);
 
         Fill(BYTE_CPTR(DefaultData));
+
+        hide();
     }
 
     void SpvMatrixWidget::Data(unsigned char* dataPtr) const {
@@ -76,6 +78,10 @@ namespace vpa {
                 m_inputs[row][col]->setText(QString::number(double(floatPtr[row * m_type->columns + col])));
             }
         }
+    }
+
+    void SpvMatrixWidget::OnClick(bool) {
+        m_container->ShowWidget(this);
     }
 
     void SpvMatrixWidget::HandleInverse() {

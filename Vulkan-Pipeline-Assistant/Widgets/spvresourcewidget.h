@@ -10,12 +10,14 @@ namespace vpa {
 
     class SpvResourceWidget : public SpvWidget {
     public:
-        SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent);
+        SpvResourceWidget(ContainerWidget* cont, Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent);
 
         QString Title() const;
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
+        void OnDrawerInit() override;
+        void OnClick(bool expanding) override;
 
         bool event(QEvent* event) override;
 

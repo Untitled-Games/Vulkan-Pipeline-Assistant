@@ -11,8 +11,8 @@
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    SpvStructWidget::SpvStructWidget(SpvStructType* type, QWidget* parent)
-        : SpvWidget(parent), m_type(type), m_activeIndex(0) {
+    SpvStructWidget::SpvStructWidget(ContainerWidget* cont, SpvStructType* type, QWidget* parent)
+        : SpvWidget(cont, parent), m_type(type), m_activeIndex(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
 
         m_infoGroup = new QWidget(parent);
@@ -20,53 +20,16 @@ namespace vpa {
         m_infoGroup->layout()->addWidget(new QLabel(QStringLiteral("struct"), parent));
         m_infoGroup->layout()->setAlignment(Qt::AlignTop);
 
-        m_inputsGroup = new QWidget(parent);
-        m_buttonsGroup = new QWidget(m_inputsGroup);
-        m_typesGroup = new QWidget(m_inputsGroup);
-        QHBoxLayout* inputLayout = new QHBoxLayout(m_inputsGroup);
-        QVBoxLayout* buttonsLayout = new QVBoxLayout(m_buttonsGroup);
-        QVBoxLayout* typesLayout = new QVBoxLayout(m_typesGroup);
-        inputLayout->setAlignment(Qt::AlignTop);
-        buttonsLayout->setAlignment(Qt::AlignTop);
-        typesLayout->setAlignment(Qt::AlignTop);
-
-        inputLayout->addWidget(m_buttonsGroup);
-        inputLayout->addWidget(m_typesGroup);
-        m_inputsGroup->setLayout(inputLayout);
-
         m_typeWidgets.resize(m_type->members.size());
-        m_memberButtons.resize(m_type->members.size());
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
-            if (m_type->members[i]->Type() == SpvTypeName::Vector) {
-                m_typeWidgets[i] = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_type->members[i]), parent);
-            }
-            else if (m_type->members[i]->Type() == SpvTypeName::Matrix) {
-                m_typeWidgets[i] = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_type->members[i]), parent);
-            }
-            else if (m_type->members[i]->Type() == SpvTypeName::Struct) {
-                m_typeWidgets[i] = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_type->members[i]), parent);
-            }
-            else if (m_type->members[i]->Type() == SpvTypeName::Array) {
-                m_typeWidgets[i] = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(m_type->members[i]), parent);
-            }
-            else {
-                qWarning("Invalid type found in spv struct.");
-            }
+            m_typeWidgets[i] = MakeSpvWidget(m_type->members[i], m_container);
             m_typeWidgets[i]->hide();
-            m_memberButtons[i] = new QPushButton(m_type->members[i]->name, m_buttonsGroup);
-            QObject::connect(m_memberButtons[i], &QPushButton::released, [this, i]{ this->HandleMemberButtonPress(i); });
-
-            buttonsLayout->addWidget(m_memberButtons[i]);
-            typesLayout->addWidget(m_typeWidgets[i]);
-            m_buttonsGroup->setLayout(buttonsLayout);
         }
 
-        m_typesGroup->setLayout(typesLayout);
-
         layout->addWidget(m_infoGroup);
-        layout->addWidget(m_inputsGroup);
         setLayout(layout);
-        HandleMemberButtonPress(0);
+
+        hide();
     }
 
     void SpvStructWidget::Data(unsigned char* dataPtr) const {
@@ -82,6 +45,12 @@ namespace vpa {
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
             offset = m_type->memberOffsets[i];
             m_typeWidgets[i]->Fill(data + offset);
+        }
+    }
+
+    void SpvStructWidget::OnDrawerInit() {
+        for (int i = 0; i < m_typeWidgets.size(); ++i) {
+            AddChildWidget(m_typeWidgets[i], m_type->members[i]->name, Qt::gray);
         }
     }
 

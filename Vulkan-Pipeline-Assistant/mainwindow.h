@@ -18,6 +18,9 @@ QT_END_NAMESPACE
 class QPushButton;
 
 namespace vpa {
+    class DrawerWidget;
+    class ContainerWidget;
+
     class MainWindow : public QMainWindow {
         Q_OBJECT
 
@@ -76,17 +79,17 @@ namespace vpa {
 
         QWidget* m_masterContainer;
         QWidget* m_leftColumnContainer;
-        QWidget* m_rightTopContainer;
+        ContainerWidget* m_rightTopContainer;
         QWidget* m_rightBottomContainer;
+
+        QWidget* m_descriptorArea;
+        ContainerWidget* m_descriptorContainer;
+        DrawerWidget* m_descriptorDrawer;
 
         QPushButton* m_cacheBtn;
 
         QVector<QPushButton*> m_configButtons;
         QVector<QWidget*> m_configBlocks;
-
-        int m_descriptorBlockIdx;
-        int m_unhiddenIdx;
-        int m_activeDescriptorIdx;
 
         static const QVector<QString> BoolComboOptions;
     };

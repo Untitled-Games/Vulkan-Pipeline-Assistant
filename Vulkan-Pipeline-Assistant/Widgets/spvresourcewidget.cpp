@@ -12,30 +12,19 @@
 #include "../Vulkan/descriptors.h"
 
 namespace vpa {
-    SpvResourceWidget::SpvResourceWidget(Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent)
-        : SpvWidget(parent), m_resource(resource), m_typeWidget(nullptr), m_descriptors(descriptors), m_set(set), m_index(index) {
+    SpvResourceWidget::SpvResourceWidget(ContainerWidget* cont, Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent)
+        : SpvWidget(cont, parent), m_resource(resource), m_typeWidget(nullptr), m_descriptors(descriptors), m_set(set), m_index(index) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
-        m_groupWidget = new QLabel(SpvGroupNameStrings[size_t(m_resource->group->Group())] + " " + m_resource->name, parent); // TODO more specific info
-
-        if (m_resource->type->Type() == SpvTypeName::Vector) {
-            m_typeWidget = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_resource->type), this);
-        }
-        else if (m_resource->type->Type() == SpvTypeName::Matrix) {
-            m_typeWidget = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_resource->type), this);
-        }
-        else if (m_resource->type->Type() == SpvTypeName::Struct) {
-            m_typeWidget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_resource->type), this);
-        }
-        else if (m_resource->type->Type() == SpvTypeName::Array) {
-            m_typeWidget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(m_resource->type), this);
-        }
-        else if (m_resource->type->Type() == SpvTypeName::Image) {
-            m_typeWidget = new SpvImageWidget(reinterpret_cast<SpvImageType*>(m_resource->type), this);
+        if (resource->group->Group() != SpvGroupName::PushConstant) {
+            m_groupWidget = new QLabel("layout(set = " + QString::number(m_set) + ", binding = " + QString::number(reinterpret_cast<SpvDescriptorGroup*>(resource->group)->binding) + ") " +
+                                       SpvGroupNameStrings[size_t(m_resource->group->Group())] + " " + m_resource->name, parent);
         }
         else {
-            qWarning("Invalid type found in spv array.");
+            m_groupWidget = new QLabel(ShaderStageStrings[size_t(reinterpret_cast<SpvPushConstantGroup*>(resource->group)->stage)] + " " + SpvGroupNameStrings[size_t(m_resource->group->Group())] + ", " + m_resource->name, parent);
         }
+
+        m_typeWidget = MakeSpvWidget(m_resource->type, m_container);
 
         if (m_resource->group->Group() == SpvGroupName::PushConstant) {
             m_typeWidget->Data(m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage));
@@ -46,8 +35,12 @@ namespace vpa {
         }
 
         layout->addWidget(m_groupWidget);
-        layout->addWidget(m_typeWidget);
+        if (m_resource->type->Type() == SpvTypeName::Image) {
+            layout->addWidget(m_typeWidget);
+        }
         setLayout(layout);
+
+        hide();
     }
 
     QString SpvResourceWidget::Title() const {
@@ -60,6 +53,23 @@ namespace vpa {
 
     void SpvResourceWidget::Fill(const unsigned char* data) {
         m_typeWidget->Fill(data);
+    }
+
+    void SpvResourceWidget::OnDrawerInit() {
+        if (m_resource->type->Type() == SpvTypeName::Struct) {
+            m_typeWidget->SetDrawerItemWidget(GetDrawerItemWidget());
+            m_typeWidget->OnDrawerInit();
+        }
+    }
+
+    void SpvResourceWidget::OnClick(bool expanding) {
+        if (expanding) {
+            m_container->ShowWidget(this);
+            if (m_resource->type->Type() == SpvTypeName::Image) m_typeWidget->show();
+        }
+        else {
+            if (m_resource->type->Type() == SpvTypeName::Image) m_typeWidget->hide();
+        }
     }
 
     bool SpvResourceWidget::event(QEvent* event) {

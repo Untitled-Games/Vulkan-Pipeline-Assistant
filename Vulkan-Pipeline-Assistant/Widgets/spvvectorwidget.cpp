@@ -14,8 +14,8 @@ namespace vpa {
     const QString SpvVectorWidget::VecStrings[4] = { "float", "vec2", "vec3", "vec4" };
     const QString SpvVectorWidget::ComponentStrings[4] = { "x", "y", "z", "w" };
 
-    SpvVectorWidget::SpvVectorWidget(SpvVectorType* type, QWidget* parent)
-        : SpvWidget(parent), m_type(type) {
+    SpvVectorWidget::SpvVectorWidget(ContainerWidget* cont, SpvVectorType* type, QWidget* parent)
+        : SpvWidget(cont, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -43,6 +43,8 @@ namespace vpa {
         setLayout(layout);
 
         Fill(BYTE_CPTR(DefaultData));
+
+        hide();
     }
 
     void SpvVectorWidget::Data(unsigned char* dataPtr) const {
@@ -57,6 +59,10 @@ namespace vpa {
         for (size_t i = 0; i < m_type->length; ++i) {
             m_inputs[i]->setText(QString::number(double(floatPtr[i])));
         }
+    }
+
+    void SpvVectorWidget::OnClick(bool) {
+        m_container->ShowWidget(this);
     }
 
     void SpvVectorWidget::HandleNormalize() {

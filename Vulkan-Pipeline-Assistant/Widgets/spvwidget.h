@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QEvent>
 
-#include "../common.h"
+#include "containerwidget.h"
 #include "drawerwidget.h"
 
 #define SPV_DATA_CHANGE_EVENT(parent) QEvent evnt = QEvent(SpvGuiDataChangeType); \
@@ -14,21 +14,23 @@
     QCoreApplication::sendEvent(parent, &evnt)
 
 namespace vpa {
+    struct SpvType;
     constexpr QEvent::Type SpvGuiDataChangeType = QEvent::Type(int(QEvent::Type::User) + 1);
     constexpr QEvent::Type SpvGuiImageChangeType = QEvent::Type(int(QEvent::Type::User) + 2);
 
     class ImageChangeEvent : public QEvent {
     public:
-        ImageChangeEvent(QString fileName) : QEvent(SpvGuiImageChangeType), m_fileName(fileName) {}
+        ImageChangeEvent(QString fileName) : QEvent(SpvGuiImageChangeType), m_fileName(fileName) {  }
         const QString& FileName() const { return m_fileName; }
+
     private:
         QString m_fileName;
     };
 
-    class SpvWidget : public QWidget, public DrawerItem {
+    class SpvWidget : public QWidget, public DrawerItem, public ContainerItem {
         Q_OBJECT
     public:
-        SpvWidget(QWidget* parent = nullptr) : QWidget(parent) { }
+        SpvWidget(ContainerWidget* cont, QWidget* parent = nullptr) : QWidget(parent), m_container(cont) { }
         virtual ~SpvWidget() override = default;
 
         // Get data from the widget, passed in to dataPtr
@@ -37,15 +39,14 @@ namespace vpa {
         // Fill the widget with data
         virtual void Fill(const unsigned char* data) = 0;
 
-        virtual bool event(QEvent* event) override {
-            if (event->type() == SpvGuiDataChangeType || event->type() == SpvGuiImageChangeType) {
-                event->ignore();
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
+        virtual bool event(QEvent* event) override;
+        virtual void OnClick(bool expanding) override;
+        virtual void OnRelease() override { }
+
+        static SpvWidget* MakeSpvWidget(SpvType* type, ContainerWidget* container);
+
+    protected:
+        ContainerWidget* m_container;
     };
 }
 

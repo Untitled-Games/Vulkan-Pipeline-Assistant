@@ -10,8 +10,8 @@
 #include "../Vulkan/descriptors.h"
 
 namespace vpa {
-    SpvImageWidget::SpvImageWidget(SpvImageType* type, QWidget* parent)
-        : SpvWidget(parent), m_type(type) {
+    SpvImageWidget::SpvImageWidget(ContainerWidget* cont, SpvImageType* type, QWidget* parent)
+        : SpvWidget(cont, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -41,5 +41,7 @@ namespace vpa {
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_inputsGroup);
         setLayout(layout);
+
+        hide();
     }
 }
