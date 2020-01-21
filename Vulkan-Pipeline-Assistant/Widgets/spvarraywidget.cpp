@@ -9,11 +9,12 @@
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
 #include "spvstructwidget.h"
+#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvArrayType* type, QWidget* parent)
-        : SpvWidget(cont, parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
+    SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -47,7 +48,7 @@ namespace vpa {
             QObject::connect(indexEdit, QOverload<int>::of(&QSpinBox::valueChanged), [=](int){
                 m_dimensionIndices[i] = size_t(indexEdit->value());
                 HandleArrayElementChange();
-                SPV_DATA_CHANGE_EVENT(parent);
+                m_resourceWidget->WriteDescriptorData();
             });
         }
 
@@ -55,13 +56,12 @@ namespace vpa {
         memset(m_data, 0, m_type->size);
         m_stride = m_type->subtype->size;
 
-        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea);
+        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea, m_resourceWidget);
 
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_indicesGroup);
         layout->addWidget(m_inputArea);
         setLayout(layout);
-        HandleArrayElementChange();
 
         hide();
     }
@@ -83,6 +83,11 @@ namespace vpa {
             m_inputWidget->SetDrawerItemWidget(GetDrawerItemWidget());
             m_inputWidget->OnDrawerInit();
         }
+    }
+
+    void SpvArrayWidget::Init() {
+        m_inputWidget->Init();
+        HandleArrayElementChange();
     }
 
     void SpvArrayWidget::OnClick(bool expanding) {

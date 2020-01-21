@@ -8,7 +8,7 @@ namespace vpa {
 
     class SpvImageWidget : public SpvWidget {
     public:
-        SpvImageWidget(ContainerWidget* cont, SpvImageType* type, QWidget* parent);
+        SpvImageWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvImageType* type, QWidget* parent);
 
         void Data(unsigned char*) const override { }
         void Fill(const unsigned char*) override { }

@@ -13,7 +13,7 @@
 
 namespace vpa {
     SpvResourceWidget::SpvResourceWidget(ContainerWidget* cont, Descriptors* descriptors, SpvResource* resource, uint32_t set, int index, QWidget* parent)
-        : SpvWidget(cont, parent), m_resource(resource), m_typeWidget(nullptr), m_descriptors(descriptors), m_set(set), m_index(index) {
+        : SpvWidget(cont, nullptr, parent), m_resource(resource), m_typeWidget(nullptr), m_descriptors(descriptors), m_set(set), m_index(index) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
         if (resource->group->Group() != SpvGroupName::PushConstant) {
@@ -24,7 +24,8 @@ namespace vpa {
             m_groupWidget = new QLabel(ShaderStageStrings[size_t(reinterpret_cast<SpvPushConstantGroup*>(resource->group)->stage)] + " " + SpvGroupNameStrings[size_t(m_resource->group->Group())] + ", " + m_resource->name, parent);
         }
 
-        m_typeWidget = MakeSpvWidget(m_resource->type, m_container);
+        m_typeWidget = MakeSpvWidget(m_resource->type, m_container, this);
+        m_typeWidget->Init();
 
         if (m_resource->group->Group() == SpvGroupName::PushConstant) {
             m_typeWidget->Data(m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage));
@@ -72,30 +73,24 @@ namespace vpa {
         }
     }
 
-    bool SpvResourceWidget::event(QEvent* event) {
-        if (event->type() == SpvGuiImageChangeType) {
-            if (m_typeWidget == nullptr) return true;
-            if (m_resource->group->Group() == SpvGroupName::Image) {
-                m_descriptors->LoadImage(m_set, m_index, reinterpret_cast<ImageChangeEvent*>(event)->FileName());
+    void SpvResourceWidget::WriteDescriptorData() {
+        if (m_resource->group->Group() == SpvGroupName::PushConstant) {
+            unsigned char* dataPtr = m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage);
+            if (dataPtr != nullptr) {
+                m_typeWidget->Data(dataPtr);
             }
         }
-        else if (event->type() == SpvGuiDataChangeType) {
-            if (m_typeWidget == nullptr) return true;
-            if (m_resource->group->Group() == SpvGroupName::PushConstant) {
-                unsigned char* dataPtr = m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage);
-                if (dataPtr != nullptr) {
-                    m_typeWidget->Data(dataPtr);
-                }
+        else {
+            unsigned char* dataPtr = m_descriptors->MapBufferPointer(m_set, m_index);
+            if (dataPtr != nullptr) {
+                m_typeWidget->Data(dataPtr);
+                m_descriptors->UnmapBufferPointer(m_set, m_index);
             }
-            else {
-                unsigned char* dataPtr = m_descriptors->MapBufferPointer(m_set, m_index);
-                if (dataPtr != nullptr) {
-                    m_typeWidget->Data(dataPtr);
-                    m_descriptors->UnmapBufferPointer(m_set, m_index);
-                }
-            }
-            return true;
         }
-        return false;
+    }
+
+    void SpvResourceWidget::WriteDescriptorData(QString fileName) {
+        assert(m_resource->group->Group() == SpvGroupName::Image);
+        m_descriptors->LoadImage(m_set, m_index, fileName);
     }
 }

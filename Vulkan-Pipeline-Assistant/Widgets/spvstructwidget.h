@@ -9,11 +9,12 @@ namespace vpa {
 
     class SpvStructWidget : public SpvWidget {
     public:
-        SpvStructWidget(ContainerWidget* cont, SpvStructType* type, QWidget* parent);
+        SpvStructWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvStructType* type, QWidget* parent);
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
         void OnDrawerInit() override;
+        void Init() override;
 
         SpvWidget* GetTypeWidget(int i);
 

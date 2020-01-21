@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QValidator>
 
+#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 #include "common.h"
 
@@ -14,8 +15,8 @@ namespace vpa {
     const QString SpvVectorWidget::VecStrings[4] = { "float", "vec2", "vec3", "vec4" };
     const QString SpvVectorWidget::ComponentStrings[4] = { "x", "y", "z", "w" };
 
-    SpvVectorWidget::SpvVectorWidget(ContainerWidget* cont, SpvVectorType* type, QWidget* parent)
-        : SpvWidget(cont, parent), m_type(type) {
+    SpvVectorWidget::SpvVectorWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvVectorType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -34,16 +35,13 @@ namespace vpa {
             inputsGroupLayout->addWidget(new QLabel(ComponentStrings[i]), 0, int(i));
             inputsGroupLayout->addWidget(m_inputs[i], 1, int(i));
             m_inputs[i]->setValidator(new QDoubleValidator(double(FLT_MIN + FLT_EPSILON), (double(FLT_MAX - FLT_EPSILON)), 4, m_inputs[i]));
-            QObject::connect(m_inputs[i], &QLineEdit::textChanged, [parent] { SPV_DATA_CHANGE_EVENT(parent); });
+            QObject::connect(m_inputs[i], &QLineEdit::textChanged, [this] { m_resourceWidget->WriteDescriptorData(); });
         }
 
         m_inputsGroup->setLayout(inputsGroupLayout);
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_inputsGroup);
         setLayout(layout);
-
-        Fill(BYTE_CPTR(DefaultData));
-
         hide();
     }
 
@@ -63,6 +61,11 @@ namespace vpa {
 
     void SpvVectorWidget::OnClick(bool) {
         m_container->ShowWidget(this);
+    }
+
+    void SpvVectorWidget::Init() {
+        Fill(BYTE_CPTR(DefaultData));
+        qDebug("Filled data.");
     }
 
     void SpvVectorWidget::HandleNormalize() {

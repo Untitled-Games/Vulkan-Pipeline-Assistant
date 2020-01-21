@@ -19,7 +19,8 @@ namespace vpa {
         void OnDrawerInit() override;
         void OnClick(bool expanding) override;
 
-        bool event(QEvent* event) override;
+        void WriteDescriptorData();
+        void WriteDescriptorData(QString fileName);
 
     private:
         SpvResource* m_resource;

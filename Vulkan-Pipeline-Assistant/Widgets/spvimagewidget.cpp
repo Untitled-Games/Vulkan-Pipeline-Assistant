@@ -6,12 +6,13 @@
 #include <QFileDialog>
 #include <QCoreApplication>
 
+#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 #include "../Vulkan/descriptors.h"
 
 namespace vpa {
-    SpvImageWidget::SpvImageWidget(ContainerWidget* cont, SpvImageType* type, QWidget* parent)
-        : SpvWidget(cont, parent), m_type(type) {
+    SpvImageWidget::SpvImageWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvImageType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -33,7 +34,7 @@ namespace vpa {
             if (imgFileName != "") {
                 imgPreview->setIcon(QIcon(imgFileName));
                 imgPreview->setIconSize(QSize(200, 200));
-                SPV_IMAGE_CHANGE_EVENT(parent, imgFileName);
+                m_resourceWidget->WriteDescriptorData(imgFileName);
             }
         });
 

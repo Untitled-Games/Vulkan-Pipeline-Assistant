@@ -9,13 +9,14 @@
 #include <QMatrix4x4>
 #include <QValidator>
 
+#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 #include "../Vulkan/descriptors.h"
 #include "mainwindow.h"
 
 namespace vpa {
-    SpvMatrixWidget::SpvMatrixWidget(ContainerWidget* cont, SpvMatrixType* type, QWidget* parent)
-        : SpvWidget(cont, parent), m_type(type) {
+    SpvMatrixWidget::SpvMatrixWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvMatrixType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -48,7 +49,7 @@ namespace vpa {
                 m_inputs[row][col] = new QLineEdit(m_inputsGroup);
                 m_inputs[row][col]->setValidator(new QDoubleValidator(double(FLT_MIN + FLT_EPSILON), (double(FLT_MAX - FLT_EPSILON)), 4, m_inputs[row][col]));
                 inputsGroupLayout->addWidget(m_inputs[row][col], int(row), int(col));
-                QObject::connect(m_inputs[row][col], &QLineEdit::textChanged, [parent] { SPV_DATA_CHANGE_EVENT(parent); });
+                QObject::connect(m_inputs[row][col], &QLineEdit::textChanged, [this] { m_resourceWidget->WriteDescriptorData(); });
             }
         }
 
@@ -56,8 +57,6 @@ namespace vpa {
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_inputsGroup);
         setLayout(layout);
-
-        Fill(BYTE_CPTR(DefaultData));
 
         hide();
     }
@@ -82,6 +81,10 @@ namespace vpa {
 
     void SpvMatrixWidget::OnClick(bool) {
         m_container->ShowWidget(this);
+    }
+
+    void SpvMatrixWidget::Init() {
+        Fill(BYTE_CPTR(DefaultData));
     }
 
     void SpvMatrixWidget::HandleInverse() {

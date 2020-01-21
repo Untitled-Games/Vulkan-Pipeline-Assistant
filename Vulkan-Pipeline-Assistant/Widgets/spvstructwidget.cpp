@@ -11,8 +11,8 @@
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    SpvStructWidget::SpvStructWidget(ContainerWidget* cont, SpvStructType* type, QWidget* parent)
-        : SpvWidget(cont, parent), m_type(type), m_activeIndex(0) {
+    SpvStructWidget::SpvStructWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvStructType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type), m_activeIndex(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
 
         m_infoGroup = new QWidget(parent);
@@ -22,7 +22,7 @@ namespace vpa {
 
         m_typeWidgets.resize(m_type->members.size());
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
-            m_typeWidgets[i] = MakeSpvWidget(m_type->members[i], m_container);
+            m_typeWidgets[i] = MakeSpvWidget(m_type->members[i], m_container, m_resourceWidget);
             m_typeWidgets[i]->hide();
         }
 
@@ -45,6 +45,12 @@ namespace vpa {
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
             offset = m_type->memberOffsets[i];
             m_typeWidgets[i]->Fill(data + offset);
+        }
+    }
+
+    void SpvStructWidget::Init() {
+        for (int i = 0; i < m_typeWidgets.size(); ++i) {
+            m_typeWidgets[i]->Init();
         }
     }
 

@@ -10,7 +10,7 @@ namespace vpa {
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvArrayWidget(ContainerWidget* cont, SpvArrayType* type, QWidget* parent);
+        SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent);
         ~SpvArrayWidget() override;
 
         void Data(unsigned char* dataPtr) const override;
@@ -18,6 +18,7 @@ namespace vpa {
         void OnDrawerInit() override;
         void OnClick(bool expanding) override;
         void OnRelease() override;
+        void Init() override;
 
     private slots:
         void HandleArrayElementChange();
