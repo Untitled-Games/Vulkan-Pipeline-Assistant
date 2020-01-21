@@ -15,6 +15,8 @@ namespace vpa {
         void Fill(const unsigned char* data) override;
         void OnDrawerInit() override;
 
+        SpvWidget* GetTypeWidget(int i);
+
     private slots:
         void HandleMemberButtonPress(int idx);
 

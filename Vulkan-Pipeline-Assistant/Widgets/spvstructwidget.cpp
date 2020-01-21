@@ -48,6 +48,11 @@ namespace vpa {
         }
     }
 
+    SpvWidget* SpvStructWidget::GetTypeWidget(int i) {
+         if (i < m_typeWidgets.size()) return m_typeWidgets[i];
+         else return nullptr;
+    }
+
     void SpvStructWidget::OnDrawerInit() {
         for (int i = 0; i < m_typeWidgets.size(); ++i) {
             AddChildWidget(m_typeWidgets[i], m_type->members[i]->name, Qt::gray);

@@ -79,8 +79,9 @@ namespace vpa {
     }
 
     void SpvArrayWidget::OnDrawerInit() {
-        if (m_type->subtype->Type() == SpvTypeName::Struct) { // TODO case for struct correctly
-            AddChildWidget(m_inputWidget, m_type->name, Qt::gray);
+        if (m_type->subtype->Type() == SpvTypeName::Struct) {
+            m_inputWidget->SetDrawerItemWidget(GetDrawerItemWidget());
+            m_inputWidget->OnDrawerInit();
         }
     }
 
@@ -89,6 +90,10 @@ namespace vpa {
             m_container->ShowWidget(this);
             if (m_type->subtype->Type() == SpvTypeName::Matrix || m_type->subtype->Type() == SpvTypeName::Vector) {
                 m_inputArea->ShowWidget(m_inputWidget);
+            }
+            else if (m_type->subtype->Type() == SpvTypeName::Struct) {
+                SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
+                if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
             }
         }
     }
