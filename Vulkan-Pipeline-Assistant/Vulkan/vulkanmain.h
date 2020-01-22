@@ -2,10 +2,10 @@
 #define VULKANMAIN_H
 
 #include <QVulkanInstance>
+#include <QWindow>
 
 #include "reloadflags.h"
 
-class QVulkanWindow;
 class QWidget;
 
 namespace vpa {
@@ -13,11 +13,13 @@ namespace vpa {
     class VulkanRenderer;
     class MemoryAllocator;
     class Descriptors;
+    class VulkanWindow;
+    class VulkanMain;
 
     constexpr int MaxFrameImages = 3;
     constexpr int MaxFramesInFlight = 2;
 
-    enum class VulkanStateFlags {
+    enum class VulkanState {
         Disabled, Pending, Ok
     };
 
@@ -29,15 +31,23 @@ namespace vpa {
         VkImage images[MaxFrameImages];
         VkImageView imageViews[MaxFrameImages];
         uint32_t imageCount = 0;
+        VkExtent2D extent;
     };
 
     struct VulkanDetails {
+        VulkanWindow* window = nullptr;
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+
         VkQueue graphicsQueue = VK_NULL_HANDLE;
         VkQueue presentQueue = VK_NULL_HANDLE;
         uint32_t graphicsQueueIndex = ~0U;
         uint32_t presentQueueIndex = ~0U;
+
         VkCommandPool mainCommandPool = VK_NULL_HANDLE;
         VkCommandBuffer mainCommandBuffers[MaxFrameImages];
+        uint32_t hostVisibleMemoryIndex;
+        uint32_t deviceLocalMemoryIndex;
+
         VkDevice device = VK_NULL_HANDLE;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -49,12 +59,23 @@ namespace vpa {
     };
 
     struct InternalFunctions {
-        PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR;
-        PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR;
-        PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
-        PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
-        PFN_vkQueuePresentKHR vkQueuePresentKHR;
-        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+        PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR = nullptr;
+        PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR = nullptr;
+        PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
+        PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR = nullptr;
+        PFN_vkQueuePresentKHR vkQueuePresentKHR = nullptr;
+        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
+        PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR = nullptr;
+    };
+
+    class VulkanWindow : public QWindow {
+    public:
+        VulkanWindow(VulkanMain* main) : m_main(main) { }
+        ~VulkanWindow() override = default;
+        void resizeEvent(QResizeEvent* event) override;
+        bool event(QEvent* event) override;
+    private:
+        VulkanMain* m_main;
     };
 
     class VulkanMain final {
@@ -72,8 +93,13 @@ namespace vpa {
 
         Descriptors* GetDescriptors();
         const VkPhysicalDeviceLimits& Limits() const;
+        const VulkanDetails& Details() const { return m_details; }
+        VkDevice Device() const { return m_details.device; }
 
     private:
+        void Destroy();
+        void DestroySwapchain();
+        void RecreateSwapchain();
         VPAError Create();
         VPAError CreateVkInstance(QVulkanInstance& instance);
         VPAError CreatePhysicalDevice(VkPhysicalDevice& physicalDevice);
@@ -86,7 +112,6 @@ namespace vpa {
         VPAError SubmitQueue(const uint32_t imageIdx, VkSemaphore signalSemaphores[]);
         VPAError PresentImage(const uint32_t imageIdx, VkSemaphore signalSemaphores[]);
 
-        QVulkanWindow* m_vkWindow;
         VulkanRenderer* m_renderer;
         QWidget* m_container;
         QWidget* m_parent;
@@ -95,12 +120,12 @@ namespace vpa {
 
         VulkanDetails m_details;
         InternalFunctions m_iFunctions;
-        VkSemaphore imagesAvailable[MaxFramesInFlight];
-        VkSemaphore renderFinished[MaxFramesInFlight];
-        VkFence inFlight[MaxFramesInFlight];
+        VkSemaphore m_imagesAvailable[MaxFramesInFlight];
+        VkSemaphore m_renderFinished[MaxFramesInFlight];
+        VkFence m_inFlight[MaxFramesInFlight];
         uint32_t m_frameIndex;
 
-        VulkanStateFlags m_currentState;
+        VulkanState m_currentState;
     };
 }
 

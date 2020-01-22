@@ -7,28 +7,29 @@
 #include <QCoreApplication>
 
 #include "common.h"
+#include "vulkanmain.h"
 
 namespace vpa {
-    MemoryAllocator::MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window, VPAError& err) : m_deviceFuncs(deviceFuncs), m_window(window) {
-        QVulkanFunctions* funcs = window->vulkanInstance()->functions();
+    MemoryAllocator::MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, VulkanMain* main, VPAError& err) : m_deviceFuncs(deviceFuncs), m_main(main) {
+        QVulkanFunctions* funcs = m_main->Details().functions;
         uint32_t queueCount = 0;
-        funcs->vkGetPhysicalDeviceQueueFamilyProperties(window->physicalDevice(), &queueCount, nullptr);
+        funcs->vkGetPhysicalDeviceQueueFamilyProperties(m_main->Details().physicalDevice, &queueCount, nullptr);
         QVector<VkQueueFamilyProperties> queueFamilies = QVector<VkQueueFamilyProperties>(int(queueCount));
-        funcs->vkGetPhysicalDeviceQueueFamilyProperties(window->physicalDevice(), &queueCount, queueFamilies.data());
+        funcs->vkGetPhysicalDeviceQueueFamilyProperties(m_main->Details().physicalDevice, &queueCount, queueFamilies.data());
         for (uint32_t i = 0; i < uint32_t(queueFamilies.size()); ++i) {
             if (queueFamilies[int(i)].queueFlags & VK_QUEUE_TRANSFER_BIT) {
                 m_transferQueueIdx = i;
                 break;
-            }
+            } // TODO refactor this in to the main details
         }
-        deviceFuncs->vkGetDeviceQueue(window->device(), m_transferQueueIdx, 0, &m_transferQueue);
+        deviceFuncs->vkGetDeviceQueue(m_main->Device(), m_transferQueueIdx, 0, &m_transferQueue);
 
         VkCommandPoolCreateInfo poolInfo = {};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.queueFamilyIndex = m_transferQueueIdx;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateCommandPool(window->device(), &poolInfo, nullptr, &m_commandPool), "command pool allocation", err)
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateCommandPool(m_main->Device(), &poolInfo, nullptr, &m_commandPool), "command pool allocation", err)
 
         VkCommandBufferAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -36,23 +37,23 @@ namespace vpa {
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
-        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateCommandBuffers(window->device(), &allocInfo, &m_commandBuffer), "command buffer allocation", err)
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateCommandBuffers(m_main->Device(), &allocInfo, &m_commandBuffer), "command buffer allocation", err)
     }
 
     MemoryAllocator::~MemoryAllocator() {
-        DESTROY_HANDLE(m_window->device(), m_commandPool, m_deviceFuncs->vkDestroyCommandPool)
+        DESTROY_HANDLE(m_main->Device(), m_commandPool, m_deviceFuncs->vkDestroyCommandPool)
     }
 
     unsigned char* MemoryAllocator::MapMemory(Allocation& allocation) {
         if (allocation.isMapped) return nullptr;
         unsigned char* dataPtr = nullptr;
-        m_deviceFuncs->vkMapMemory(m_window->device(), allocation.memory, 0, allocation.size, 0, reinterpret_cast<void **>(&dataPtr));
+        m_deviceFuncs->vkMapMemory(m_main->Device(), allocation.memory, 0, allocation.size, 0, reinterpret_cast<void **>(&dataPtr));
         if (dataPtr != nullptr) allocation.isMapped = true;
         return dataPtr;
     }
 
     void MemoryAllocator::UnmapMemory(Allocation& allocation) {
-        m_deviceFuncs->vkUnmapMemory(m_window->device(), allocation.memory);
+        m_deviceFuncs->vkUnmapMemory(m_main->Device(), allocation.memory);
         allocation.isMapped = false;
     }
 
@@ -68,23 +69,23 @@ namespace vpa {
 
         // TODO buffer alignment
         VPAError err = VPA_OK;
-        VPA_VKCRITICAL(m_deviceFuncs->vkCreateBuffer(m_window->device(), &bufInfo, nullptr, &allocation.buffer), qPrintable("create buffer for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkCreateBuffer(m_main->Device(), &bufInfo, nullptr, &allocation.buffer), qPrintable("create buffer for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
 
         VkMemoryRequirements memReq;
-        m_deviceFuncs->vkGetBufferMemoryRequirements(m_window->device(), allocation.buffer, &memReq);
+        m_deviceFuncs->vkGetBufferMemoryRequirements(m_main->Device(), allocation.buffer, &memReq);
 
-        VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_window->hostVisibleMemoryIndex() };
+        VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_main->Details().hostVisibleMemoryIndex };
 
-        VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_window->device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate buffer memory for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_main->Device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate buffer memory for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
-        VPA_VKCRITICAL(m_deviceFuncs->vkBindBufferMemory(m_window->device(), allocation.buffer, allocation.memory, 0), qPrintable("bind buffer memory for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkBindBufferMemory(m_main->Device(), allocation.buffer, allocation.memory, 0), qPrintable("bind buffer memory for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
@@ -101,22 +102,22 @@ namespace vpa {
         allocation.size = size;
 
         VPAError err = VPA_OK;
-        VPA_VKCRITICAL(m_deviceFuncs->vkCreateImage(m_window->device(), &createInfo, nullptr, &allocation.image), qPrintable("create image for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkCreateImage(m_main->Device(), &createInfo, nullptr, &allocation.image), qPrintable("create image for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
         VkMemoryRequirements memReq;
-        m_deviceFuncs->vkGetImageMemoryRequirements(m_window->device(), allocation.image, &memReq);
+        m_deviceFuncs->vkGetImageMemoryRequirements(m_main->Device(), allocation.image, &memReq);
 
-        VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_window->deviceLocalMemoryIndex() };
+        VkMemoryAllocateInfo memAllocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReq.size, m_main->Details().deviceLocalMemoryIndex };
 
-        VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_window->device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate image memory for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkAllocateMemory(m_main->Device(), &memAllocInfo, nullptr, &allocation.memory), qPrintable("allocate image memory for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
         }
-        VPA_VKCRITICAL(m_deviceFuncs->vkBindImageMemory(m_window->device(), allocation.image, allocation.memory, 0), qPrintable("bind image memory for allocation '" + allocation.name + "'"), err)
+        VPA_VKCRITICAL(m_deviceFuncs->vkBindImageMemory(m_main->Device(), allocation.image, allocation.memory, 0), qPrintable("bind image memory for allocation '" + allocation.name + "'"), err)
         if (err != VPA_OK) {
             Deallocate(allocation);
             return err;
@@ -126,12 +127,12 @@ namespace vpa {
 
     void MemoryAllocator::Deallocate(Allocation& allocation) {
         if (allocation.type == AllocationType::Buffer) {
-            DESTROY_HANDLE(m_window->device(), allocation.buffer, m_deviceFuncs->vkDestroyBuffer)
+            DESTROY_HANDLE(m_main->Device(), allocation.buffer, m_deviceFuncs->vkDestroyBuffer)
         }
         else {
-            DESTROY_HANDLE(m_window->device(), allocation.image, m_deviceFuncs->vkDestroyImage)
+            DESTROY_HANDLE(m_main->Device(), allocation.image, m_deviceFuncs->vkDestroyImage)
         }
-        DESTROY_HANDLE(m_window->device(), allocation.memory, m_deviceFuncs->vkFreeMemory)
+        DESTROY_HANDLE(m_main->Device(), allocation.memory, m_deviceFuncs->vkFreeMemory)
         allocation.size = 0;
     }
 

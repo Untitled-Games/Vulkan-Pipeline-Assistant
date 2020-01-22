@@ -1,19 +1,19 @@
 #include "descriptors.h"
 
+#include <QWindow>
 #include <QHash>
-#include <QVulkanWindow>
 #include <QVulkanDeviceFunctions>
 #include <algorithm>
 
-#include "common.h"
+#include "vulkanmain.h"
 
 namespace vpa {
     double Descriptors::s_aspectRatio = 0.0;
 
-    Descriptors::Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+    Descriptors::Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                              const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err)
-        : m_window(window), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE), m_limits(limits) {
-        s_aspectRatio = m_window->width() / m_window->height();
+        : m_main(main), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE), m_limits(limits) {
+        s_aspectRatio = m_main->Details().window->width() / m_main->Details().window->height();
 
         QVector<VkDescriptorPoolSize> poolSizes = {
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
@@ -33,7 +33,7 @@ namespace vpa {
         poolInfo.pPoolSizes = poolSizes.data();
         poolInfo.maxSets = setCount;
 
-        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorPool(m_window->device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool", err)
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkCreateDescriptorPool(m_main->Device(), &poolInfo, nullptr, &m_descriptorPool), "create descriptor pool", err)
 
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -42,13 +42,13 @@ namespace vpa {
         allocInfo.pSetLayouts = m_descriptorLayouts.data();
 
         m_descriptorSets.resize(m_descriptorLayouts.size());
-        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_descriptorSets[0]), "allocate shader descriptor sets", err)
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_main->Device(), &allocInfo, &m_descriptorSets[0]), "allocate shader descriptor sets", err)
 
         allocInfo.descriptorSetCount = uint32_t(m_builtInLayouts.size());
         allocInfo.pSetLayouts = m_builtInLayouts.data();
 
         m_builtInSets.resize(m_builtInLayouts.size());
-        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_window->device(), &allocInfo, &m_builtInSets[0]), "allocate built in descriptor sets", err)
+        VPA_VKCRITICAL_CTOR_PASS(m_deviceFuncs->vkAllocateDescriptorSets(m_main->Device(), &allocInfo, &m_builtInSets[0]), "allocate built in descriptor sets", err)
 
         WriteShaderDescriptors();
 
@@ -67,16 +67,16 @@ namespace vpa {
             }
         }
         for (auto& layout : m_descriptorLayouts) {
-            DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
+            DESTROY_HANDLE(m_main->Device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
         }
         for (auto& layout : m_builtInLayouts) {
-            DESTROY_HANDLE(m_window->device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
+            DESTROY_HANDLE(m_main->Device(), layout, m_deviceFuncs->vkDestroyDescriptorSetLayout)
         }
-        DESTROY_HANDLE(m_window->device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool)
+        DESTROY_HANDLE(m_main->Device(), m_descriptorPool, m_deviceFuncs->vkDestroyDescriptorPool)
     }
 
     unsigned char* Descriptors::MapBufferPointer(uint32_t set, int index) {
-        m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
+        m_deviceFuncs->vkDeviceWaitIdle(m_main->Device());
         Allocation& allocation = m_buffers[set][index].descriptor.allocation;
         return m_allocator->MapMemory(allocation);
     }
@@ -87,7 +87,7 @@ namespace vpa {
     }
 
     void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
-        m_deviceFuncs->vkDeviceWaitIdle(m_window->device());
+        m_deviceFuncs->vkDeviceWaitIdle(m_main->Device());
         ImageInfo& imageInfo = m_images[set][index];
         DestroyImage(imageInfo);
         CreateImage(imageInfo, name, true);
@@ -155,7 +155,7 @@ namespace vpa {
                 layoutInfo.bindingCount = uint32_t(bindings.size());
                 layoutInfo.pBindings = bindings.data();
                 layoutInfo.pNext = nullptr;
-                VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &layouts[i]), qPrintable("create descriptor set layout for set " + QString(set)))
+                VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_main->Device(), &layoutInfo, nullptr, &layouts[i]), qPrintable("create descriptor set layout for set " + QString(set)))
             }
         }
 
@@ -183,7 +183,7 @@ namespace vpa {
         layoutInfo.pBindings = &depthLayoutBinding;
         layoutInfo.pNext = nullptr;
 
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_window->device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::DepthPostPass)]), "create descriptor set layout for depth set ")
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_main->Device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::DepthPostPass)]), "create descriptor set layout for depth set ")
 
         return VPA_OK;
     }
@@ -294,7 +294,7 @@ namespace vpa {
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = createInfo.arrayLayers;
 
-        VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_window->device(), &viewInfo, nullptr, &imageInfo.view),
+        VPA_VKCRITICAL(m_deviceFuncs->vkCreateImageView(m_main->Device(), &viewInfo, nullptr, &imageInfo.view),
                          qPrintable("create image view for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
         if (err != VPA_OK) {
             DestroyImage(imageInfo);
@@ -318,7 +318,7 @@ namespace vpa {
         samplerInfo.mipLodBias = 0.0f;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 1.0f;
-        VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_window->device(), &samplerInfo, nullptr, &imageInfo.sampler),
+        VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_main->Device(), &samplerInfo, nullptr, &imageInfo.sampler),
                          qPrintable("create sampler for allocation '" + imageInfo.descriptor.allocation.name + "'"), err)
         if (err != VPA_OK) {
             DestroyImage(imageInfo);
@@ -349,7 +349,7 @@ namespace vpa {
             imageInfo.descriptor.writeSet.descriptorCount = 1;
             imageInfo.descriptor.writeSet.pImageInfo = &imageInfo.imageInfo;
             writes.push_back(imageInfo.descriptor.writeSet);
-            m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+            m_deviceFuncs->vkUpdateDescriptorSets(m_main->Device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
         }
         return VPA_OK;
     }
@@ -384,7 +384,7 @@ namespace vpa {
             }
         }
 
-        m_deviceFuncs->vkUpdateDescriptorSets(m_window->device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
+        m_deviceFuncs->vkUpdateDescriptorSets(m_main->Device(), uint32_t(writes.size()), writes.data(), 0, nullptr);
     }
 
     PushConstantInfo Descriptors::CreatePushConstant(SpvResource* resource) {
@@ -422,8 +422,8 @@ namespace vpa {
     }
 
     void Descriptors::DestroyImage(ImageInfo& imageInfo) {
-        DESTROY_HANDLE(m_window->device(), imageInfo.sampler, m_deviceFuncs->vkDestroySampler)
-        DESTROY_HANDLE(m_window->device(), imageInfo.view, m_deviceFuncs->vkDestroyImageView)
+        DESTROY_HANDLE(m_main->Device(), imageInfo.sampler, m_deviceFuncs->vkDestroySampler)
+        DESTROY_HANDLE(m_main->Device(), imageInfo.view, m_deviceFuncs->vkDestroyImageView)
         m_allocator->Deallocate(imageInfo.descriptor.allocation);
     }
 

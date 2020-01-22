@@ -41,6 +41,7 @@ namespace vpa {
         m_rightBottomContainer = new QWidget(m_masterContainer);
         m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
         m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this), std::bind(&MainWindow::CreateInterface, this));
+        CreateInterface();
 
         m_layout->addWidget(m_leftColumnContainer, 0, 0);
         m_layout->addWidget(m_rightTopContainer, 0, 1);

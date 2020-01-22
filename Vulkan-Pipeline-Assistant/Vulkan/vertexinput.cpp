@@ -8,17 +8,6 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-/*vertexBindingDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputBindings
-
-vertexAttributeDescriptionCount must be less than or equal to VkPhysicalDeviceLimits::maxVertexInputAttributes
-
-For every binding specified by each element of pVertexAttributeDescriptions, a VkVertexInputBindingDescription must exist in pVertexBindingDescriptions with the same value of binding
-
-All elements of pVertexBindingDescriptions must describe distinct binding numbers
-
-All elements of pVertexAttributeDescriptions must describe distinct attribute locations*/
-
-
 namespace vpa {
     VertexInput::VertexInput(QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                              QVector<SpvResource*> inputResources, QString meshName, bool isIndexed, VPAError& err)

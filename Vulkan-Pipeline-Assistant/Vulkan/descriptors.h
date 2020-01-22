@@ -11,6 +11,8 @@
 #include "memoryallocator.h"
 
 namespace vpa {
+    class VulkanMain;
+
     struct DescriptorInfo {
         uint32_t set = 0;
         uint32_t binding = 0;
@@ -49,7 +51,7 @@ namespace vpa {
         static constexpr float NearPlane = 1.0f;
         static constexpr float FarPlane = 100.0f;
     public:
-        Descriptors(QVulkanWindow* window, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+        Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err);
         ~Descriptors();
 
@@ -94,7 +96,7 @@ namespace vpa {
 
         VkImageCreateInfo MakeImageCreateInfo(const SpvImageType* type, uint32_t width, uint32_t height, uint32_t depth) const;
 
-        QVulkanWindow* m_window;
+        VulkanMain* m_main;
         QVulkanDeviceFunctions* m_deviceFuncs;
 
         MemoryAllocator* m_allocator;

@@ -1,50 +1,104 @@
 #include "vulkanmain.h"
 #include "vulkanrenderer.h"
 
-#include <QVulkanWindow>
 #include <QVulkanFunctions>
 #include <QLoggingCategory>
 #include <QLayout>
 #include <QWidget>
 #include <QVulkanDeviceFunctions>
+#include <QPlatformSurfaceEvent>
 
 #include "common.h"
 
 namespace vpa {
-    class VulkanWindow : public QVulkanWindow {
-    public:
-        VulkanWindow(VulkanMain* main,std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
-            : m_main(main), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) { }
-        QVulkanWindowRenderer* createRenderer() override {
-            return new VulkanRenderer(this, m_main, m_creationCallback, m_postInitCallback);
+    void VulkanWindow::resizeEvent(QResizeEvent* event) {
+        //m_main->RecreateSwapchain();
+    }
+
+    bool VulkanWindow::event(QEvent* event) {
+        switch (event->type()) {
+        case QEvent::UpdateRequest:
+            //m_main->ExecuteFrame(); TODO
+            break;
+        case QEvent::PlatformSurface:
+            if (static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+                m_main->Destroy();
+            }
+            break;
+        default:
+            break;
         }
-    private:
-        VulkanMain* m_main;
-        std::function<void(void)> m_creationCallback;
-        std::function<void(void)> m_postInitCallback;
-    };
+
+        return QWindow::event(event);
+    }
 
     VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
-        : m_vkWindow(nullptr), m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
+        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
+        m_details.window = nullptr;
+        m_renderer = new VulkanRenderer(this, creationCallback, postInitCallback);
+        memset(m_renderFinished, 0, sizeof(m_renderFinished));
+        memset(m_imagesAvailable, 0, sizeof(m_renderFinished));
+        memset(m_inFlight, 0, sizeof(m_renderFinished));
+        memset(m_details.swapchainDetails.imageViews, 0, sizeof(m_details.swapchainDetails.imageViews));
         VPAError err = Create();
         if (err != VPA_OK) {
             qFatal("Error in vulkan main create %s", qPrintable(err.message));
         }
+        m_currentState = VulkanState::Ok;
+        m_currentState = VulkanState::Disabled; // TODO remove after testing
     }
 
     VulkanMain::~VulkanMain() {
-        delete m_vkWindow;
+        delete m_renderer;
+        delete m_details.window;
         delete m_container;
     }
 
-    VPAError VulkanMain::Create() {
-        CreateVkInstance(m_details.instance);
-        CreatePhysicalDevice(m_details.physicalDevice);
-        CreateDevice(m_details.device);
+    void VulkanMain::Destroy() {
+        if (m_details.device != VK_NULL_HANDLE) m_details.deviceFunctions->vkDeviceWaitIdle(m_details.device);
+        m_frameIndex = 0;
+        DestroySwapchain();
+        if (m_details.mainCommandPool != VK_NULL_HANDLE) {
+            m_details.deviceFunctions->vkFreeCommandBuffers(m_details.device, m_details.mainCommandPool, uint32_t(MaxFrameImages), m_details.mainCommandBuffers);
+            m_details.deviceFunctions->vkDestroyCommandPool(m_details.device, m_details.mainCommandPool, nullptr);
+        }
+        if (m_details.device != VK_NULL_HANDLE) {
+            m_details.deviceFunctions->vkDestroyDevice(m_details.device, nullptr);
+        }
+        // TODO work out if need to destory surface and instance?
+        m_currentState = VulkanState::Pending;
+    }
 
-        m_container = QWidget::createWindowContainer(m_vkWindow);
-        m_container->setFocusPolicy(Qt::NoFocus);
-        m_parent->layout()->addWidget(m_container);
+    void VulkanMain::DestroySwapchain() {
+        m_renderer->Release();
+        for (size_t i = 0; i < MaxFramesInFlight; ++i) {
+            DESTROY_HANDLE(m_details.device, m_renderFinished[i], m_details.deviceFunctions->vkDestroySemaphore)
+            DESTROY_HANDLE(m_details.device, m_imagesAvailable[i], m_details.deviceFunctions->vkDestroySemaphore)
+            DESTROY_HANDLE(m_details.device, m_inFlight[i], m_details.deviceFunctions->vkDestroyFence)
+        }
+        memset(m_renderFinished, 0, sizeof(m_renderFinished));
+        memset(m_imagesAvailable, 0, sizeof(m_renderFinished));
+        memset(m_inFlight, 0, sizeof(m_renderFinished));
+        for (VkImageView view : m_details.swapchainDetails.imageViews) {
+            DESTROY_HANDLE(m_details.device, view, m_details.deviceFunctions->vkDestroyImageView)
+        }
+        memset(m_details.swapchainDetails.imageViews, 0, sizeof(m_details.swapchainDetails.imageViews));
+        DESTROY_HANDLE(m_details.device, m_details.swapchainDetails.swapchain, m_iFunctions.vkDestroySwapchainKHR)
+    }
+
+    void VulkanMain::RecreateSwapchain() {
+        m_details.deviceFunctions->vkDeviceWaitIdle(m_details.device);
+        // TODO
+    }
+
+    VPAError VulkanMain::Create() {
+        Destroy();
+        VPA_PASS_ERROR(CreateVkInstance(m_details.instance))
+        VPA_PASS_ERROR(CreatePhysicalDevice(m_details.physicalDevice))
+        VPA_PASS_ERROR(CreateDevice(m_details.device))
+        VPA_PASS_ERROR(CreateSwapchain(m_details.swapchainDetails))
+
+        m_renderer->Init();
 
         return VPA_OK;
     }
@@ -63,10 +117,17 @@ namespace vpa {
 
         m_details.functions = m_details.instance.functions();
 
-        m_vkWindow = new VulkanWindow(this, m_creationCallback, m_postInitCallback); // TODO remove and replace with QWindow
-        m_vkWindow->setVulkanInstance(&m_details.instance);
-        m_vkWindow->setFlags(m_vkWindow->PersistentResources);
-        m_vkWindow->show();
+        m_details.window = new VulkanWindow(this);
+        m_details.window->setVulkanInstance(&instance);
+        m_details.window->setSurfaceType(QWindow::SurfaceType::VulkanSurface);
+        m_details.window->show();
+
+        m_container = QWidget::createWindowContainer(m_details.window);
+        m_container->setFocusPolicy(Qt::NoFocus);
+        m_parent->layout()->addWidget(m_container);
+
+        m_details.surface = QVulkanInstance::surfaceForWindow(m_details.window);
+        if (m_details.surface == VK_NULL_HANDLE) return VPA_CRITICAL("Cannot get vulkan surface");
 
         return VPA_OK;
     }
@@ -91,8 +152,21 @@ namespace vpa {
 
         m_iFunctions.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(
                             m_details.instance.getInstanceProcAddr("vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
-        if (!m_iFunctions.vkGetPhysicalDeviceSurfaceCapabilitiesKHR) {
+        m_iFunctions.vkGetPhysicalDeviceSurfaceSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(
+                    m_details.instance.getInstanceProcAddr("vkGetPhysicalDeviceSurfaceSupportKHR"));
+        if (!m_iFunctions.vkGetPhysicalDeviceSurfaceCapabilitiesKHR || !m_iFunctions.vkGetPhysicalDeviceSurfaceSupportKHR) {
             return VPA_CRITICAL("Physical device surface queries not available");
+        }
+
+        VkPhysicalDeviceMemoryProperties memoryProperties;
+        m_details.functions->vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
+            if (memoryProperties.memoryTypes[i].propertyFlags == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+                m_details.deviceLocalMemoryIndex = memoryProperties.memoryTypes[i].heapIndex;
+            }
+            else if (memoryProperties.memoryTypes[i].propertyFlags == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+                m_details.hostVisibleMemoryIndex = memoryProperties.memoryTypes[i].heapIndex;
+            }
         }
 
         return VPA_OK;
@@ -110,29 +184,29 @@ namespace vpa {
         m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(m_details.physicalDevice, &queueCount, nullptr);
         QVector<VkQueueFamilyProperties> queueFamilyProps = QVector<VkQueueFamilyProperties>(int(queueCount));
         m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(m_details.physicalDevice, &queueCount, queueFamilyProps.data());
-        m_details.graphicsQueueIndex = uint32_t(-1);
-        m_details.presentQueueIndex = uint32_t(-1);
+        m_details.graphicsQueueIndex = ~0U;
+        m_details.presentQueueIndex = ~0U;
         for (int i = 0; i < queueFamilyProps.count(); ++i) {
-           const bool supportsPresent = m_details.instance.supportsPresent(m_details.physicalDevice, uint32_t(i), m_vkWindow);
-           if (m_details.graphicsQueueIndex == uint32_t(-1)
+           const bool supportsPresent = m_details.instance.supportsPresent(m_details.physicalDevice, uint32_t(i), m_details.window);
+           if (m_details.graphicsQueueIndex == ~0U
                    && (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
                    && supportsPresent)
                m_details.graphicsQueueIndex = uint32_t(i);
         }
-        if (m_details.graphicsQueueIndex != uint32_t(-1)) {
+        if (m_details.graphicsQueueIndex != ~0U) {
            m_details.presentQueueIndex = m_details.graphicsQueueIndex;
         }
         else {
            for (uint32_t i = 0; i < uint32_t(queueFamilyProps.count()); ++i) {
-               if (m_details.graphicsQueueIndex == uint32_t(-1) && (queueFamilyProps[int(i)].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+               if (m_details.graphicsQueueIndex == ~0U && (queueFamilyProps[int(i)].queueFlags & VK_QUEUE_GRAPHICS_BIT))
                    m_details.graphicsQueueIndex = i;
-               if (m_details.presentQueueIndex == uint32_t(-1) && m_details.instance.supportsPresent(m_details.physicalDevice, i, m_vkWindow))
+               if (m_details.presentQueueIndex == ~0U && m_details.instance.supportsPresent(m_details.physicalDevice, i, m_details.window))
                    m_details.presentQueueIndex = i;
            }
         }
 
-        if (m_details.graphicsQueueIndex == uint32_t(-1)) return VPA_CRITICAL("No graphics queue family found");
-        if (m_details.presentQueueIndex == uint32_t(-1)) return VPA_CRITICAL("No present queue family found");
+        if (m_details.graphicsQueueIndex == ~0U) return VPA_CRITICAL("No graphics queue family found");
+        if (m_details.presentQueueIndex == ~0U) return VPA_CRITICAL("No present queue family found");
 
         QVector<VkDeviceQueueCreateInfo> queueInfo;
         queueInfo.reserve(2);
@@ -152,7 +226,18 @@ namespace vpa {
         }
 
         QVector<const char *> devExts;
-        QVulkanInfoVector<QVulkanExtension> supportedExtensions = m_vkWindow->supportedDeviceExtensions();
+        uint32_t count = 0;
+        m_details.functions->vkEnumerateDeviceExtensionProperties(m_details.physicalDevice, nullptr, &count, nullptr);
+        QVector<VkExtensionProperties> supportedExtensions = QVector<VkExtensionProperties>(int(count));
+        m_details.functions->vkEnumerateDeviceExtensionProperties(m_details.physicalDevice, nullptr, &count, supportedExtensions.data());
+        QVulkanInfoVector<QVulkanExtension> exts;
+        for (const VkExtensionProperties &prop : supportedExtensions) {
+            QVulkanExtension ext;
+            ext.name = prop.extensionName;
+            ext.version = prop.specVersion;
+            exts.append(ext);
+        }
+
         QByteArrayList reqExts =  m_details.instance.extensions();
         reqExts.append("VK_KHR_swapchain");
 
@@ -165,8 +250,7 @@ namespace vpa {
         }
 
         for (const QByteArray &ext : reqExts) {
-            if (supportedExtensions.contains(ext))
-                devExts.append(ext.constData());
+            if (exts.contains(ext)) devExts.append(ext.constData());
         }
 
         VkDeviceCreateInfo deviceCreateInfo = {};
@@ -213,7 +297,7 @@ namespace vpa {
 
     VPAError VulkanMain::CreateSwapchain(SwapchainDetails& swapchainDetails) {
 
-        VkSurfaceKHR surface = m_details.instance.surfaceForWindow(m_vkWindow);
+        VkSurfaceKHR surface = m_details.instance.surfaceForWindow(m_details.window);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
         m_iFunctions.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_details.physicalDevice, surface, &surfaceCapabilities);
@@ -232,6 +316,9 @@ namespace vpa {
         }*/
         swapchainDetails.surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
         swapchainDetails.surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        if (surfaceCapabilities.currentExtent.width != ~0U) {
+            m_details.swapchainDetails.extent = surfaceCapabilities.currentExtent;
+        }
 
         VkSwapchainCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -239,7 +326,7 @@ namespace vpa {
         createInfo.minImageCount = imageCount;
         createInfo.imageFormat = swapchainDetails.surfaceFormat.format;
         createInfo.imageColorSpace = swapchainDetails.surfaceFormat.colorSpace;
-        createInfo.imageExtent = { uint32_t(m_vkWindow->width()), uint32_t(m_vkWindow->height()) };
+        createInfo.imageExtent = swapchainDetails.extent;
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -303,27 +390,27 @@ namespace vpa {
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for (size_t i = 0; i < MaxFrameImages; ++i) {
-            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &imagesAvailable[i]), "Create sempahore for swapchain")
-            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &renderFinished[i]), "Create sempahore for swapchain")
-            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateFence(m_details.device, &fenceInfo, nullptr, &inFlight[i]), "Create fence for swapchain")
+            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &m_imagesAvailable[i]), "Create sempahore for swapchain")
+            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &m_renderFinished[i]), "Create sempahore for swapchain")
+            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateFence(m_details.device, &fenceInfo, nullptr, &m_inFlight[i]), "Create fence for swapchain")
         }
 
         return VPA_OK;
     }
 
     VPAError VulkanMain::ExecuteFrame() {
-        if (m_currentState == VulkanStateFlags::Disabled) {
+        if (m_currentState == VulkanState::Disabled) {
             return VPA_OK;
         }
-        else if (m_currentState == VulkanStateFlags::Pending) {
-            VPA_PASS_ERROR(Create());
+        else if (m_currentState == VulkanState::Pending) {
+            VPA_PASS_ERROR(Create())
         }
 
         uint32_t imageIdx;
-        VPA_PASS_ERROR(AquireImage(imageIdx));
+        VPA_PASS_ERROR(AquireImage(imageIdx))
         VkCommandBuffer cmdBuffer = m_details.mainCommandBuffers[imageIdx];
 
-        VkSemaphore signalSemaphores[] = { renderFinished[m_frameIndex] };
+        VkSemaphore signalSemaphores[] = { m_renderFinished[m_frameIndex] };
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkResetCommandBuffer(cmdBuffer, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT), "Reset command buffer")
         VkCommandBufferBeginInfo beginInfo = {};
@@ -332,20 +419,22 @@ namespace vpa {
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkBeginCommandBuffer(cmdBuffer, &beginInfo), "Begin main command buffer for frame index " + QString::number(m_frameIndex))
 
-        m_renderer->RenderFrame(cmdBuffer);
+        m_renderer->RenderFrame(cmdBuffer, m_frameIndex);
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkEndCommandBuffer(cmdBuffer), "End main command buffer")
 
         SubmitQueue(imageIdx, signalSemaphores);
         PresentImage(imageIdx, signalSemaphores);
 
+        m_details.window->requestUpdate();
+
         return VPA_OK;
     }
 
     VPAError VulkanMain::AquireImage(uint32_t& imageIdx) {
-        VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkWaitForFences(m_details.device, 1, &inFlight[m_frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max()), "Wait for swapchain fences")
+        VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkWaitForFences(m_details.device, 1, &m_inFlight[m_frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max()), "Wait for swapchain fences")
         VPA_VKCRITICAL_PASS(m_iFunctions.vkAcquireNextImageKHR(m_details.device, m_details.swapchainDetails.swapchain, std::numeric_limits<uint64_t>::max(),
-                imagesAvailable[m_frameIndex], VK_NULL_HANDLE, &imageIdx), "Aquire next swapchain image")
+                m_imagesAvailable[m_frameIndex], VK_NULL_HANDLE, &imageIdx), "Aquire next swapchain image")
         return VPA_OK;
     }
 
@@ -353,7 +442,7 @@ namespace vpa {
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore waitSemaphores[] = { imagesAvailable[m_frameIndex] };
+        VkSemaphore waitSemaphores[] = { m_imagesAvailable[m_frameIndex] };
         VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
@@ -363,9 +452,9 @@ namespace vpa {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        m_details.deviceFunctions->vkResetFences(m_details.device, 1, &inFlight[m_frameIndex]);
+        m_details.deviceFunctions->vkResetFences(m_details.device, 1, &m_inFlight[m_frameIndex]);
 
-        VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkQueueSubmit(m_details.graphicsQueue, 1, &submitInfo, inFlight[m_frameIndex]), "Graphics queue submit")
+        VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkQueueSubmit(m_details.graphicsQueue, 1, &submitInfo, m_inFlight[m_frameIndex]), "Graphics queue submit")
 
         return VPA_OK;
     }
@@ -409,7 +498,7 @@ namespace vpa {
     }
 
     const VkPhysicalDeviceLimits& VulkanMain::Limits() const {
-        return m_vkWindow->physicalDeviceProperties()->limits;
+        return m_details.physicalDeviceProperties.limits;
     }
 
     void VulkanMain::Reload(const ReloadFlags flag) {

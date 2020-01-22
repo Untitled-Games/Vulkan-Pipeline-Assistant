@@ -7,9 +7,10 @@
 #include "../common.h"
 
 class QVulkanDeviceFunctions;
-class QVulkanWindow;
 class QImage;
 namespace vpa {
+    class VulkanMain;
+
     enum class AllocationType {
         Buffer, Image
     };
@@ -28,7 +29,7 @@ namespace vpa {
 
     class MemoryAllocator final {
     public:
-        MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, QVulkanWindow* window, VPAError& err);
+        MemoryAllocator(QVulkanDeviceFunctions* deviceFuncs, VulkanMain* main, VPAError& err);
         ~MemoryAllocator();
 
         unsigned char* MapMemory(Allocation& allocation);
@@ -41,7 +42,7 @@ namespace vpa {
 
     private:
         QVulkanDeviceFunctions* m_deviceFuncs;
-        QVulkanWindow* m_window;
+        VulkanMain* m_main;
         VkCommandPool m_commandPool;
         VkCommandBuffer m_commandBuffer;
         uint32_t m_transferQueueIdx;

@@ -27,7 +27,7 @@
 #define VPA_WARN(msg) VPAError(VPAErrorLevel::Warning, msg)
 #define VPA_CRITICAL(msg) VPAError(VPAErrorLevel::Critical, msg)
 #define VPA_FATAL(msg) { QMessageBox::critical(nullptr, "VPA Fatal Error", msg);  QCoreApplication::quit(); } // Sources using this macro must include <QMessageBox> and <QCoreApplication>
-#define VPA_PASS_ERROR(err) if (err != VPA_OK) return err
+#define VPA_PASS_ERROR(err) { VPAError e = err; if (e != VPA_OK) return e; }
 
 // VPAError decoration for vulkan functions which return a VkResult
 #define VKRESULT_MESSAGE(result, name) "VkResult for" + QString(name) + "error code" + QString::number(result)
