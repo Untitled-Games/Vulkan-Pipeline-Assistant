@@ -83,10 +83,13 @@ namespace vpa {
             CreateDevice(m_details.device);
             VPAError err = Create(false);
             if (err != VPA_OK) {
-                qFatal("Error in vulkan main create %s", qPrintable(err.message));
+                m_currentState = VulkanState::Disabled;
+                Destroy();
             }
-            m_currentState = VulkanState::Ok;
-            m_details.window->requestUpdate();
+            else {
+                m_currentState = VulkanState::Ok;
+                m_details.window->requestUpdate();
+            }
         });
     }
 
@@ -97,6 +100,7 @@ namespace vpa {
     }
 
     void VulkanMain::Destroy() {
+        if (!m_details.deviceFunctions) return; // Cannot destroy if functions todestroy don't exist
         if (m_details.device != VK_NULL_HANDLE) m_details.deviceFunctions->vkDeviceWaitIdle(m_details.device);
         m_frameIndex = 0;
         m_renderer->Release();
@@ -487,8 +491,8 @@ namespace vpa {
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkEndCommandBuffer(cmdBuffer), "End main command buffer");
 
-        SubmitQueue(imageIdx, signalSemaphores);
-        PresentImage(imageIdx, signalSemaphores);
+        VPA_PASS_ERROR(SubmitQueue(imageIdx, signalSemaphores));
+        VPA_PASS_ERROR(PresentImage(imageIdx, signalSemaphores));
 
         return VPA_OK;
     }
