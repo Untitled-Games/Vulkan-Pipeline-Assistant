@@ -70,12 +70,17 @@ namespace vpa {
 
     class VulkanWindow : public QWindow {
     public:
-        VulkanWindow(VulkanMain* main) : m_main(main) { }
+        VulkanWindow(VulkanMain* main) : m_main(main), m_handlingResize(false) { }
         ~VulkanWindow() override = default;
         void resizeEvent(QResizeEvent* event) override;
         bool event(QEvent* event) override;
+        void showEvent(QShowEvent* event) override;
+        void hideEvent(QHideEvent* event) override;
+        void HandlingResize(bool handling) { m_handlingResize = handling; }
+
     private:
         VulkanMain* m_main;
+        bool m_handlingResize;
     };
 
     class VulkanMain final {
@@ -91,16 +96,18 @@ namespace vpa {
 
         void Reload(const ReloadFlags flag);
         void RequestUpdate();
+        void RecreateSwapchain();
 
         Descriptors* GetDescriptors();
         const VkPhysicalDeviceLimits& Limits() const;
         const VulkanDetails& Details() const { return m_details; }
         VkDevice Device() const { return m_details.device; }
 
+        VulkanState State() const { return m_currentState; }
+
     private:
         void Destroy();
         void DestroySwapchain();
-        void RecreateSwapchain();
         VPAError Create(bool destroy = true);
         VPAError CreateVkInstance(QVulkanInstance& instance);
         VPAError CreatePhysicalDevice(VkPhysicalDevice& physicalDevice);

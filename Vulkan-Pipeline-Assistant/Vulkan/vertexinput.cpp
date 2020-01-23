@@ -83,14 +83,14 @@ namespace vpa {
             }
         }
 
-        VPA_PASS_ERROR(m_allocator->Allocate(size_t(verts.size()) * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "Vertex buffer", m_vertexAllocation))
+        VPA_PASS_ERROR(m_allocator->Allocate(size_t(verts.size()) * sizeof(float), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "Vertex buffer", m_vertexAllocation));
         unsigned char* data = m_allocator->MapMemory(m_vertexAllocation);
         memcpy(data, verts.data(), size_t(verts.size()) * sizeof(float));
         m_allocator->UnmapMemory(m_vertexAllocation);
 
         if (m_indexed) {
             m_indexCount = uint32_t(indices.size());
-            VPA_PASS_ERROR(m_allocator->Allocate(m_indexCount * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, "Index buffer", m_indexAllocation))
+            VPA_PASS_ERROR(m_allocator->Allocate(m_indexCount * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, "Index buffer", m_indexAllocation));
             data = m_allocator->MapMemory(m_indexAllocation);
             memcpy(data, indices.data(), size_t(indices.size()) * sizeof(uint32_t));
             m_allocator->UnmapMemory(m_indexAllocation);

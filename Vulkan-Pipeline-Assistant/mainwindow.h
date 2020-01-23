@@ -40,9 +40,11 @@ namespace vpa {
         };
     public:
         MainWindow(QWidget* parent = nullptr);
-        ~MainWindow();
+        ~MainWindow() override;
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
+
+        bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
     private slots:
         void HandleConfigAreaChange(int toIdx);
         void HandleViewChangeReset(QVector<QLineEdit*> v);

@@ -3,6 +3,7 @@
 
 #include <QPushButton>
 #include <QFileDialog>
+#include <qt_windows.h>
 
 #include "Vulkan/pipelineconfig.h"
 #include "Vulkan/descriptors.h"
@@ -55,6 +56,26 @@ namespace vpa {
 
     MainWindow::~MainWindow() {
         delete m_ui;
+    }
+
+    bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result) {
+        Q_UNUSED(result)
+        Q_UNUSED(eventType)
+        if (QGuiApplication::platformName() == "windows") {
+            MSG* msg = static_cast<MSG*>(message);
+            if (msg->message == WM_ENTERSIZEMOVE) {
+                if (m_vulkan) m_vulkan->Details().window->HandlingResize(true);
+                return true;
+            }
+            else if(msg->message == WM_EXITSIZEMOVE) {
+                if (m_vulkan) {
+                    m_vulkan->Details().window->HandlingResize(false);
+                    if (m_vulkan->State() == VulkanState::Ok) m_vulkan->RecreateSwapchain();
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     void MainWindow::CreateInterface() {

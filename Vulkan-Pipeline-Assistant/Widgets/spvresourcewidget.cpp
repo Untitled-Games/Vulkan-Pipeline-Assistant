@@ -79,6 +79,7 @@ namespace vpa {
             unsigned char* dataPtr = m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage);
             if (dataPtr != nullptr) {
                 m_typeWidget->Data(dataPtr);
+                m_descriptors->CompletePushConstantData();
             }
         }
         else {
