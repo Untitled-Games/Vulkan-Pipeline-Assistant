@@ -138,7 +138,7 @@ namespace vpa {
 
     VPAError MemoryAllocator::TransferImageMemory(Allocation& imageAllocation, const VkExtent3D extent, const QImage& image, VkPipelineStageFlags finalStageFlags) {
         Allocation stagingAllocation;
-        VPA_PASS_ERROR(Allocate(imageAllocation.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging_buffer", stagingAllocation));
+        VPA_PASS_ERROR(Allocate(imageAllocation.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging_buffer", stagingAllocation))
 
         uint32_t rowLength = uint32_t(image.width()) * 4;
 

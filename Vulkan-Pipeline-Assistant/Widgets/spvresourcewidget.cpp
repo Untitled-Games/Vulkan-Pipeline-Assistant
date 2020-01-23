@@ -29,6 +29,7 @@ namespace vpa {
 
         if (m_resource->group->Group() == SpvGroupName::PushConstant) {
             m_typeWidget->Data(m_descriptors->PushConstantData(reinterpret_cast<SpvPushConstantGroup*>(m_resource->group)->stage));
+            m_descriptors->CompletePushConstantData();
         }
         else {
             m_typeWidget->Data(m_descriptors->MapBufferPointer(m_set, m_index));

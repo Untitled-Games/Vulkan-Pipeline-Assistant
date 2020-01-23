@@ -16,8 +16,8 @@ namespace vpa {
     class VulkanWindow;
     class VulkanMain;
 
-    constexpr int MaxFrameImages = 3;
-    constexpr int MaxFramesInFlight = 2;
+    constexpr uint32_t MaxFrameImages = 3;
+    constexpr uint32_t MaxFramesInFlight = 2;
 
     enum class VulkanState {
         Disabled, Pending, Ok
@@ -90,6 +90,7 @@ namespace vpa {
         PipelineConfig& GetConfig();
 
         void Reload(const ReloadFlags flag);
+        void RequestUpdate();
 
         Descriptors* GetDescriptors();
         const VkPhysicalDeviceLimits& Limits() const;
@@ -100,12 +101,14 @@ namespace vpa {
         void Destroy();
         void DestroySwapchain();
         void RecreateSwapchain();
-        VPAError Create();
+        VPAError Create(bool destroy = true);
         VPAError CreateVkInstance(QVulkanInstance& instance);
         VPAError CreatePhysicalDevice(VkPhysicalDevice& physicalDevice);
         bool PhysicalDeviceValid();
         VPAError CreateDevice(VkDevice& device);
         VPAError CreateSwapchain(SwapchainDetails& swapchain);
+        VkExtent2D CalculateExtent();
+        VPAError CreateSync();
 
         VPAError ExecuteFrame();
         VPAError AquireImage(uint32_t& imageIdx);

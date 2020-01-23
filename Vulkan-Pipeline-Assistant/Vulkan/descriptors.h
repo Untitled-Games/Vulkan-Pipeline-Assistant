@@ -63,6 +63,8 @@ namespace vpa {
         void UnmapBufferPointer(uint32_t set, int index);
         void LoadImage(const uint32_t set, const int index, const QString name);
         unsigned char* PushConstantData(ShaderStage stage);
+        // CompletePushConstantData should be called after modifying any push constant data to update the display.
+        void CompletePushConstantData();
 
         void CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;
         void CmdPushConstants(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const;

@@ -36,13 +36,13 @@ namespace vpa {
         memset(m_compilers, NULL, sizeof(m_compilers));
 
         for (SpvResource* resource : m_inputAttributes) {
-            delete resource;
+            if (resource) delete resource;
         }
         for (SpvResource* resource : m_pushConstants) {
-            delete resource;
+            if (resource)  delete resource;
         }
         for (SpvResource* resource : m_descriptorLayoutMap.values()) {
-            delete resource;
+            if (resource)  delete resource;
         }
         m_pushConstants.clear();
         m_inputAttributes.clear();

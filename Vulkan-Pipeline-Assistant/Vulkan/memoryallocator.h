@@ -22,7 +22,7 @@ namespace vpa {
         VkDeviceSize size = 0;
         bool isMapped = false;
         union {
-            VkBuffer buffer;
+            VkBuffer buffer = VK_NULL_HANDLE;
             VkImage image;
         };
     };

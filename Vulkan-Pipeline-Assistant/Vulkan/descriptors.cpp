@@ -84,6 +84,7 @@ namespace vpa {
     void Descriptors::UnmapBufferPointer(uint32_t set, int index) {
         Allocation& allocation = m_buffers[set][index].descriptor.allocation;
         m_allocator->UnmapMemory(allocation);
+        m_main->RequestUpdate();
     }
 
     void Descriptors::LoadImage(const uint32_t set, const int index, const QString name) {
@@ -91,11 +92,17 @@ namespace vpa {
         ImageInfo& imageInfo = m_images[set][index];
         DestroyImage(imageInfo);
         CreateImage(imageInfo, name, true);
+        m_main->RequestUpdate();
     }
 
     unsigned char* Descriptors::PushConstantData(ShaderStage stage) {
         return m_pushConstants[stage].data.data();
     }
+
+    void Descriptors::CompletePushConstantData() {
+        m_main->RequestUpdate();
+    }
+
 
     void Descriptors::CmdBindSets(VkCommandBuffer cmdBuf, VkPipelineLayout pipelineLayout) const {
         // TODO dynamic offset support

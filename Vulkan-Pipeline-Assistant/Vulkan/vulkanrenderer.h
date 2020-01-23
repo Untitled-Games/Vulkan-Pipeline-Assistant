@@ -24,9 +24,11 @@ namespace vpa {
     class VulkanRenderer {
     public:
         VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
+        ~VulkanRenderer();
 
         void Init();
         void Release();
+        void CleanUp();
 
         VPAError RenderFrame(VkCommandBuffer cmdBuffer, const uint32_t frameIdx);
 
@@ -39,6 +41,8 @@ namespace vpa {
         VPAError WritePipelineConfig();
         VPAError ReadPipelineConfig();
         VPAError Reload(const ReloadFlags flag);
+
+        VPAError CreateDefaultObjects();
 
     private:
         VPAError CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth);
@@ -107,6 +111,10 @@ namespace vpa {
         VkPipeline m_depthPipeline;
         VkPipelineLayout m_depthPipelineLayout;
         VkSampler m_depthSampler;
+
+        VkRenderPass m_defaultRenderPass;
+        QVector<VkFramebuffer> m_defaultFramebuffers;
+        AttachmentImage m_defaultDepthAttachment;
     };
 }
 

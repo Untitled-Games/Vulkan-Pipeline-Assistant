@@ -23,30 +23,43 @@ namespace vpa {
         m_config = {};
     }
 
+    VulkanRenderer::~VulkanRenderer() {
+        Release();
+    }
+
     void VulkanRenderer::Init() {
         if (!m_initialised) {
-            //m_postInitCallback();
             m_deviceFuncs = m_main->Details().deviceFunctions;
             VPAError err = VPA_OK;
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_main, err);
             if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message)
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_main->Device(), &m_config);
             m_validator = new ConfigValidator(m_config, m_main->Limits());
-
+            CreateDefaultObjects();
             m_main->Reload(ReloadFlags::EverythingNoValidation);
             m_initialised = true;
         }
-        /*if (!DepthDrawing()) {
-            QVector<VkImageView> imageViews;
-            for (int i = 0; i < m_attachmentImages.size(); ++i) {
-                if (i == m_activeAttachment) m_attachmentImages[i].view = m_window->swapChainImageView(0);
-                imageViews.push_back(m_attachmentImages[i].view);
-            }
-            MakeFrameBuffers(m_renderPass, m_framebuffers, imageViews, uint32_t(m_window->swapChainImageSize().width()), uint32_t(m_window->swapChainImageSize().height()));
-        }*/
     }
 
     void VulkanRenderer::Release() {
+        CleanUp();
+        if (m_shaderAnalytics) delete m_shaderAnalytics;
+        if (m_vertexInput) delete m_vertexInput;
+        if (m_descriptors) delete m_descriptors;
+        if (m_config.viewports) delete[] m_config.viewports;
+        if (m_allocator) delete m_allocator;
+        if (m_validator) delete m_validator;
+        m_shaderAnalytics = nullptr;
+        m_vertexInput = nullptr;
+        m_descriptors = nullptr;
+        m_config.viewports = nullptr;
+        m_allocator = nullptr;
+        m_validator = nullptr;
+        m_valid = false;
+        m_initialised = false;
+    }
+
+    void VulkanRenderer::CleanUp() {
         DESTROY_HANDLE(m_main->Device(), m_depthPipeline, m_deviceFuncs->vkDestroyPipeline)
         DESTROY_HANDLE(m_main->Device(), m_depthPipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout)
         DESTROY_HANDLE(m_main->Device(), m_depthSampler, m_deviceFuncs->vkDestroySampler)
@@ -63,12 +76,13 @@ namespace vpa {
         for (int i = 0; i < m_framebuffers.size(); ++i) {
             DESTROY_HANDLE(m_main->Device(), m_framebuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
         }
-        delete m_shaderAnalytics;
-        if (m_vertexInput) delete m_vertexInput;
-        if (m_descriptors) delete m_descriptors;
-        if (m_config.viewports) delete[] m_config.viewports;
-        delete m_allocator;
-        delete m_validator;
+
+        DESTROY_HANDLE(m_main->Device(), m_defaultRenderPass, m_deviceFuncs->vkDestroyRenderPass)
+        DESTROY_HANDLE(m_main->Device(), m_defaultDepthAttachment.view, m_deviceFuncs->vkDestroyImageView)
+        m_allocator->Deallocate(m_defaultDepthAttachment.allocation);
+        for (int i = 0; i < m_defaultFramebuffers.size(); ++i) {
+            DESTROY_HANDLE(m_main->Device(), m_defaultFramebuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
+        }
     }
 
     VPAError VulkanRenderer::RenderFrame(VkCommandBuffer cmdBuffer, const uint32_t frameIdx) {
@@ -78,11 +92,11 @@ namespace vpa {
 
         VkRenderPassBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        beginInfo.renderPass = m_valid ? m_renderPass : VK_NULL_HANDLE;// : m_window->defaultRenderPass();
-        beginInfo.framebuffer =  m_valid ? m_framebuffers[int(frameIdx)] : VK_NULL_HANDLE;// : m_window->currentFramebuffer(); // default framebuffer TODO
+        beginInfo.renderPass = m_valid ? m_renderPass : m_defaultRenderPass;
+        beginInfo.framebuffer =  m_valid ? m_framebuffers[int(frameIdx)] : m_defaultFramebuffers[int(frameIdx)];
         beginInfo.renderArea.extent.width = m_main->Details().swapchainDetails.extent.width;
         beginInfo.renderArea.extent.height = m_main->Details().swapchainDetails.extent.height;
-        beginInfo.clearValueCount = m_useDepth ? 2 : 1;
+        beginInfo.clearValueCount = m_valid ? (m_useDepth ? 2 : 1) : 2;
         beginInfo.pClearValues = clearValues;
 
         m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -101,8 +115,8 @@ namespace vpa {
             m_deviceFuncs->vkCmdEndRenderPass(cmdBuffer);
 
             if (DepthDrawing()) {
-                //beginInfo.renderPass = m_window->defaultRenderPass();
-                //beginInfo.framebuffer =  m_window->currentFramebuffer();
+                beginInfo.renderPass = m_defaultRenderPass;
+                beginInfo.framebuffer =  m_defaultFramebuffers[int(frameIdx)];
                 beginInfo.clearValueCount = 2;
                 beginInfo.pClearValues = clearValues;
 
@@ -161,9 +175,9 @@ namespace vpa {
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_main->Device());
 
-        if (flag & ReloadFlagBits::Validation) { VPA_PASS_ERROR(m_validator->Validate(m_config)); }
-        if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()); }
-        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth)); }
+        if (flag & ReloadFlagBits::Validation) { VPA_PASS_ERROR(m_validator->Validate(m_config)) }
+        if (flag & ReloadFlagBits::Shaders) { VPA_PASS_ERROR(CreateShaders()) }
+        if (flag & ReloadFlagBits::RenderPass) { VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth)) }
         if (flag & ReloadFlagBits::Pipeline) {
             VkPipelineLayoutCreateInfo layoutInfo = {};
             layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -175,7 +189,7 @@ namespace vpa {
             auto bindingDescription = m_vertexInput->InputBindingDescription();
             auto attribDescriptions = m_vertexInput->InputAttribDescription();
 
-            VPA_PASS_ERROR(CreatePipeline(m_config, bindingDescription, attribDescriptions, m_shaderStageInfos, layoutInfo, m_renderPass, m_pipelineLayout, m_pipeline, m_pipelineCache));
+            VPA_PASS_ERROR(CreatePipeline(m_config, bindingDescription, attribDescriptions, m_shaderStageInfos, layoutInfo, m_renderPass, m_pipelineLayout, m_pipeline, m_pipelineCache))
         }
         return VPA_OK;
     }
@@ -233,7 +247,7 @@ namespace vpa {
         };
 
         size_t size = width * height * 4;
-        VPA_PASS_ERROR(m_allocator->Allocate(size, createInfo, name, image.allocation));
+        VPA_PASS_ERROR(m_allocator->Allocate(size, createInfo, name, image.allocation))
 
         if (!present) {
             VkImageViewCreateInfo viewInfo = {};
@@ -257,7 +271,7 @@ namespace vpa {
             }
         }
         else {
-            image.view = m_main->Details().swapchainDetails.imageViews[0]; // TODO does this need to be changed each index?
+            image.view = VK_NULL_HANDLE; // Causes injection of correct present image in framebuffer creation
         }
 
         return VPA_OK;
@@ -267,16 +281,26 @@ namespace vpa {
         for (int i = 0; i < framebuffers.size(); ++i) {
             DESTROY_HANDLE(m_main->Device(), framebuffers[i], m_deviceFuncs->vkDestroyFramebuffer)
         }
+
+        int presentIdx = -1;
+        for (int i = 0; i < imageViews.size(); ++i) {
+            if (imageViews[i] == VK_NULL_HANDLE) {
+                presentIdx = i;
+                break;
+            }
+        }
+
         framebuffers.clear();
         framebuffers.resize(int(m_main->Details().swapchainDetails.imageCount));
-        for (int i = 0; i < imageViews.size(); ++i) {
+        for (int i = 0; i < framebuffers.size(); ++i) {
+            if (presentIdx >= 0) imageViews[presentIdx] = m_main->Details().swapchainDetails.imageViews[i];
             VkFramebufferCreateInfo framebufferInfo = {};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass;
             framebufferInfo.attachmentCount = uint32_t(imageViews.size());
             framebufferInfo.pAttachments = imageViews.data();
             framebufferInfo.width = width;
-            framebufferInfo.height =  height;
+            framebufferInfo.height = height;
             framebufferInfo.layers = 1;
 
             VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateFramebuffer(m_main->Device(), &framebufferInfo, nullptr, &framebuffers[i]), "Failed to create framebuffer")
@@ -285,7 +309,6 @@ namespace vpa {
     }
 
     VPAError VulkanRenderer::CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth) {
-        // Clean Up
         DESTROY_HANDLE(m_main->Device(), renderPass, m_deviceFuncs->vkDestroyRenderPass)
         for (int i = 0; i < attachmentImages.size(); ++i) {
             if (!attachmentImages[i].isPresenting) {
@@ -295,7 +318,6 @@ namespace vpa {
         }
         attachmentImages.clear();
 
-        // Create
         uint32_t width = m_main->Details().swapchainDetails.extent.width;
         uint32_t height = m_main->Details().swapchainDetails.extent.height;
         QVector<VkAttachmentDescription> attachments;
@@ -319,7 +341,7 @@ namespace vpa {
             colourAttachmentRefs[i] = positionsRef;
 
             VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[i], height, width,
-                    colourFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, "colour attachment " + QString::number(i), present));
+                    colourFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, "colour attachment " + QString::number(i), present))
             attachmentImageViews[i] = attachmentImages[i].view;
         }
 
@@ -334,10 +356,10 @@ namespace vpa {
             depthAttachmentRef.attachment = uint32_t(colourAttachmentCount);
             depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[index], height, width, depthFormat,
-                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment", false));
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment", false))
             attachmentImageViews[index] = attachmentImages[index].view;
 
-            if (present) { VPA_PASS_ERROR(MakeDepthPresentPostPass(attachmentImageViews[index])); }
+            if (present) { VPA_PASS_ERROR(MakeDepthPresentPostPass(attachmentImageViews[index])) }
         }
         else if (m_config.writables.depthWriteEnable) {
             return VPA_WARN("Depth write is enabled but there is no depth buffer.");
@@ -361,7 +383,7 @@ namespace vpa {
 
         VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateRenderPass(m_main->Device(), &renderPassInfo, nullptr, &renderPass), "Failed to create render pass")
 
-        VPA_PASS_ERROR(MakeFrameBuffers(renderPass, framebuffers, attachmentImageViews, width, height));
+        VPA_PASS_ERROR(MakeFrameBuffers(renderPass, framebuffers, attachmentImageViews, width, height))
 
         return VPA_OK;
     }
@@ -409,7 +431,7 @@ namespace vpa {
 
     VPAError VulkanRenderer::CreateShaders() {
         m_shaderStageInfos.clear();
-        VPA_PASS_ERROR(m_shaderAnalytics->LoadShaders(m_config.vertShader, m_config.fragShader));//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
+        VPA_PASS_ERROR(m_shaderAnalytics->LoadShaders(m_config.vertShader, m_config.fragShader))//, "/../shaders/tesc_test.spv", "/../shaders/tese_test.spv", "/../shaders/gs_test.spv");
         VkPipelineShaderStageCreateInfo shaderCreateInfo;
         if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Vertex, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
         if (m_shaderAnalytics->GetStageCreateInfo(ShaderStage::Fragment, shaderCreateInfo)) m_shaderStageInfos.push_back(shaderCreateInfo);
@@ -422,6 +444,7 @@ namespace vpa {
         m_vertexInput = new VertexInput(m_deviceFuncs, m_allocator, m_shaderAnalytics->InputAttributes(), MESHDIR"Teapot", true, err);
         if (err != VPA_OK) {
             delete m_vertexInput;
+            m_vertexInput = nullptr;
             return err;
         }
 
@@ -436,8 +459,57 @@ namespace vpa {
         return VPA_OK;
     }
 
+    VPAError VulkanRenderer::CreateDefaultObjects() {
+        uint32_t width = m_main->Details().swapchainDetails.extent.width;
+        uint32_t height = m_main->Details().swapchainDetails.extent.height;
+        QVector<VkAttachmentDescription> attachments(2);
+        QVector<VkSubpassDescription> subpasses(1);
+        QVector<VkSubpassDependency> dependencies(2);
+        QVector<VkAttachmentReference> colourAttachmentRefs(1);
+        VkAttachmentReference depthAttachmentRef = {};
+        QVector<VkImageView> attachmentImageViews(2);
+        VPA_PASS_ERROR(MakeAttachmentImage(m_defaultDepthAttachment, height, width, m_main->Details().swapchainDetails.depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "Default depth stencil attachment", false))
+        attachmentImageViews[0] = VK_NULL_HANDLE;
+        attachmentImageViews[1] = m_defaultDepthAttachment.view;
+
+        attachments[0] = MakeAttachment(m_main->Details().swapchainDetails.surfaceFormat.format, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        attachments[1] = MakeAttachment(m_main->Details().swapchainDetails.depthFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+        VkAttachmentReference colourRef = {};
+        colourRef.attachment = 0;
+        colourRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colourAttachmentRefs[0] = colourRef;
+
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        subpasses[0] = MakeSubpass(VK_PIPELINE_BIND_POINT_GRAPHICS, colourAttachmentRefs, &depthAttachmentRef, nullptr);
+
+        dependencies[0] = MakeSubpassDependency(VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+        dependencies[1] = MakeSubpassDependency(0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = uint32_t(attachments.size());
+        renderPassInfo.pAttachments = attachments.data();
+        renderPassInfo.subpassCount = uint32_t(subpasses.size());
+        renderPassInfo.pSubpasses = subpasses.data();
+        renderPassInfo.dependencyCount = uint32_t(dependencies.size());
+        renderPassInfo.pDependencies = dependencies.data();
+
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateRenderPass(m_main->Device(), &renderPassInfo, nullptr, &m_defaultRenderPass), "Failed to create render pass")
+
+        VPA_PASS_ERROR(MakeFrameBuffers(m_defaultRenderPass, m_defaultFramebuffers, attachmentImageViews, width, height))
+
+        return VPA_OK;
+    }
+
     VPAError VulkanRenderer::MakeDepthPresentPostPass(VkImageView& imageView) {
-        /*VkPipelineLayoutCreateInfo layoutInfo = {};
+        VkPipelineLayoutCreateInfo layoutInfo = {};
         layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layoutInfo.setLayoutCount = 1;
         layoutInfo.pSetLayouts = m_descriptors->BuiltInSetLayout(BuiltInSets::DepthPostPass);
@@ -447,7 +519,7 @@ namespace vpa {
         QByteArray blob;
         VkShaderModule vertModule;
         VkShaderModule fragModule;
-        VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, SHADERDIR"fullscreen.spv", &blob));
+        VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, SHADERDIR"fullscreen.spv", &blob))
         blob.clear();
         VPAError err = m_shaderAnalytics->CreateModule(fragModule, SHADERDIR"depth_frag.spv", &blob);
         if (err != VPA_OK) {
@@ -468,9 +540,9 @@ namespace vpa {
         config.writables.depthTestEnable = VK_FALSE;
         config.writables.depthWriteEnable = VK_FALSE;
 
-        VkRenderPass pass = m_main->defaultRenderPass();
+        VkRenderPass pass = m_defaultRenderPass;
         VkPipelineCache cache = VK_NULL_HANDLE;
-        err =CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_depthPipelineLayout, m_depthPipeline, cache);
+        err = CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_depthPipelineLayout, m_depthPipeline, cache);
         if (err != VPA_OK) {
             DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
             DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
@@ -523,7 +595,7 @@ namespace vpa {
         m_deviceFuncs->vkUpdateDescriptorSets(m_main->Device(), 1, &writeSet, 0, nullptr);
 
         DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule)
-        DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)*/
+        DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule)
         return VPA_OK;
     }
 

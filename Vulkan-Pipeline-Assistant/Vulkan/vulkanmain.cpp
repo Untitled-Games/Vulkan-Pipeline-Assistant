@@ -7,18 +7,19 @@
 #include <QWidget>
 #include <QVulkanDeviceFunctions>
 #include <QPlatformSurfaceEvent>
+#include <QTimer>
 
 #include "common.h"
 
 namespace vpa {
     void VulkanWindow::resizeEvent(QResizeEvent* event) {
-        //m_main->RecreateSwapchain();
+        if(m_main->m_currentState == VulkanState::Ok) m_main->RecreateSwapchain();
     }
 
     bool VulkanWindow::event(QEvent* event) {
         switch (event->type()) {
         case QEvent::UpdateRequest:
-            //m_main->ExecuteFrame(); TODO
+            m_main->ExecuteFrame();
             break;
         case QEvent::PlatformSurface:
             if (static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
@@ -33,19 +34,25 @@ namespace vpa {
     }
 
     VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
-        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback) {
+        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_currentState(VulkanState::Pending) {
         m_details.window = nullptr;
         m_renderer = new VulkanRenderer(this, creationCallback, postInitCallback);
         memset(m_renderFinished, 0, sizeof(m_renderFinished));
         memset(m_imagesAvailable, 0, sizeof(m_renderFinished));
         memset(m_inFlight, 0, sizeof(m_renderFinished));
         memset(m_details.swapchainDetails.imageViews, 0, sizeof(m_details.swapchainDetails.imageViews));
-        VPAError err = Create();
-        if (err != VPA_OK) {
-            qFatal("Error in vulkan main create %s", qPrintable(err.message));
-        }
-        m_currentState = VulkanState::Ok;
-        m_currentState = VulkanState::Disabled; // TODO remove after testing
+        m_currentState = VulkanState::Pending;
+        CreateVkInstance(m_details.instance);
+        QTimer::singleShot(500, [this]() {
+            CreatePhysicalDevice(m_details.physicalDevice);
+            CreateDevice(m_details.device);
+            VPAError err = Create(false);
+            if (err != VPA_OK) {
+                qFatal("Error in vulkan main create %s", qPrintable(err.message));
+            }
+            m_currentState = VulkanState::Ok;
+            m_details.window->requestUpdate();
+        });
     }
 
     VulkanMain::~VulkanMain() {
@@ -57,21 +64,9 @@ namespace vpa {
     void VulkanMain::Destroy() {
         if (m_details.device != VK_NULL_HANDLE) m_details.deviceFunctions->vkDeviceWaitIdle(m_details.device);
         m_frameIndex = 0;
-        DestroySwapchain();
-        if (m_details.mainCommandPool != VK_NULL_HANDLE) {
-            m_details.deviceFunctions->vkFreeCommandBuffers(m_details.device, m_details.mainCommandPool, uint32_t(MaxFrameImages), m_details.mainCommandBuffers);
-            m_details.deviceFunctions->vkDestroyCommandPool(m_details.device, m_details.mainCommandPool, nullptr);
-        }
-        if (m_details.device != VK_NULL_HANDLE) {
-            m_details.deviceFunctions->vkDestroyDevice(m_details.device, nullptr);
-        }
-        // TODO work out if need to destory surface and instance?
-        m_currentState = VulkanState::Pending;
-    }
-
-    void VulkanMain::DestroySwapchain() {
         m_renderer->Release();
-        for (size_t i = 0; i < MaxFramesInFlight; ++i) {
+        DestroySwapchain();
+        for (int i = 0; i < MaxFramesInFlight; ++i) {
             DESTROY_HANDLE(m_details.device, m_renderFinished[i], m_details.deviceFunctions->vkDestroySemaphore)
             DESTROY_HANDLE(m_details.device, m_imagesAvailable[i], m_details.deviceFunctions->vkDestroySemaphore)
             DESTROY_HANDLE(m_details.device, m_inFlight[i], m_details.deviceFunctions->vkDestroyFence)
@@ -79,6 +74,19 @@ namespace vpa {
         memset(m_renderFinished, 0, sizeof(m_renderFinished));
         memset(m_imagesAvailable, 0, sizeof(m_renderFinished));
         memset(m_inFlight, 0, sizeof(m_renderFinished));
+
+        if (m_details.mainCommandPool != VK_NULL_HANDLE) {
+            m_details.deviceFunctions->vkFreeCommandBuffers(m_details.device, m_details.mainCommandPool, uint32_t(MaxFrameImages), m_details.mainCommandBuffers);
+            m_details.deviceFunctions->vkDestroyCommandPool(m_details.device, m_details.mainCommandPool, nullptr);
+        }
+        if (m_details.device != VK_NULL_HANDLE) {
+            m_details.deviceFunctions->vkDestroyDevice(m_details.device, nullptr);
+        }
+        m_currentState = VulkanState::Pending;
+    }
+
+    void VulkanMain::DestroySwapchain() {
+        m_renderer->CleanUp();
         for (VkImageView view : m_details.swapchainDetails.imageViews) {
             DESTROY_HANDLE(m_details.device, view, m_details.deviceFunctions->vkDestroyImageView)
         }
@@ -87,16 +95,24 @@ namespace vpa {
     }
 
     void VulkanMain::RecreateSwapchain() {
+        if (m_details.device == VK_NULL_HANDLE) return;
+
         m_details.deviceFunctions->vkDeviceWaitIdle(m_details.device);
-        // TODO
+        DestroySwapchain();
+
+        VPAError err = CreateSwapchain(m_details.swapchainDetails);
+        if (err != VPA_OK) { // TODO proper VPAError process
+            qDebug("Failed to recreate swapchain");
+        }
+        m_renderer->CreateDefaultObjects();
+        Reload(ReloadFlags::RenderPass);
     }
 
-    VPAError VulkanMain::Create() {
-        Destroy();
-        VPA_PASS_ERROR(CreateVkInstance(m_details.instance))
-        VPA_PASS_ERROR(CreatePhysicalDevice(m_details.physicalDevice))
-        VPA_PASS_ERROR(CreateDevice(m_details.device))
+    VPAError VulkanMain::Create(bool destroy) {
+        if (destroy) Destroy();
+        m_frameIndex = 0;
         VPA_PASS_ERROR(CreateSwapchain(m_details.swapchainDetails))
+        VPA_PASS_ERROR(CreateSync())
 
         m_renderer->Init();
 
@@ -161,11 +177,15 @@ namespace vpa {
         VkPhysicalDeviceMemoryProperties memoryProperties;
         m_details.functions->vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
         for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
-            if (memoryProperties.memoryTypes[i].propertyFlags == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-                m_details.deviceLocalMemoryIndex = memoryProperties.memoryTypes[i].heapIndex;
+            if (memoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+                m_details.deviceLocalMemoryIndex = i;
+                break;
             }
-            else if (memoryProperties.memoryTypes[i].propertyFlags == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-                m_details.hostVisibleMemoryIndex = memoryProperties.memoryTypes[i].heapIndex;
+        }
+        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
+            if (memoryProperties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+                m_details.hostVisibleMemoryIndex = i;
+                break;
             }
         }
 
@@ -296,7 +316,6 @@ namespace vpa {
     }
 
     VPAError VulkanMain::CreateSwapchain(SwapchainDetails& swapchainDetails) {
-
         VkSurfaceKHR surface = m_details.instance.surfaceForWindow(m_details.window);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -306,19 +325,9 @@ namespace vpa {
             imageCount = surfaceCapabilities.maxImageCount;
         }
 
-        /*uint32_t formatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(m_details.physicalDevice, surface, &formatCount, nullptr);
-        QVector<VkSurfaceFormatKHR> formats(formatCount);
-        if (formatCount > 0) vkGetPhysicalDeviceSurfaceFormatsKHR(m_details.physicalDevice, surface, &formatCount, formats.data());
-        if (!formats.isEmpty() && formats[0].format != VK_FORMAT_UNDEFINED) {
-            colorFormat = formats[0].format;
-            colorSpace = formats[0].colorSpace;
-        }*/
+        swapchainDetails.extent = CalculateExtent();
         swapchainDetails.surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
         swapchainDetails.surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        if (surfaceCapabilities.currentExtent.width != ~0U) {
-            m_details.swapchainDetails.extent = surfaceCapabilities.currentExtent;
-        }
 
         VkSwapchainCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -343,7 +352,7 @@ namespace vpa {
 
         createInfo.preTransform = surfaceCapabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = swapchainDetails.swapchain;
 
@@ -368,7 +377,7 @@ namespace vpa {
             imageViewCreateInfo.subresourceRange.levelCount = 1;
             imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
             imageViewCreateInfo.subresourceRange.layerCount = 1;
-            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateImageView(m_details.device, &imageViewCreateInfo, nullptr, swapchainDetails.imageViews), "Could not create swap chain image views")
+            VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateImageView(m_details.device, &imageViewCreateInfo, nullptr, &swapchainDetails.imageViews[i]), "Could not create swap chain image views")
         }
 
         swapchainDetails.depthFormat = VkFormat::VK_FORMAT_UNDEFINED;
@@ -382,14 +391,32 @@ namespace vpa {
         }
         if (swapchainDetails.depthFormat == VkFormat::VK_FORMAT_UNDEFINED) return VPA_CRITICAL("Could not find a valid depth format");
 
+        return VPA_OK;
+    }
+
+    VkExtent2D VulkanMain::CalculateExtent() {
+        VkExtent2D extent;
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        m_iFunctions.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_details.physicalDevice, m_details.surface, &surfaceCapabilities);
+        if (surfaceCapabilities.currentExtent.width != ~0U) {
+            extent = surfaceCapabilities.currentExtent;
+        }
+        else {
+            extent = { uint32_t(m_details.window->width()), uint32_t(m_details.window->height()) };
+        }
+        return extent;
+    }
+
+    VPAError VulkanMain::CreateSync() {
         VkSemaphoreCreateInfo semaphoreInfo = {};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         VkFenceCreateInfo fenceInfo = {};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.pNext = nullptr;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (size_t i = 0; i < MaxFrameImages; ++i) {
+        for (int i = 0; i < MaxFramesInFlight; ++i) {
             VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &m_imagesAvailable[i]), "Create sempahore for swapchain")
             VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateSemaphore(m_details.device, &semaphoreInfo, nullptr, &m_renderFinished[i]), "Create sempahore for swapchain")
             VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkCreateFence(m_details.device, &fenceInfo, nullptr, &m_inFlight[i]), "Create fence for swapchain")
@@ -397,7 +424,6 @@ namespace vpa {
 
         return VPA_OK;
     }
-
     VPAError VulkanMain::ExecuteFrame() {
         if (m_currentState == VulkanState::Disabled) {
             return VPA_OK;
@@ -419,14 +445,12 @@ namespace vpa {
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkBeginCommandBuffer(cmdBuffer, &beginInfo), "Begin main command buffer for frame index " + QString::number(m_frameIndex))
 
-        m_renderer->RenderFrame(cmdBuffer, m_frameIndex);
+        m_renderer->RenderFrame(cmdBuffer, imageIdx);
 
         VPA_VKCRITICAL_PASS(m_details.deviceFunctions->vkEndCommandBuffer(cmdBuffer), "End main command buffer")
 
         SubmitQueue(imageIdx, signalSemaphores);
         PresentImage(imageIdx, signalSemaphores);
-
-        m_details.window->requestUpdate();
 
         return VPA_OK;
     }
@@ -465,9 +489,8 @@ namespace vpa {
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = signalSemaphores;
 
-        VkSwapchainKHR swapChains[] = { m_details.swapchainDetails.swapchain };
         presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
+        presentInfo.pSwapchains = &m_details.swapchainDetails.swapchain;
         presentInfo.pImageIndices = &imageIdx;
 
         VPA_VKCRITICAL_PASS(m_iFunctions.vkQueuePresentKHR(m_details.presentQueue, &presentInfo), "Present queue submit")
@@ -478,9 +501,9 @@ namespace vpa {
     }
 
     void VulkanMain::WritePipelineCache() {
-        if (m_renderer->WritePipelineCache().level == VPAErrorLevel::Ok) qDebug("Pipeline cache has been written to test.vpac");
-        if (m_renderer->WritePipelineConfig().level == VPAErrorLevel::Ok) qDebug("Pipeline config has been written to config.vpa");
-        if (m_renderer->ReadPipelineConfig().level == VPAErrorLevel::Ok) qDebug("Pipeline config has been read from config.vpa");
+        if (m_renderer->WritePipelineCache() == VPA_OK) qDebug("Pipeline cache has been written to test.vpac");
+        if (m_renderer->WritePipelineConfig() == VPA_OK) qDebug("Pipeline config has been written to config.vpa");
+        if (m_renderer->ReadPipelineConfig() == VPA_OK) qDebug("Pipeline config has been read from config.vpa");
     }
 
     void VulkanMain::WritePipelineConfig() {
@@ -502,6 +525,8 @@ namespace vpa {
     }
 
     void VulkanMain::Reload(const ReloadFlags flag) {
+        if (!m_renderer) return;
+
         VPAError err = m_renderer->Reload(flag);
         if (err != VPA_OK) {
             m_renderer->SetValid(false);
@@ -510,5 +535,10 @@ namespace vpa {
         else {
             m_renderer->SetValid(true);
         }
+        RequestUpdate();
+    }
+
+    void VulkanMain::RequestUpdate() {
+        m_details.window->requestUpdate();
     }
 }

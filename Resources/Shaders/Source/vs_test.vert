@@ -17,15 +17,13 @@ out gl_PerVertex {
 };
 
 layout(set = 0, binding = 0) uniform MVPBuffer {
-	mat4 model;
-	mat4 view;
-	mat4 projection;
+	mat4 mvp;
 	vec4 texColourMask;
 	NestedStruct v3[10][4];
 };
 
 void main() {
-	gl_Position = projection * view * model * vec4(inPosition, 1.0);
+	gl_Position = mvp * vec4(inPosition, 1.0);
 	outColour = texColourMask;
 	outTexcoord = inTexcoord;
 }
