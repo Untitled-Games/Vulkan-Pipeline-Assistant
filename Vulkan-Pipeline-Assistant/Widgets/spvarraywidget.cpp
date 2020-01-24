@@ -91,15 +91,15 @@ namespace vpa {
     }
 
     void SpvArrayWidget::OnClick(bool expanding) {
-        if (expanding) {
-            m_container->ShowWidget(this);
-            if (m_type->subtype->Type() == SpvTypeName::Matrix || m_type->subtype->Type() == SpvTypeName::Vector) {
-                m_inputArea->ShowWidget(m_inputWidget);
-            }
-            else if (m_type->subtype->Type() == SpvTypeName::Struct) {
-                SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
-                if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
-            }
+        if (!expanding) return;
+
+        m_container->ShowWidget(this);
+        if (m_type->subtype->Type() == SpvTypeName::Matrix || m_type->subtype->Type() == SpvTypeName::Vector) {
+            m_inputArea->ShowWidget(m_inputWidget);
+        }
+        else if (m_type->subtype->Type() == SpvTypeName::Struct) {
+            SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
+            if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
         }
     }
 

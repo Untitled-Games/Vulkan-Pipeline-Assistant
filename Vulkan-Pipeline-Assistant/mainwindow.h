@@ -52,6 +52,7 @@ namespace vpa {
         void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
 
     private:
+        bool WindowsNativeEvent(MSG* msg);
         void CreateInterface();
         void AddConfigButtons();
         void AddConfigBlocks();

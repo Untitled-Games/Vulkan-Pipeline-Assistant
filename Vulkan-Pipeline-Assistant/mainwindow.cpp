@@ -61,19 +61,21 @@ namespace vpa {
     bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result) {
         Q_UNUSED(result)
         Q_UNUSED(eventType)
-        if (QGuiApplication::platformName() == "windows") {
-            MSG* msg = static_cast<MSG*>(message);
-            if (msg->message == WM_ENTERSIZEMOVE) {
-                if (m_vulkan) m_vulkan->Details().window->HandlingResize(true);
-                return true;
+        if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
+        return false;
+    }
+
+    bool MainWindow::WindowsNativeEvent(MSG* msg) {
+        if (msg->message == WM_ENTERSIZEMOVE) {
+            if (m_vulkan) m_vulkan->Details().window->HandlingResize(true);
+            return true;
+        }
+        else if(msg->message == WM_EXITSIZEMOVE) {
+            if (m_vulkan) {
+                m_vulkan->Details().window->HandlingResize(false);
+                if (m_vulkan->State() == VulkanState::Ok) m_vulkan->RecreateSwapchain();
             }
-            else if(msg->message == WM_EXITSIZEMOVE) {
-                if (m_vulkan) {
-                    m_vulkan->Details().window->HandlingResize(false);
-                    if (m_vulkan->State() == VulkanState::Ok) m_vulkan->RecreateSwapchain();
-                }
-                return true;
-            }
+            return true;
         }
         return false;
     }
@@ -449,30 +451,31 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
-        if (m_vulkan) {
-            Descriptors* descriptors = m_vulkan->GetDescriptors();
-            m_descriptorDrawer->Clear();
-            if (descriptors) {
-                for (auto& set : descriptors->Buffers().keys()) {
-                    for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
-                        SpvResource* resource = descriptors->Buffers()[set][i].descriptor.resource;
-                        m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                            new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
-                    }
-                }
-                for (auto& set : descriptors->Buffers().keys()) {
-                    for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
-                        SpvResource* resource = descriptors->Images()[set][i].descriptor.resource;
-                        m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                            new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
-                    }
-                }
-                for (auto& pushConstant : descriptors->PushConstants().values()) {
-                    SpvResource* resource = pushConstant.resource;
-                    m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                        new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_descriptorContainer), resource->name, Qt::gray));
-                }
+        m_descriptorDrawer->Clear();
+
+        if (!m_vulkan) return;
+
+        Descriptors* descriptors = m_vulkan->GetDescriptors();
+        if (!descriptors) return;
+
+        for (auto& set : descriptors->Buffers().keys()) {
+            for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
+                SpvResource* resource = descriptors->Buffers()[set][i].descriptor.resource;
+                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
             }
+        }
+        for (auto& set : descriptors->Buffers().keys()) {
+            for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
+                SpvResource* resource = descriptors->Images()[set][i].descriptor.resource;
+                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
+            }
+        }
+        for (auto& pushConstant : descriptors->PushConstants().values()) {
+            SpvResource* resource = pushConstant.resource;
+            m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_descriptorContainer), resource->name, Qt::gray));
         }
     }
 
