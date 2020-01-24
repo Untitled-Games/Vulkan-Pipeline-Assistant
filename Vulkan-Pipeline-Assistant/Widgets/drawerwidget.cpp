@@ -29,6 +29,13 @@ namespace vpa {
         item->OnDrawerInit();
     }
 
+    DrawerItemWidget::~DrawerItemWidget() {
+        for (DrawerItemWidget* child : m_children) {
+            delete child;
+        }
+        delete m_item;
+    }
+
     void DrawerItemWidget::Expand() {
         m_expanded = true;
         RotateIcon(90);
@@ -124,6 +131,7 @@ namespace vpa {
 
     void DrawerWidget::Clear() {
         for (int i = 0; i < m_rootWidgets.size(); ++i) {
+            m_rootWidgets[i]->hide();
             m_rootLayouts[i]->removeWidget(m_rootWidgets[i]);
             delete m_rootWidgets[i];
             layout()->removeItem(m_rootLayouts[i]);

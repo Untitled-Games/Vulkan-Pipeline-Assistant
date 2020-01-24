@@ -451,6 +451,7 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
+        m_descriptorContainer->Clear();
         m_descriptorDrawer->Clear();
 
         if (!m_vulkan) return;
