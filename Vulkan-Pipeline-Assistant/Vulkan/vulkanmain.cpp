@@ -14,6 +14,8 @@
 #include "common.h"
 
 namespace vpa {
+    const QVector<const char*> VulkanMain::LayerNames = { QByteArrayLiteral("VK_LAYER_LUNARG_standard_validation") };
+
     void VulkanWindow::resizeEvent(QResizeEvent* event) {
         Q_UNUSED(event)
         if(m_main->m_currentState == VulkanState::Ok && !m_handlingResize) m_main->RecreateSwapchain();
@@ -412,8 +414,6 @@ namespace vpa {
         createInfo.ppEnabledLayerNames = nullptr;
 
 #ifdef ENABLE_VALIDATION_LAYER
-        const QByteArray stdValName = QByteArrayLiteral("VK_LAYER_LUNARG_standard_validation");
-        const char *stdValNamePtr = stdValName.constData();
         uint32_t layerCount = 0;
         VkResult err = m_details.functions->vkEnumerateDeviceLayerProperties(m_details.physicalDevice, &layerCount, nullptr);
         if (err != VK_SUCCESS) return;
@@ -423,9 +423,9 @@ namespace vpa {
         if (err != VK_SUCCESS) return;
 
         for (const VkLayerProperties &prop : layerProps) {
-            if (!strncmp(prop.layerName, stdValNamePtr, size_t(stdValName.count()))) {
+            if (!strcmp(prop.layerName, LayerNames[0])) {
                 createInfo.enabledLayerCount = 1;
-                createInfo.ppEnabledLayerNames = &stdValNamePtr;
+                createInfo.ppEnabledLayerNames = LayerNames.constData();
                 break;
             }
         }

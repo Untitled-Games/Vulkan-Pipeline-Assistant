@@ -145,6 +145,8 @@ namespace vpa {
         uint32_t m_frameIndex;
 
         VulkanState m_currentState;
+
+        static const QVector<const char*> LayerNames;
     };
 }
 
