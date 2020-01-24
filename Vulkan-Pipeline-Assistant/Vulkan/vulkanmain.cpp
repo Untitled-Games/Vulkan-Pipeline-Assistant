@@ -33,7 +33,7 @@ namespace vpa {
         case QEvent::UpdateRequest:
             err = m_main->ExecuteFrame();
             if (err != VPA_OK) {
-                if (err.message == "require:SwapchainRecreate") m_main->RecreateSwapchain();
+                if (VPAError::lastMessage == "require:SwapchainRecreate") m_main->RecreateSwapchain();
                 else m_main->m_currentState = VulkanState::Pending;
             }
             break;
@@ -93,7 +93,7 @@ namespace vpa {
 
             if (vpaErr != VPA_OK) {
                 m_currentState = VulkanState::Disabled;
-                qDebug("Error in vulkan main create %s", qPrintable(vpaErr.message)); // TODO when console exists output to it
+                qDebug("Error in vulkan main create %s", qPrintable(VPAError::lastMessage)); // TODO when console exists output to it
                 return;
             }
 
@@ -550,7 +550,7 @@ namespace vpa {
         }
 
         uint32_t imageIdx;
-        VPAError err = AquireImage(imageIdx);
+        VPA_PASS_ERROR(AquireImage(imageIdx));
 
         VkCommandBuffer cmdBuffer = m_details.mainCommandBuffers[imageIdx];
 
@@ -660,7 +660,7 @@ namespace vpa {
         VPAError err = m_renderer->Reload(flag);
         if (err != VPA_OK) {
             m_renderer->SetValid(false);
-            qDebug(qPrintable(err.message));
+            qDebug(qPrintable(VPAError::lastMessage));
         }
         else {
             m_renderer->SetValid(true);

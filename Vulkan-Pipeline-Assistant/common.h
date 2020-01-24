@@ -31,7 +31,7 @@
 #define FORCE_SEMICOLON static_assert(true, "")
 
 // VPAError macros
-#define VPA_OK VPAError(VPAErrorLevel::Ok, "")
+#define VPA_OK VPAError(VPAErrorLevel::Ok)
 #define VPA_WARN(msg) VPAError(VPAErrorLevel::Warning, msg)
 #define VPA_CRITICAL(msg) VPAError(VPAErrorLevel::Critical, msg)
 #define VPA_FATAL(msg) { QMessageBox::critical(nullptr, "VPA Fatal Error", msg);  QCoreApplication::quit(); } FORCE_SEMICOLON // Sources using this macro must include <QMessageBox> and <QCoreApplication>
@@ -57,9 +57,23 @@ namespace vpa {
     };
 
     struct VPAError {
+        static QString lastMessage;
         VPAErrorLevel level;
-        QString message;
-        VPAError(VPAErrorLevel lvl, QString msg) : level(lvl), message(msg) { }
+
+        VPAError(VPAErrorLevel lvl) : level(lvl) { }
+        VPAError(VPAErrorLevel lvl, QString msg) : level(lvl) {
+            lastMessage = msg != "" ? msg : lastMessage;
+        }
+        VPAError(const VPAError& other) : level(other.level) { }
+        VPAError& operator=(const VPAError& other) {
+            level = other.level;
+            return *this;
+        }
+        VPAError(VPAError&& other) noexcept : level(other.level) { }
+        VPAError& operator=(VPAError&& other) noexcept {
+            level = other.level;
+            return *this;
+        }
         bool operator==(VPAError err) {
             return level == err.level;
         }

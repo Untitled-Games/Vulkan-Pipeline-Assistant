@@ -33,7 +33,7 @@ namespace vpa {
             m_deviceFuncs = m_main->Details().deviceFunctions;
             VPAError err = VPA_OK;
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_main, err);
-            if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message);
+            if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + VPAError::lastMessage);
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_main->Device(), &m_config);
             m_validator = new ConfigValidator(m_config, m_main->Limits());
             CreateDefaultObjects();

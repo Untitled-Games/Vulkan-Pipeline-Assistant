@@ -12,6 +12,7 @@
 #include "Widgets/containerwidget.h"
 
 namespace vpa {
+    QString VPAError::lastMessage = "";
     const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
 
     MainWindow::MainWindow(QWidget* parent)
