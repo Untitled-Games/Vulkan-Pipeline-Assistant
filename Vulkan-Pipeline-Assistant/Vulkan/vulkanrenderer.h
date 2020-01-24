@@ -23,7 +23,7 @@ namespace vpa {
 
     class VulkanRenderer {
     public:
-        VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
+        VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback);
         ~VulkanRenderer();
 
         void Init();
@@ -102,7 +102,6 @@ namespace vpa {
 
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
-        std::function<void(void)> m_postInitCallback;
 
         int m_activeAttachment;
         bool m_useDepth;

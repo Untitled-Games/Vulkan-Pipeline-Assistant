@@ -27,7 +27,6 @@ namespace vpa {
         case SpvTypeName::Image:
             return new SpvImageWidget(container, resourceWidget, reinterpret_cast<SpvImageType*>(type), container);
         case SpvTypeName::Count_:
-        default:
             qWarning("Unknown spv widget type.");
         }
         return nullptr;

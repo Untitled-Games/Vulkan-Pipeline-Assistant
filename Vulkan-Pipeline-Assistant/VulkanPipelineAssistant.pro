@@ -10,6 +10,10 @@ CONFIG += c++14
 # deprecated API in order to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
 
+debug {
+    DEFINES += ENABLE_VALIDATION_LAYER
+}
+
 SOURCES += \
     Vulkan/configvalidator.cpp \
     Vulkan/descriptors.cpp \

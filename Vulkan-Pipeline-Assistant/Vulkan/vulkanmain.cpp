@@ -68,23 +68,33 @@ namespace vpa {
         }
     }
 
-    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
-        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_currentState(VulkanState::Pending) {
+    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
+        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending) {
         m_details.window = nullptr;
-        m_renderer = new VulkanRenderer(this, creationCallback, postInitCallback);
+        m_renderer = new VulkanRenderer(this, creationCallback);
         memset(m_renderFinished, 0, sizeof(m_renderFinished));
         memset(m_imagesAvailable, 0, sizeof(m_renderFinished));
         memset(m_inFlight, 0, sizeof(m_renderFinished));
         memset(m_details.swapchainDetails.imageViews, 0, sizeof(m_details.swapchainDetails.imageViews));
         m_currentState = VulkanState::Pending;
-        CreateVkInstance(m_details.instance);
+
+        VPAError err = CreateVkInstance(m_details.instance);
+        if (err != VPA_OK) {
+            m_currentState = VulkanState::Disabled;
+            return;
+        }
+
         QTimer::singleShot(500, [this]() {
-            CreatePhysicalDevice(m_details.physicalDevice);
-            CreateDevice(m_details.device);
-            VPAError err = Create(false);
-            if (err != VPA_OK) {
-                qFatal("Error in vulkan main create %s", qPrintable(err.message));
+            VPAError vpaErr = CreatePhysicalDevice(m_details.physicalDevice);
+            vpaErr = vpaErr == VPA_OK ? CreateDevice(m_details.device) : vpaErr;
+            vpaErr = vpaErr == VPA_OK ? Create(false) : vpaErr;
+
+            if (vpaErr != VPA_OK) {
+                m_currentState = VulkanState::Disabled;
+                qDebug("Error in vulkan main create %s", qPrintable(vpaErr.message)); // TODO when console exists output to it
+                return;
             }
+
             m_currentState = VulkanState::Ok;
             m_details.window->requestUpdate();
         });
@@ -138,8 +148,10 @@ namespace vpa {
         DestroySwapchain();
 
         VPAError err = CreateSwapchain(m_details.swapchainDetails);
-        if (err != VPA_OK) { // TODO proper VPAError process
-            qDebug("Failed to recreate swapchain");
+        if (err != VPA_OK) {
+            qDebug("Failed to recreate swapchain"); // TODO when console exists, output this
+            m_currentState = VulkanState::Disabled;
+            return;
         }
         m_renderer->CreateDefaultObjects();
         Reload(ReloadFlags::RenderPass);
@@ -166,7 +178,7 @@ namespace vpa {
              << "VK_LAYER_LUNARG_swapchain"
              << "VK_LAYER_GOOGLE_unique_objects");
         instance.setExtensions(QByteArrayList() << VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        if (!instance.create()) qFatal("Could not create Vulkan Instance %d", instance.errorCode()); // TODO VPA error
+        if (!instance.create()) return VPA_CRITICAL("Could not create Vulkan Instance " + QString::number(instance.errorCode()));
 
         m_details.functions = m_details.instance.functions();
 
@@ -196,7 +208,7 @@ namespace vpa {
         for (VkPhysicalDevice& possiblePhysDevice : physicalDevices) {
             m_details.functions->vkGetPhysicalDeviceProperties(possiblePhysDevice, &m_details.physicalDeviceProperties);
             m_details.functions->vkGetPhysicalDeviceFeatures(possiblePhysDevice, &m_details.physicalDeviceFeatures);
-            if (PhysicalDeviceValid()) {
+            if (PhysicalDeviceValid(possiblePhysDevice)) {
                 physicalDevice = possiblePhysDevice;
                 break;
             }
@@ -229,42 +241,84 @@ namespace vpa {
         return VPA_OK;
     }
 
-    bool VulkanMain::PhysicalDeviceValid() {
-        bool isDiscrete = m_details.physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-        bool hasExtensions = true; // TODO more exact extension enumeration and checking
-        bool hasQueueFamilies = true; // TODO more exact extension enumeration and checking
-        return isDiscrete && hasExtensions && hasQueueFamilies;
+    bool VulkanMain::PhysicalDeviceValid(VkPhysicalDevice& physicalDevice) {
+        return SupportsBasicFeatures(physicalDevice) && HasExtensions(physicalDevice) && HasQueueFamilies(physicalDevice);
     }
 
-    VPAError VulkanMain::CreateDevice(VkDevice& device) {
-        uint32_t queueCount = 0;
-        m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(m_details.physicalDevice, &queueCount, nullptr);
-        QVector<VkQueueFamilyProperties> queueFamilyProps = QVector<VkQueueFamilyProperties>(int(queueCount));
-        m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(m_details.physicalDevice, &queueCount, queueFamilyProps.data());
+    bool VulkanMain::HasExtensions(VkPhysicalDevice& physicalDevice) {
+        m_requiredExtensions = m_details.instance.extensions();
+        m_requiredExtensions.append("VK_KHR_swapchain");
+
+        uint32_t count = 0;
+        m_details.functions->vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr);
+        QVector<VkExtensionProperties> supportedExtensions = QVector<VkExtensionProperties>(int(count));
+        m_details.functions->vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, supportedExtensions.data());
+        QVulkanInfoVector<QVulkanExtension> exts;
+        for (const VkExtensionProperties &prop : supportedExtensions) {
+            QVulkanExtension ext;
+            ext.name = prop.extensionName;
+            ext.version = prop.specVersion;
+            exts.append(ext);
+        }
+
+        if (!exts.contains("VK_KHR_swapchain")) return false;
+
+        QByteArray envExts = qgetenv("QT_VULKAN_DEVICE_EXTENSIONS");
+        if (!envExts.isEmpty()) {
+            QByteArrayList envExtList = envExts.split(';');
+            for (auto ext : m_requiredExtensions) {
+                envExtList.removeAll(ext);
+            }
+            m_requiredExtensions.append(envExtList);
+        }
+
+        for (const QByteArray& ext : m_requiredExtensions) {
+            if (exts.contains(ext)) m_deviceExtensions.append(ext.constData());
+        }
+
+        return true;
+    }
+
+    bool VulkanMain::HasQueueFamilies(VkPhysicalDevice& physicalDevice) {
         m_details.graphicsQueueIndex = ~0U;
         m_details.presentQueueIndex = ~0U;
+
+        uint32_t count = 0;
+        m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, nullptr);
+        QVector<VkQueueFamilyProperties> queueFamilyProps = QVector<VkQueueFamilyProperties>(int(count));
+        m_details.functions->vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &count, queueFamilyProps.data());
         for (int i = 0; i < queueFamilyProps.count(); ++i) {
-           const bool supportsPresent = m_details.instance.supportsPresent(m_details.physicalDevice, uint32_t(i), m_details.window);
-           if (m_details.graphicsQueueIndex == ~0U
-                   && (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                   && supportsPresent)
+           const bool supportsPresent = m_details.instance.supportsPresent(physicalDevice, uint32_t(i), m_details.window);
+           if (m_details.graphicsQueueIndex == ~0U && (queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && supportsPresent) {
                m_details.graphicsQueueIndex = uint32_t(i);
+           }
         }
         if (m_details.graphicsQueueIndex != ~0U) {
            m_details.presentQueueIndex = m_details.graphicsQueueIndex;
         }
         else {
            for (uint32_t i = 0; i < uint32_t(queueFamilyProps.count()); ++i) {
-               if (m_details.graphicsQueueIndex == ~0U && (queueFamilyProps[int(i)].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+               if (m_details.graphicsQueueIndex == ~0U && (queueFamilyProps[int(i)].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                    m_details.graphicsQueueIndex = i;
-               if (m_details.presentQueueIndex == ~0U && m_details.instance.supportsPresent(m_details.physicalDevice, i, m_details.window))
+               }
+               if (m_details.presentQueueIndex == ~0U && m_details.instance.supportsPresent(physicalDevice, i, m_details.window)) {
                    m_details.presentQueueIndex = i;
+               }
            }
         }
 
-        if (m_details.graphicsQueueIndex == ~0U) return VPA_CRITICAL("No graphics queue family found");
-        if (m_details.presentQueueIndex == ~0U) return VPA_CRITICAL("No present queue family found");
+        if (m_details.graphicsQueueIndex == ~0U) return false;
+        if (m_details.presentQueueIndex == ~0U) return false;
 
+        return true;
+    }
+
+    bool VulkanMain::SupportsBasicFeatures(VkPhysicalDevice& physicalDevice) {
+        Q_UNUSED(physicalDevice)
+        return true; // See Trello for board item on expanding this
+    }
+
+    VPAError VulkanMain::CreateDevice(VkDevice& device) {
         QVector<VkDeviceQueueCreateInfo> queueInfo;
         queueInfo.reserve(2);
         const float prio[] = { 0 };
@@ -311,14 +365,14 @@ namespace vpa {
         }
 
         VkDeviceCreateInfo deviceCreateInfo = {};
+        CalculateLayers(deviceCreateInfo);
+
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceCreateInfo.pQueueCreateInfos = queueInfo.data();
         deviceCreateInfo.queueCreateInfoCount = uint32_t(queueInfo.size());
         deviceCreateInfo.pEnabledFeatures = &m_details.physicalDeviceFeatures;
-        deviceCreateInfo.enabledLayerCount = 0;
-        deviceCreateInfo.ppEnabledLayerNames = nullptr; // TODO enable appropriate layers m_details.instance.layers()
-        deviceCreateInfo.enabledExtensionCount = uint32_t(devExts.size());
-        deviceCreateInfo.ppEnabledExtensionNames = devExts.constData();
+        deviceCreateInfo.enabledExtensionCount = uint32_t(m_deviceExtensions.size());
+        deviceCreateInfo.ppEnabledExtensionNames = m_deviceExtensions.constData();
         deviceCreateInfo.pNext = nullptr;
         deviceCreateInfo.flags = 0;
         VPA_VKCRITICAL_PASS(m_details.functions->vkCreateDevice(m_details.physicalDevice, &deviceCreateInfo, nullptr, &device), "Failed to create device");
@@ -350,6 +404,31 @@ namespace vpa {
         }
 
         return VPA_OK;
+    }
+
+    void VulkanMain::CalculateLayers(VkDeviceCreateInfo& createInfo) {
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
+
+#ifdef ENABLE_VALIDATION_LAYER
+        const QByteArray stdValName = QByteArrayLiteral("VK_LAYER_LUNARG_standard_validation");
+        const char *stdValNamePtr = stdValName.constData();
+        uint32_t layerCount = 0;
+        VkResult err = m_details.functions->vkEnumerateDeviceLayerProperties(m_details.physicalDevice, &layerCount, nullptr);
+        if (err != VK_SUCCESS) return;
+
+        QVector<VkLayerProperties> layerProps = QVector<VkLayerProperties>(int(layerCount));
+        err =  m_details.functions->vkEnumerateDeviceLayerProperties(m_details.physicalDevice, &layerCount, layerProps.data());
+        if (err != VK_SUCCESS) return;
+
+        for (const VkLayerProperties &prop : layerProps) {
+            if (!strncmp(prop.layerName, stdValNamePtr, size_t(stdValName.count()))) {
+                createInfo.enabledLayerCount = 1;
+                createInfo.ppEnabledLayerNames = &stdValNamePtr;
+                break;
+            }
+        }
+#endif
     }
 
     VPAError VulkanMain::CreateSwapchain(SwapchainDetails& swapchainDetails) {

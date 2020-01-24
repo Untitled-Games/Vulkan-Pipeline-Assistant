@@ -14,13 +14,14 @@
 #include "configvalidator.h"
 
 namespace vpa {
-    VulkanRenderer::VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback)
+    VulkanRenderer::VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback)
         : m_initialised(false), m_valid(false), m_main(main), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr), m_vertexInput(nullptr),
-          m_descriptors(nullptr), m_validator(nullptr), m_creationCallback(creationCallback), m_postInitCallback(postInitCallback), m_activeAttachment(0), m_useDepth(true),
-          m_depthPipeline(VK_NULL_HANDLE), m_depthPipelineLayout(VK_NULL_HANDLE), m_depthSampler(VK_NULL_HANDLE) {
+          m_descriptors(nullptr), m_validator(nullptr), m_creationCallback(creationCallback), m_activeAttachment(0), m_useDepth(true),
+          m_depthPipeline(VK_NULL_HANDLE), m_depthPipelineLayout(VK_NULL_HANDLE), m_depthSampler(VK_NULL_HANDLE), m_defaultRenderPass(VK_NULL_HANDLE) {
         m_main->m_renderer = this;
         m_config = {};
+        m_defaultDepthAttachment.view = VK_NULL_HANDLE;
     }
 
     VulkanRenderer::~VulkanRenderer() {

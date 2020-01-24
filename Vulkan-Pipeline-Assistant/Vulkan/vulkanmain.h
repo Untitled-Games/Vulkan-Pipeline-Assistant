@@ -87,7 +87,7 @@ namespace vpa {
         friend class VulkanWindow;
         friend class VulkanRenderer;
     public:
-        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
+        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
         void WritePipelineCache();
@@ -110,9 +110,16 @@ namespace vpa {
         void DestroySwapchain();
         VPAError Create(bool destroy = true);
         VPAError CreateVkInstance(QVulkanInstance& instance);
+
         VPAError CreatePhysicalDevice(VkPhysicalDevice& physicalDevice);
-        bool PhysicalDeviceValid();
+        bool PhysicalDeviceValid(VkPhysicalDevice& physicalDevice);
+        bool HasExtensions(VkPhysicalDevice& physicalDevice);
+        bool HasQueueFamilies(VkPhysicalDevice& physicalDevice);
+        bool SupportsBasicFeatures(VkPhysicalDevice& physicalDevice);
+
         VPAError CreateDevice(VkDevice& device);
+        void CalculateLayers(VkDeviceCreateInfo& createInfo);
+
         VPAError CreateSwapchain(SwapchainDetails& swapchain);
         VkExtent2D CalculateExtent();
         VPAError CreateSync();
@@ -126,7 +133,9 @@ namespace vpa {
         QWidget* m_container;
         QWidget* m_parent;
         std::function<void(void)> m_creationCallback;
-        std::function<void(void)> m_postInitCallback;
+
+        QByteArrayList m_requiredExtensions;
+        QVector<const char *> m_deviceExtensions;
 
         VulkanDetails m_details;
         InternalFunctions m_iFunctions;
