@@ -8,7 +8,7 @@
 #include <QLayout>
 #include <QLineEdit>
 
-#include "Vulkan/vulkanmain.h"
+#include "./Vulkan/vulkanmain.h"
 #include "common.h"
 
 QT_BEGIN_NAMESPACE

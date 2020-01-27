@@ -20,7 +20,8 @@
 #include <QString>
 #include <QDebug>
 
-#define RESDIR "../../Resources/"
+#define ROOTDIR "../"
+#define RESDIR ROOTDIR"Resources/"
 #define TEXDIR RESDIR"Textures/"
 #define CONFIGDIR RESDIR"Configs/"
 #define IMAGEDIR RESDIR"Images/"

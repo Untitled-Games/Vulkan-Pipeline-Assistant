@@ -6,12 +6,12 @@
 #include <QKeyEvent>
 #include <qt_windows.h>
 
-#include "Vulkan/pipelineconfig.h"
-#include "Vulkan/descriptors.h"
-#include "Widgets/spvresourcewidget.h"
-#include "Widgets/drawerwidget.h"
-#include "Widgets/containerwidget.h"
-#include "Widgets/tabbedcontainerwidget.h"
+#include "./Vulkan/pipelineconfig.h"
+#include "./Vulkan/descriptors.h"
+#include "./Widgets/spvresourcewidget.h"
+#include "./Widgets/drawerwidget.h"
+#include "./Widgets/containerwidget.h"
+#include "./Widgets/tabbedcontainerwidget.h"
 
 namespace vpa {
     QString VPAError::lastMessage = "";
