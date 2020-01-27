@@ -85,6 +85,9 @@ namespace vpa {
 
     void SpvMatrixWidget::Init() {
         Fill(BYTE_CPTR(DefaultData));
+        if (m_type->name == "mvp") {
+            Fill(BYTE_CPTR(Descriptors::DefaultMVPMatrix().data()));
+        }
     }
 
     void SpvMatrixWidget::HandleInverse() {
