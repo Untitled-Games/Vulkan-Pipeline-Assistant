@@ -2,22 +2,26 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QPushButton>
-#include <QFileDialog>
-#include <QTextEdit>
 #include <QLabel>
-#include <QLayout>
+#include <QSpinBox>
 #include <QComboBox>
-#include <QPair>
-#include "vulkanmain.h"
+#include <QLayout>
+#include <QLineEdit>
 
-#define IMAGEDIR "../../Resources/Images/"
+#include "./Vulkan/vulkanmain.h"
+#include "common.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+class QPushButton;
+
 namespace vpa {
+    class DrawerWidget;
+    class ContainerWidget;
+    class TabbedContainerWidget;
+
     class MainWindow : public QMainWindow {
         Q_OBJECT
 
@@ -37,39 +41,72 @@ namespace vpa {
         };
     public:
         MainWindow(QWidget* parent = nullptr);
-        ~MainWindow();
-    private slots:
-        void HandleShaderFileDialog(QLineEdit* field);
-        void HandleConfigAreaChange(int toIdx);
-    private:
-        void AddConfigButtons();
-        void AddConfigBlocks();
+        ~MainWindow() override;
 
-        void MakeShaderBlock(QWidget* parent, QString labelStr);
+        static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
+
+        void closeEvent(QCloseEvent* event) override;
+        void resizeEvent(QResizeEvent* event) override;
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
+    private slots:
+        void HandleViewChangeReset(QVector<QLineEdit*> v);
+        void HandleViewChangeApply(QVector<QLineEdit*> v);
+        void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
+
+    private:
+        bool WindowsNativeEvent(MSG* msg);
+        void CreateInterface();
+
+        void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
         QWidget* MakeVertexInputBlock();
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRasterizerBlock();
         QWidget* MakeMultisampleBlock();
         QWidget* MakeDepthStencilBlock();
         QWidget* MakeRenderPassBlock();
+        void MakeDescriptorBlock();
+        template<typename T>
+        T* MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox);
 
-        QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
+        void VulkanCreationCallback();
+        void WriteAndReload(ReloadFlags flag) const;
+        PipelineConfig& Config() const;
+
+        template<typename T>
+        void HandleConfigValueChange(T& configVar, ReloadFlags reloadFlag, int index);
 
         Ui::MainWindow* m_ui;
         VulkanMain* m_vulkan;
         QPushButton* m_createCacheBtn;
         QGridLayout* m_layout;
 
-        QWidget* m_leftColumnContainer;
-        QWidget* m_rightTopContainer;
+        QWidget* m_masterContainer;
+        QWidget* m_leftBottomArea;
         QWidget* m_rightBottomContainer;
+        TabbedContainerWidget* m_configArea;
+        QLineEdit* m_console;
+
+        QWidget* m_descriptorArea;
+        ContainerWidget* m_descriptorContainer;
+        DrawerWidget* m_descriptorDrawer;
 
         QPushButton* m_cacheBtn;
 
-        QVector<QPushButton*> m_configButtons;
-        QVector<QWidget*> m_configBlocks;
-
-        int m_unhiddenIdx;
+        static const QVector<QString> BoolComboOptions;
     };
+
+    template<typename T>
+    inline void MainWindow::HandleConfigValueChange(T& configVar, ReloadFlags reloadFlag, int index) {
+        configVar = T(index);
+        WriteAndReload(reloadFlag);
+    }
+
+    template<typename T>
+    inline T* MainWindow::MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox) {
+        QLabel* label = new QLabel(name, parent);
+        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(label, labRow, labCol);
+        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(inputBox, boxRow, boxCol);
+        return inputBox;
+    }
 }
 #endif // MAINWINDOW_H

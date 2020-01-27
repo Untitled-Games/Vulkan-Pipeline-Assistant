@@ -11,9 +11,22 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Vulkan Pipeline Assistant</string>
   </property>
-  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QWidget" name="gridLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>0</y>
+      <width>1151</width>
+      <height>871</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout"/>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
@@ -23,26 +36,13 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuPipeline">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>Pipeline</string>
+     <string>File</string>
     </property>
    </widget>
-   <widget class="QMenu" name="menuShaders">
-    <property name="title">
-     <string>Shaders</string>
-    </property>
-   </widget>
-   <widget class="QMenu" name="menuView">
-    <property name="title">
-     <string>Display</string>
-    </property>
-   </widget>
-   <addaction name="menuPipeline"/>
-   <addaction name="menuShaders"/>
-   <addaction name="menuView"/>
+   <addaction name="menuFile"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

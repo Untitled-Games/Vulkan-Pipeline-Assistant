@@ -10,35 +10,57 @@ CONFIG += c++14
 # deprecated API in order to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
 
-# You can also make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-# You can also select to disable deprecated APIs only up to a certain version of Qt.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+debug {
+    DEFINES += ENABLE_VALIDATION_LAYER
+}
 
 SOURCES += \
-    descriptors.cpp \
+    Vulkan/configvalidator.cpp \
+    Vulkan/descriptors.cpp \
+    Vulkan/memoryallocator.cpp \
+    Vulkan/pipelineconfig.cpp \
+    Vulkan/shaderanalytics.cpp \
+    Vulkan/vertexinput.cpp \
+    Vulkan/vulkanmain.cpp \
+    Vulkan/vulkanrenderer.cpp \
+    Widgets/containerwidget.cpp \
+    Widgets/drawerwidget.cpp \
+    Widgets/spvarraywidget.cpp \
+    Widgets/spvimagewidget.cpp \
+    Widgets/spvmatrixwidget.cpp \
+    Widgets/spvresourcewidget.cpp \
+    Widgets/spvstructwidget.cpp \
+    Widgets/spvvectorwidget.cpp \
+    Widgets/spvwidget.cpp \
+    Widgets/tabbedcontainerwidget.cpp \
     main.cpp \
     mainwindow.cpp \
-    pipelineconfig.cpp \
-    memoryallocator.cpp \
-    shaderanalytics.cpp \
-    vertexinput.cpp \
-    vulkanmain.cpp \
-    vulkanrenderer.cpp
 
 HEADERS += \
-    descriptors.h \
+    Vulkan/configvalidator.h \
+    Vulkan/descriptors.h \
+    Vulkan/memoryallocator.h \
+    Vulkan/pipelineconfig.h \
+    Vulkan/reloadflags.h \
+    Vulkan/shaderanalytics.h \
+    Vulkan/spirvresource.h \
+    Vulkan/vertexinput.h \
+    Vulkan/vulkanmain.h \
+    Vulkan/vulkanrenderer.h \
+    Widgets/containerwidget.h \
+    Widgets/drawerwidget.h \
+    Widgets/spvarraywidget.h \
+    Widgets/spvimagewidget.h \
+    Widgets/spvmatrixwidget.h \
+    Widgets/spvresourcewidget.h \
+    Widgets/spvstructwidget.h \
+    Widgets/spvvectorwidget.h \
+    Widgets/spvwidget.h \
+    Widgets/tabbedcontainerwidget.h \
+    common.h \
     filemanager.h \
     mainwindow.h \
-    memoryallocator.h \
-    pipelineconfig.h \
-    reloadflags.h \
-    shaderanalytics.h \
-    spirvresource.h \
-    tiny_obj_loader.h \
-    vertexinput.h \
-    vulkanmain.h \
-    vulkanrenderer.h
+    tiny_obj_loader.h
 
 FORMS += \
     mainwindow.ui
