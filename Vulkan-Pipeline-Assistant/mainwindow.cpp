@@ -37,7 +37,7 @@ namespace vpa {
         CreateInterface();
 
         m_layout->addWidget(m_configArea, 0, 0);
-        m_layout->addWidget(m_descriptorArea, 0, 1);
+        //m_layout->addWidget(m_descriptorArea, 0, 1);
         m_layout->addWidget(m_leftBottomArea, 1, 0);
         m_layout->addWidget(m_rightBottomContainer, 1, 1);
         m_layout->addWidget(m_console, 2, 0, 1, 2);
@@ -98,28 +98,25 @@ namespace vpa {
         m_configArea->AddTab("Multisample", MakeMultisampleBlock());
         m_configArea->AddTab("Depth Stencil", MakeDepthStencilBlock());
         m_configArea->AddTab("Render pass", MakeRenderPassBlock());
+
+        m_descriptorArea = new QWidget(m_masterContainer);
+        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
+        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
+        m_descriptorDrawer->setMaximumWidth(100);
+        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
+        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
+        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
+        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
+
+        m_configArea->AddTab("Descriptors", m_descriptorArea);
+
+        MakeDescriptorBlock();
+
         m_configArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
         m_configArea->setMaximumSize(650, height() / 2);
         m_configArea->setMinimumSize(250, height() / 4);
         m_configArea->setSizePolicy(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Preferred);
         m_configArea->InitSize();
-
-        m_descriptorArea = new QWidget(m_masterContainer);
-        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
-        m_descriptorArea->setStyleSheet("background-color:#ff0000");
-        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
-        m_descriptorDrawer->setStyleSheet("background-color:#00ff00");
-        m_descriptorDrawer->setMinimumWidth(100);
-        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
-        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
-        m_descriptorContainer->setStyleSheet("background-color:#0000ff");
-        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
-        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
-        m_descriptorArea->hide();
-        //m_descriptorDrawer->show();
-        //m_descriptorContainer->show();
-
-        MakeDescriptorBlock();
 
         /*m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer); TODO add to file toolbar menu
         m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
