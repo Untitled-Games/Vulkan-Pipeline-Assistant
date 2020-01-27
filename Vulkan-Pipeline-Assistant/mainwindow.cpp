@@ -37,7 +37,7 @@ namespace vpa {
         m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
         CreateInterface();
 
-        m_layout->addWidget(m_configArea, 0, 0);
+        m_layout->addWidget(m_configArea, 0, 0, 1, 2);
         m_layout->addWidget(m_leftBottomArea, 1, 0);
         m_layout->addWidget(m_rightBottomContainer, 1, 1);
         m_layout->addWidget(m_console, 2, 0, 1, 2);
