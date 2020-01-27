@@ -8,6 +8,7 @@
 namespace vpa {
     class ContainerItem {
     public:
+        virtual ~ContainerItem() = default;
         // Called When the container clears the widget from the container
         virtual void OnRelease() = 0;
     };
@@ -17,6 +18,7 @@ namespace vpa {
         Q_OBJECT
     public:
         ContainerWidget(QWidget* parent);
+        virtual ~ContainerWidget() = default;
 
         void ShowWidget(QWidget* widget);
         void Clear();

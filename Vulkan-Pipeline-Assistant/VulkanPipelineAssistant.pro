@@ -32,6 +32,7 @@ SOURCES += \
     Widgets/spvstructwidget.cpp \
     Widgets/spvvectorwidget.cpp \
     Widgets/spvwidget.cpp \
+    Widgets/tabbedcontainerwidget.cpp \
     main.cpp \
     mainwindow.cpp \
 
@@ -55,6 +56,7 @@ HEADERS += \
     Widgets/spvstructwidget.h \
     Widgets/spvvectorwidget.h \
     Widgets/spvwidget.h \
+    Widgets/tabbedcontainerwidget.h \
     common.h \
     filemanager.h \
     mainwindow.h \

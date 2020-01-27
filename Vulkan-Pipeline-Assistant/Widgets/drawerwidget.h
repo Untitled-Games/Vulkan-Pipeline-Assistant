@@ -37,6 +37,7 @@ namespace vpa {
         Q_OBJECT
     public:
         DrawerItemWidget(DrawerWidget* drawer, DrawerItem* item, QString name, QColor pallete);
+        ~DrawerItemWidget();
         void Expand();
         void Close();
         DrawerItemWidget* AddChild(DrawerItem* item, QString name, QColor baseColour);

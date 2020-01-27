@@ -33,7 +33,7 @@ namespace vpa {
             m_deviceFuncs = m_main->Details().deviceFunctions;
             VPAError err = VPA_OK;
             m_allocator = new MemoryAllocator(m_deviceFuncs, m_main, err);
-            if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + err.message);
+            if (err != VPA_OK) VPA_FATAL("Device memory allocator fatal error. " + VPAError::lastMessage);
             m_shaderAnalytics = new ShaderAnalytics(m_deviceFuncs, m_main->Device(), &m_config);
             m_validator = new ConfigValidator(m_config, m_main->Limits());
             CreateDefaultObjects();
@@ -177,7 +177,17 @@ namespace vpa {
         m_deviceFuncs->vkDeviceWaitIdle(m_main->Device());
 
         if (flag & ReloadFlagBits::Validation) VPA_PASS_ERROR(m_validator->Validate(m_config));
-        if (flag & ReloadFlagBits::Shaders) VPA_PASS_ERROR(CreateShaders());
+        if (flag & ReloadFlagBits::Shaders) {
+            VPAError err = CreateShaders();
+            if (err != VPA_OK) {
+                if (m_descriptors) {
+                    delete m_descriptors;
+                    m_descriptors = nullptr;
+                }
+            }
+            m_creationCallback();
+            if (err != VPA_OK) return err;
+        }
         if (flag & ReloadFlagBits::RenderPass) VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth));
         if (flag & ReloadFlagBits::Pipeline) {
             VkPipelineLayoutCreateInfo layoutInfo = {};
@@ -453,10 +463,9 @@ namespace vpa {
         m_descriptors = new Descriptors(m_main, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), m_main->Limits(), err);
         if (err != VPA_OK) {
             delete m_descriptors;
+            m_descriptors = nullptr;
             return err;
         }
-
-        m_creationCallback();
         return VPA_OK;
     }
 

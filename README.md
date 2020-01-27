@@ -64,3 +64,6 @@ Please follow these steps to report a bug:
 Vulkan Pipeline Assistant is released under the [MIT](LICENSE) license.
 Note, VPA utilizes the [Qt](https://www.qt.io/) library, which includes a [GNU LGPL 3](https://www.gnu.org/licenses/lgpl-3.0.en.html).
 
+up, down, left, right arrow icons by Stefan Taubert https://www.iconfinder.com/iconsets/basic-user-interface-elements
+under https://creativecommons.org/licenses/by/3.0/
+
