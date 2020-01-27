@@ -20,6 +20,7 @@ class QPushButton;
 namespace vpa {
     class DrawerWidget;
     class ContainerWidget;
+    class TabbedContainerWidget;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
@@ -44,9 +45,9 @@ namespace vpa {
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
 
-        bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+        void resizeEvent(QResizeEvent* event) override;
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
     private slots:
-        void HandleConfigAreaChange(int toIdx);
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
         void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
@@ -54,8 +55,6 @@ namespace vpa {
     private:
         bool WindowsNativeEvent(MSG* msg);
         void CreateInterface();
-        void AddConfigButtons();
-        void AddConfigBlocks();
 
         void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
         QWidget* MakeVertexInputBlock();
@@ -81,18 +80,16 @@ namespace vpa {
         QGridLayout* m_layout;
 
         QWidget* m_masterContainer;
-        QWidget* m_leftColumnContainer;
-        ContainerWidget* m_rightTopContainer;
+        QWidget* m_leftBottomArea;
         QWidget* m_rightBottomContainer;
+        TabbedContainerWidget* m_configArea;
+        QLineEdit* m_console;
 
         QWidget* m_descriptorArea;
         ContainerWidget* m_descriptorContainer;
         DrawerWidget* m_descriptorDrawer;
 
         QPushButton* m_cacheBtn;
-
-        QVector<QPushButton*> m_configButtons;
-        QVector<QWidget*> m_configBlocks;
 
         static const QVector<QString> BoolComboOptions;
     };

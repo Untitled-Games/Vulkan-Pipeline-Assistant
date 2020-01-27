@@ -10,6 +10,7 @@
 #include "Widgets/spvresourcewidget.h"
 #include "Widgets/drawerwidget.h"
 #include "Widgets/containerwidget.h"
+#include "Widgets/tabbedcontainerwidget.h"
 
 namespace vpa {
     QString VPAError::lastMessage = "";
@@ -23,34 +24,28 @@ namespace vpa {
         m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
         m_layout = new QGridLayout(m_masterContainer);
 
-        m_leftColumnContainer = new QWidget(m_masterContainer);
-        m_leftColumnContainer->setLayout(new QVBoxLayout(m_leftColumnContainer));
-        m_leftColumnContainer->layout()->setAlignment(Qt::AlignTop);
+        m_leftBottomArea = new QWidget(m_masterContainer);
 
-        m_rightTopContainer = new ContainerWidget(m_masterContainer);
-        m_rightTopContainer->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
-        m_descriptorArea = new QWidget(m_rightTopContainer);
-        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
-        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
-        m_descriptorDrawer->setMaximumWidth(100);
-        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
-        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
-        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
-        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
-        m_descriptorArea->hide();
-        reinterpret_cast<QHBoxLayout*>(m_descriptorContainer->layout())->setSizeConstraint(QLayout::SizeConstraint::SetFixedSize);
+        m_console = new QLineEdit("Console", m_masterContainer);
+        m_console->setReadOnly(true);
+        m_console->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
+        m_console->setStyleSheet("background-color:#aa1111;");
 
         m_rightBottomContainer = new QWidget(m_masterContainer);
         m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
         m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
         CreateInterface();
 
-        m_layout->addWidget(m_leftColumnContainer, 0, 0);
-        m_layout->addWidget(m_rightTopContainer, 0, 1);
+        m_layout->addWidget(m_configArea, 0, 0);
+        m_layout->addWidget(m_descriptorArea, 0, 1);
+        m_layout->addWidget(m_leftBottomArea, 1, 0);
         m_layout->addWidget(m_rightBottomContainer, 1, 1);
+        m_layout->addWidget(m_console, 2, 0, 1, 2);
 
         m_layout->setColumnStretch(0, 1);
-        m_layout->setColumnStretch(1, 4);
+        m_layout->setColumnStretch(1, 1);
+        m_layout->setContentsMargins(0, 5, 0, 0);
+        m_layout->setSpacing(0);
         m_masterContainer->setLayout(m_layout);
         this->setCentralWidget(m_masterContainer);
     }
@@ -59,7 +54,12 @@ namespace vpa {
         delete m_ui;
     }
 
-    bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result) {
+    void MainWindow::resizeEvent(QResizeEvent* event) {
+        Q_UNUSED(event)
+        m_console->setMaximumWidth(width());
+    }
+
+    bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long* result) {
         Q_UNUSED(result)
         Q_UNUSED(eventType)
         if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
@@ -82,61 +82,48 @@ namespace vpa {
     }
 
     void MainWindow::CreateInterface() {
-        AddConfigButtons();
-        AddConfigBlocks();
-
-        m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer);
-        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
-        QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
-    }
-
-    void MainWindow::AddConfigButtons() {
-        m_configButtons.push_back(new QPushButton("Shaders", m_leftColumnContainer));
-        QObject::connect(m_configButtons[0], &QPushButton::released, [this]{ this->HandleConfigAreaChange(0); });
-        m_configButtons.push_back(new QPushButton("Vertex Input", m_leftColumnContainer));
-        QObject::connect(m_configButtons[1], &QPushButton::released, [this]{ this->HandleConfigAreaChange(1); });
-        m_configButtons.push_back(new QPushButton("Viewport", m_leftColumnContainer));
-        QObject::connect(m_configButtons[2], &QPushButton::released, [this]{ this->HandleConfigAreaChange(2); });
-        m_configButtons.push_back(new QPushButton("Rasterizer", m_leftColumnContainer));
-        QObject::connect(m_configButtons[3], &QPushButton::released, [this]{ this->HandleConfigAreaChange(3); });
-        m_configButtons.push_back(new QPushButton("Multisampling", m_leftColumnContainer));
-        QObject::connect(m_configButtons[4], &QPushButton::released, [this]{ this->HandleConfigAreaChange(4); });
-        m_configButtons.push_back(new QPushButton("Depth and Stencil", m_leftColumnContainer));
-        QObject::connect(m_configButtons[5], &QPushButton::released, [this]{ this->HandleConfigAreaChange(5); });
-        m_configButtons.push_back(new QPushButton("Render Pass State", m_leftColumnContainer));
-        QObject::connect(m_configButtons[6], &QPushButton::released, [this]{ this->HandleConfigAreaChange(6); });
-        m_configButtons.push_back(new QPushButton("Descriptors", m_leftColumnContainer));
-        QObject::connect(m_configButtons[7], &QPushButton::released, [this]{ m_rightTopContainer->ShowWidget(m_descriptorArea); });
-        for (QPushButton* button : m_configButtons) {
-            m_leftColumnContainer->layout()->addWidget(button);
-        }
-    }
-
-    void MainWindow::AddConfigBlocks() {
-        QWidget* shaderWidget = new QWidget(m_rightTopContainer);
+        QWidget* shaderWidget = new QWidget();
         shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
-        m_configBlocks.push_back(shaderWidget);
         MakeShaderBlock(shaderWidget, "Vertex", Config().vertShader, SHADERDIR"vs_test.spv");
         MakeShaderBlock(shaderWidget, "Fragment", Config().fragShader, SHADERDIR"fs_test.spv");
         MakeShaderBlock(shaderWidget, "Tess Control", Config().tescShader);
         MakeShaderBlock(shaderWidget, "Tess Eval", Config().teseShader);
         MakeShaderBlock(shaderWidget, "Geometry", Config().geomShader);
 
-        m_configBlocks.push_back(MakeVertexInputBlock());
-        m_configBlocks.push_back(MakeViewportStateBlock());
-        m_configBlocks.push_back(MakeRasterizerBlock());
-        m_configBlocks.push_back(MakeMultisampleBlock());
-        m_configBlocks.push_back(MakeDepthStencilBlock());
-        m_configBlocks.push_back(MakeRenderPassBlock());
+        m_configArea = new TabbedContainerWidget(TabLayoutDirection::Vertical, 60, 15, m_masterContainer);
+        m_configArea->AddTab("Shaders", shaderWidget);
+        m_configArea->AddTab("Vertex Input", MakeVertexInputBlock());
+        m_configArea->AddTab("Viewport", MakeViewportStateBlock());
+        m_configArea->AddTab("Rasterizer", MakeRasterizerBlock());
+        m_configArea->AddTab("Multisample", MakeMultisampleBlock());
+        m_configArea->AddTab("Depth Stencil", MakeDepthStencilBlock());
+        m_configArea->AddTab("Render pass", MakeRenderPassBlock());
+        m_configArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
+        m_configArea->setMaximumSize(650, height() / 2);
+        m_configArea->setMinimumSize(250, height() / 4);
+        m_configArea->setSizePolicy(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Preferred);
+        m_configArea->InitSize();
+
+        m_descriptorArea = new QWidget(m_masterContainer);
+        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
+        m_descriptorArea->setStyleSheet("background-color:#ff0000");
+        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
+        m_descriptorDrawer->setStyleSheet("background-color:#00ff00");
+        m_descriptorDrawer->setMinimumWidth(100);
+        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
+        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
+        m_descriptorContainer->setStyleSheet("background-color:#0000ff");
+        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
+        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
+        m_descriptorArea->hide();
+        //m_descriptorDrawer->show();
+        //m_descriptorContainer->show();
+
         MakeDescriptorBlock();
 
-        for (QWidget* widget : m_configBlocks) {
-            widget->hide();
-        }
-    }
-
-    void MainWindow::HandleConfigAreaChange(int toIdx) {
-        m_rightTopContainer->ShowWidget(m_configBlocks[toIdx]);
+        /*m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer); TODO add to file toolbar menu
+        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
+        QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });*/
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
@@ -196,7 +183,7 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeVertexInputBlock() {
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         container->setLayout(new QGridLayout(container));
 
         // ----------- Topology -------------
@@ -227,7 +214,7 @@ namespace vpa {
 
     QWidget* MainWindow::MakeViewportStateBlock() {
         // ----------- Viewport -------------
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         QLabel* xLabel = new QLabel("Viewport X", container);
         QLineEdit* xBox = new QLineEdit(container);
         xBox->setValidator(new QDoubleValidator(0.0, 10000.0, 2, container));
@@ -309,7 +296,7 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeRasterizerBlock() {
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         container->setLayout(new QGridLayout(container));
 
         // ----------- Polygon Mode -------------
@@ -379,7 +366,7 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeMultisampleBlock() {
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         container->setLayout(new QGridLayout(container));
 
         // ----------- Sample Count -------------
@@ -399,7 +386,7 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeDepthStencilBlock() {
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         container->setLayout(new QGridLayout(container));
 
         // ----------- Depth Test -------------
@@ -437,7 +424,7 @@ namespace vpa {
     }
 
     QWidget* MainWindow::MakeRenderPassBlock() {
-        QWidget* container = new QWidget(m_rightTopContainer);
+        QWidget* container = new QWidget();
         QLabel* subpassLabel = new QLabel("Subpass Index", container);
         QLineEdit* subpassBox = new QLineEdit("0", container);
         subpassBox->setValidator(new QIntValidator(0, 9, subpassBox));
@@ -454,6 +441,8 @@ namespace vpa {
     void MainWindow::MakeDescriptorBlock() {
         m_descriptorContainer->Clear();
         m_descriptorDrawer->Clear();
+        m_descriptorContainer->show();
+        m_descriptorDrawer->show();
 
         if (!m_vulkan) return;
 

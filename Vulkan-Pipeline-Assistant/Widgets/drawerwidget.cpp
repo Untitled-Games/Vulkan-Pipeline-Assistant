@@ -59,7 +59,7 @@ namespace vpa {
         if (m_children.empty()) {
             m_icon = new QLabel(this);
             m_icon->setAlignment(Qt::AlignRight);
-            m_iconPixmap = QPixmap(IMAGEDIR"right_chevron.svg");
+            m_iconPixmap = QPixmap(IMAGEDIR"right_arrow.svg");
             RotateIcon(0);
             layout()->addWidget(m_icon);
         }

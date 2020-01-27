@@ -18,6 +18,7 @@
 #endif
 
 #include <QString>
+#include <QDebug>
 
 #define RESDIR "../../Resources/"
 #define TEXDIR RESDIR"Textures/"

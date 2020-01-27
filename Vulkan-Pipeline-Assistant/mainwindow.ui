@@ -14,6 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget"/>
+  <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
@@ -23,26 +24,13 @@
      <height>22</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuPipeline">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>Pipeline</string>
+     <string>File</string>
     </property>
    </widget>
-   <widget class="QMenu" name="menuShaders">
-    <property name="title">
-     <string>Shaders</string>
-    </property>
-   </widget>
-   <widget class="QMenu" name="menuView">
-    <property name="title">
-     <string>Display</string>
-    </property>
-   </widget>
-   <addaction name="menuPipeline"/>
-   <addaction name="menuShaders"/>
-   <addaction name="menuView"/>
+   <addaction name="menuFile"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>
