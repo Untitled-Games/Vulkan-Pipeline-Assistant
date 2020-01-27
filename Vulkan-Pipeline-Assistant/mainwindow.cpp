@@ -3,6 +3,7 @@
 
 #include <QPushButton>
 #include <QFileDialog>
+#include <QKeyEvent>
 #include <qt_windows.h>
 
 #include "Vulkan/pipelineconfig.h"
@@ -37,7 +38,6 @@ namespace vpa {
         CreateInterface();
 
         m_layout->addWidget(m_configArea, 0, 0);
-        //m_layout->addWidget(m_descriptorArea, 0, 1);
         m_layout->addWidget(m_leftBottomArea, 1, 0);
         m_layout->addWidget(m_rightBottomContainer, 1, 1);
         m_layout->addWidget(m_console, 2, 0, 1, 2);
@@ -52,6 +52,11 @@ namespace vpa {
 
     MainWindow::~MainWindow() {
         delete m_ui;
+    }
+
+    void MainWindow::closeEvent(QCloseEvent* event) {
+        delete m_vulkan;
+        event->accept();
     }
 
     void MainWindow::resizeEvent(QResizeEvent* event) {

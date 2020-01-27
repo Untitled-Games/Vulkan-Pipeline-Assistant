@@ -90,6 +90,8 @@ namespace vpa {
         VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
+        void ToggleAttachToContainer();
+
         void WritePipelineCache();
         void WritePipelineConfig();
         PipelineConfig& GetConfig();
@@ -145,6 +147,8 @@ namespace vpa {
         uint32_t m_frameIndex;
 
         VulkanState m_currentState;
+
+        bool m_attached;
 
         static const QVector<const char*> LayerNames;
     };

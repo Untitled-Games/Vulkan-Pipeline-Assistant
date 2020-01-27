@@ -8,7 +8,7 @@
 #include <QLayout>
 #include <QLineEdit>
 
-#include "../Vulkan/vulkanmain.h"
+#include "Vulkan/vulkanmain.h"
 #include "common.h"
 
 QT_BEGIN_NAMESPACE
@@ -45,6 +45,7 @@ namespace vpa {
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
 
+        void closeEvent(QCloseEvent* event) override;
         void resizeEvent(QResizeEvent* event) override;
         bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
     private slots:
