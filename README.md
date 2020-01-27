@@ -9,10 +9,21 @@ see it change immediately. No setup of a surrounding engine required! It is inte
 
 Please note that VPA is currently in early development pre-release and is not guaranteed to work in all cases yet. Please see the [Trello](https://trello.com/b/80TA000E/vpa) board for progress.
 
-<img width="30%" src="Resources/Images/Demo/Descriptors.gif">
-<img width="30%" src="Resources/Images/Demo/RasteriserState.gif">
-<img width="30%" src="Resources/Images/Demo/Topology.gif">
+<p width="100%">
+<img align="left" width="30%" src="Resources/Images/Demo/Descriptors.gif">
+<img align="left" width="30%" src="Resources/Images/Demo/RasteriserState.gif">
+<img align="left" width="30%" src="Resources/Images/Demo/Topology.gif">
+</p>
 
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
+</br>
 
 ## Getting the Code
 We recomend the QTCreator IDE to edit the code the recomended: [5.14.0](https://download.qt.io/archive/qt/5.14/5.14.0/)
