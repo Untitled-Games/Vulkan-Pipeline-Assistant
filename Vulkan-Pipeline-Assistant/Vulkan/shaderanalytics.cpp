@@ -29,20 +29,20 @@ namespace vpa {
 
     void ShaderAnalytics::Destroy() {
         for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
-            DESTROY_HANDLE(m_device, m_modules[i], m_deviceFuncs->vkDestroyShaderModule)
+            DESTROY_HANDLE(m_device, m_modules[i], m_deviceFuncs->vkDestroyShaderModule);
             if (m_compilers[i] != nullptr) delete m_compilers[i];
         }
         memset(m_modules, VK_NULL_HANDLE, sizeof(m_modules));
         memset(m_compilers, NULL, sizeof(m_compilers));
 
         for (SpvResource* resource : m_inputAttributes) {
-            delete resource;
+            if (resource) delete resource;
         }
         for (SpvResource* resource : m_pushConstants) {
-            delete resource;
+            if (resource)  delete resource;
         }
         for (SpvResource* resource : m_descriptorLayoutMap.values()) {
-            delete resource;
+            if (resource)  delete resource;
         }
         m_pushConstants.clear();
         m_inputAttributes.clear();
@@ -108,7 +108,7 @@ namespace vpa {
         shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         shaderInfo.codeSize = size_t(blob->size());
         shaderInfo.pCode = reinterpret_cast<const uint32_t*>(blob->constData());
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &module), "shader module creation")
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateShaderModule(m_device, &shaderInfo, nullptr, &module), "shader module creation");
 
         return VPA_OK;
     }

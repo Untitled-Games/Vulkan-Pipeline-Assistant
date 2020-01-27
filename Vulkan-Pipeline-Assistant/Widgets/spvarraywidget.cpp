@@ -9,17 +9,20 @@
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
 #include "spvstructwidget.h"
+#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, QWidget* parent)
-        : SpvWidget(parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
+    SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent)
+        : SpvWidget(cont, resourceWidget, parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
         m_infoGroup = new QWidget(parent);
         m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
         m_infoGroup->layout()->setAlignment(Qt::AlignTop);
+
+        m_inputArea = new ContainerWidget(parent);
 
         QString infoStr;
         infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypeNameStrings[size_t(m_type->subtype->Type())]).arg(m_type->lengths.size()));
@@ -45,7 +48,7 @@ namespace vpa {
             QObject::connect(indexEdit, QOverload<int>::of(&QSpinBox::valueChanged), [=](int){
                 m_dimensionIndices[i] = size_t(indexEdit->value());
                 HandleArrayElementChange();
-                SPV_DATA_CHANGE_EVENT(parent);
+                m_resourceWidget->WriteDescriptorData();
             });
         }
 
@@ -53,24 +56,14 @@ namespace vpa {
         memset(m_data, 0, m_type->size);
         m_stride = m_type->subtype->size;
 
-        if (m_type->subtype->Type() == SpvTypeName::Vector) {
-            m_inputWidget = new SpvVectorWidget(reinterpret_cast<SpvVectorType*>(m_type->subtype), parent);
-        }
-        else if (m_type->subtype->Type() == SpvTypeName::Matrix) {
-            m_inputWidget = new SpvMatrixWidget(reinterpret_cast<SpvMatrixType*>(m_type->subtype), parent);
-        }
-        else if (m_type->subtype->Type() == SpvTypeName::Struct) {
-            m_inputWidget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(m_type->subtype), parent);
-        }
-        else {
-            qWarning("Invalid type found in spv array.");
-        }
+        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea, m_resourceWidget);
 
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_indicesGroup);
-        layout->addWidget(m_inputWidget);
+        layout->addWidget(m_inputArea);
         setLayout(layout);
-        HandleArrayElementChange();
+
+        hide();
     }
 
     SpvArrayWidget::~SpvArrayWidget() {
@@ -83,6 +76,35 @@ namespace vpa {
 
     void SpvArrayWidget::Fill(const unsigned char* data) {
         memcpy(m_data, data, m_type->size);
+    }
+
+    void SpvArrayWidget::OnDrawerInit() {
+        if (m_type->subtype->Type() == SpvTypeName::Struct) {
+            m_inputWidget->SetDrawerItemWidget(GetDrawerItemWidget());
+            m_inputWidget->OnDrawerInit();
+        }
+    }
+
+    void SpvArrayWidget::Init() {
+        m_inputWidget->Init();
+        HandleArrayElementChange();
+    }
+
+    void SpvArrayWidget::OnClick(bool expanding) {
+        if (!expanding) return;
+
+        m_container->ShowWidget(this);
+        if (m_type->subtype->Type() == SpvTypeName::Matrix || m_type->subtype->Type() == SpvTypeName::Vector) {
+            m_inputArea->ShowWidget(m_inputWidget);
+        }
+        else if (m_type->subtype->Type() == SpvTypeName::Struct) {
+            SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
+            if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
+        }
+    }
+
+    void SpvArrayWidget::OnRelease() {
+        m_inputArea->Clear();
     }
 
     void SpvArrayWidget::HandleArrayElementChange() {

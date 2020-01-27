@@ -3,16 +3,19 @@
 
 #include <QPushButton>
 #include <QFileDialog>
+#include <qt_windows.h>
 
 #include "Vulkan/pipelineconfig.h"
 #include "Vulkan/descriptors.h"
 #include "Widgets/spvresourcewidget.h"
+#include "Widgets/drawerwidget.h"
+#include "Widgets/containerwidget.h"
 
 namespace vpa {
     const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
 
     MainWindow::MainWindow(QWidget* parent)
-        : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_unhiddenIdx(0) {
+        : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr) {
         m_ui->setupUi(this);
 
         m_masterContainer = new QWidget(this);
@@ -23,11 +26,23 @@ namespace vpa {
         m_leftColumnContainer->setLayout(new QVBoxLayout(m_leftColumnContainer));
         m_leftColumnContainer->layout()->setAlignment(Qt::AlignTop);
 
-        m_rightTopContainer = new QWidget(m_masterContainer);
+        m_rightTopContainer = new ContainerWidget(m_masterContainer);
+        m_rightTopContainer->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
+        m_descriptorArea = new QWidget(m_rightTopContainer);
+        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
+        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
+        m_descriptorDrawer->setMaximumWidth(100);
+        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
+        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
+        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
+        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
+        m_descriptorArea->hide();
+        reinterpret_cast<QHBoxLayout*>(m_descriptorContainer->layout())->setSizeConstraint(QLayout::SizeConstraint::SetFixedSize);
 
         m_rightBottomContainer = new QWidget(m_masterContainer);
         m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
-        m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this), std::bind(&MainWindow::CreateInterface, this));
+        m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
+        CreateInterface();
 
         m_layout->addWidget(m_leftColumnContainer, 0, 0);
         m_layout->addWidget(m_rightTopContainer, 0, 1);
@@ -41,6 +56,28 @@ namespace vpa {
 
     MainWindow::~MainWindow() {
         delete m_ui;
+    }
+
+    bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result) {
+        Q_UNUSED(result)
+        Q_UNUSED(eventType)
+        if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
+        return false;
+    }
+
+    bool MainWindow::WindowsNativeEvent(MSG* msg) {
+        if (msg->message == WM_ENTERSIZEMOVE) {
+            if (m_vulkan) m_vulkan->Details().window->HandlingResize(true);
+            return true;
+        }
+        else if(msg->message == WM_EXITSIZEMOVE) {
+            if (m_vulkan) {
+                m_vulkan->Details().window->HandlingResize(false);
+                if (m_vulkan->State() == VulkanState::Ok) m_vulkan->RecreateSwapchain();
+            }
+            return true;
+        }
+        return false;
     }
 
     void MainWindow::CreateInterface() {
@@ -68,8 +105,7 @@ namespace vpa {
         m_configButtons.push_back(new QPushButton("Render Pass State", m_leftColumnContainer));
         QObject::connect(m_configButtons[6], &QPushButton::released, [this]{ this->HandleConfigAreaChange(6); });
         m_configButtons.push_back(new QPushButton("Descriptors", m_leftColumnContainer));
-        QObject::connect(m_configButtons[7], &QPushButton::released, [this]{ this->HandleConfigAreaChange(7); });
-        m_descriptorBlockIdx = 7;
+        QObject::connect(m_configButtons[7], &QPushButton::released, [this]{ m_rightTopContainer->ShowWidget(m_descriptorArea); });
         for (QPushButton* button : m_configButtons) {
             m_leftColumnContainer->layout()->addWidget(button);
         }
@@ -91,7 +127,6 @@ namespace vpa {
         m_configBlocks.push_back(MakeMultisampleBlock());
         m_configBlocks.push_back(MakeDepthStencilBlock());
         m_configBlocks.push_back(MakeRenderPassBlock());
-        m_configBlocks.push_back(nullptr);
         MakeDescriptorBlock();
 
         for (QWidget* widget : m_configBlocks) {
@@ -100,9 +135,7 @@ namespace vpa {
     }
 
     void MainWindow::HandleConfigAreaChange(int toIdx) {
-        m_configBlocks[m_unhiddenIdx]->hide();
-        m_configBlocks[toIdx]->show();
-        m_unhiddenIdx = toIdx;
+        m_rightTopContainer->ShowWidget(m_configBlocks[toIdx]);
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
@@ -418,63 +451,31 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
-        QWidget*& container = m_configBlocks[m_descriptorBlockIdx];
-        if (container) delete container;
-        container = new QWidget(m_rightTopContainer);
-        QGridLayout* layout = new QGridLayout(container);
-        layout->setColumnStretch(0, 1);
-        layout->setColumnStretch(1, 4);
-        layout->setAlignment(Qt::AlignTop);
-        container->setLayout(layout);
+        m_descriptorDrawer->Clear();
 
-        QWidget* leftGroup = new QWidget(container);
-        QWidget* rightGroup = new QWidget(container);
-        leftGroup->setLayout(new QVBoxLayout(leftGroup));
-        rightGroup->setLayout(new QVBoxLayout(rightGroup));
-        layout->addWidget(leftGroup, 0, 0);
-        layout->addWidget(rightGroup, 0, 1);
-        leftGroup->layout()->setAlignment(Qt::AlignTop);
-        rightGroup->layout()->setAlignment(Qt::AlignTop);
+        if (!m_vulkan) return;
 
-        if (m_vulkan) {
-            Descriptors* descriptors = m_vulkan->GetDescriptors();
-            if (descriptors) {
-                QVector<QWidget*> spvWidgets;
-                for (auto& set : descriptors->Buffers().keys()) {
-                    for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
-                        SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
-                            descriptors->Buffers()[set][i].descriptor.resource, set, i, rightGroup);
-                        spvWidgets.push_back(spvWidget);
-                        rightGroup->layout()->addWidget(spvWidget);
-                    }
-                }
-                for (auto& set : descriptors->Buffers().keys()) {
-                    for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
-                        SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
-                            descriptors->Images()[set][i].descriptor.resource, set, i, rightGroup);
-                        spvWidgets.push_back(spvWidget);
-                        rightGroup->layout()->addWidget(spvWidget);
-                    }
-                }
-                for (auto& pushConstant : descriptors->PushConstants().values()) {
-                    SpvResourceWidget* spvWidget = new SpvResourceWidget(descriptors,
-                        pushConstant.resource, 0, 0, rightGroup);
-                    spvWidgets.push_back(spvWidget);
-                    rightGroup->layout()->addWidget(spvWidget);
-                }
-                for (int i = 0; i < spvWidgets.size(); ++i) {
-                    QPushButton* btn = new QPushButton(reinterpret_cast<SpvResourceWidget*>(spvWidgets[i])->Title(), leftGroup);
-                    leftGroup->layout()->addWidget(btn);
-                    QObject::connect(btn, &QPushButton::released, [this, spvWidgets, i]{
-                        spvWidgets[this->m_activeDescriptorIdx]->hide();
-                        spvWidgets[i]->show();
-                        this->m_activeDescriptorIdx = i;
-                    });
-                    spvWidgets[i]->hide();
-                }
-                spvWidgets[0]->show();
-                m_activeDescriptorIdx = 0;
+        Descriptors* descriptors = m_vulkan->GetDescriptors();
+        if (!descriptors) return;
+
+        for (auto& set : descriptors->Buffers().keys()) {
+            for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
+                SpvResource* resource = descriptors->Buffers()[set][i].descriptor.resource;
+                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
             }
+        }
+        for (auto& set : descriptors->Buffers().keys()) {
+            for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
+                SpvResource* resource = descriptors->Images()[set][i].descriptor.resource;
+                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
+            }
+        }
+        for (auto& pushConstant : descriptors->PushConstants().values()) {
+            SpvResource* resource = pushConstant.resource;
+            m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
+                new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_descriptorContainer), resource->name, Qt::gray));
         }
     }
 

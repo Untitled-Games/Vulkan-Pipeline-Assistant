@@ -5,15 +5,20 @@
 
 namespace vpa {
     struct SpvArrayType;
+    class ContainerWidget;
 
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvArrayWidget(SpvArrayType* type, QWidget* parent);
+        SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent);
         ~SpvArrayWidget() override;
 
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
+        void OnDrawerInit() override;
+        void OnClick(bool expanding) override;
+        void OnRelease() override;
+        void Init() override;
 
     private slots:
         void HandleArrayElementChange();
@@ -23,6 +28,7 @@ namespace vpa {
         QWidget* m_infoGroup;
         QWidget* m_indicesGroup;
         SpvWidget* m_inputWidget;
+        ContainerWidget* m_inputArea;
         QVector<size_t> m_dimensionIndices;
         unsigned char* m_data;
 

@@ -4,30 +4,18 @@
 #include <QWidget>
 #include <QEvent>
 
-#include "../common.h"
-
-#define SPV_DATA_CHANGE_EVENT(parent) QEvent evnt = QEvent(SpvGuiDataChangeType); \
-    QCoreApplication::sendEvent(parent, &evnt)
-
-#define SPV_IMAGE_CHANGE_EVENT(parent, str) ImageChangeEvent evnt = ImageChangeEvent(str); \
-    QCoreApplication::sendEvent(parent, &evnt)
+#include "containerwidget.h"
+#include "drawerwidget.h"
 
 namespace vpa {
-    constexpr QEvent::Type SpvGuiDataChangeType = QEvent::Type(int(QEvent::Type::User) + 1);
-    constexpr QEvent::Type SpvGuiImageChangeType = QEvent::Type(int(QEvent::Type::User) + 2);
+    struct SpvType;
+    class Descriptors;
+    class SpvResourceWidget;
 
-    class ImageChangeEvent : public QEvent {
-    public:
-        ImageChangeEvent(QString fileName) : QEvent(SpvGuiImageChangeType), m_fileName(fileName) {}
-        const QString& FileName() const { return m_fileName; }
-    private:
-        QString m_fileName;
-    };
-
-    class SpvWidget : public QWidget {
+    class SpvWidget : public QWidget, public DrawerItem, public ContainerItem {
         Q_OBJECT
     public:
-        SpvWidget(QWidget* parent = nullptr) : QWidget(parent) { }
+        SpvWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, QWidget* parent = nullptr) : QWidget(parent), m_container(cont), m_resourceWidget(resourceWidget) { }
         virtual ~SpvWidget() override = default;
 
         // Get data from the widget, passed in to dataPtr
@@ -36,15 +24,17 @@ namespace vpa {
         // Fill the widget with data
         virtual void Fill(const unsigned char* data) = 0;
 
-        virtual bool event(QEvent* event) override {
-            if (event->type() == SpvGuiDataChangeType || event->type() == SpvGuiImageChangeType) {
-                event->ignore();
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
+        // Called after it becomes safe to write descriptor data
+        virtual void Init() { }
+
+        virtual void OnClick(bool expanding) override;
+        virtual void OnRelease() override { }
+
+        static SpvWidget* MakeSpvWidget(SpvType* type, ContainerWidget* container, SpvResourceWidget* dataCallback);
+
+    protected:
+        ContainerWidget* m_container;
+        SpvResourceWidget* m_resourceWidget;
     };
 }
 

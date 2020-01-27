@@ -10,6 +10,10 @@ CONFIG += c++14
 # deprecated API in order to know how to port your code away from it.
 DEFINES += QT_DEPRECATED_WARNINGS
 
+debug {
+    DEFINES += ENABLE_VALIDATION_LAYER
+}
+
 SOURCES += \
     Vulkan/configvalidator.cpp \
     Vulkan/descriptors.cpp \
@@ -19,12 +23,15 @@ SOURCES += \
     Vulkan/vertexinput.cpp \
     Vulkan/vulkanmain.cpp \
     Vulkan/vulkanrenderer.cpp \
+    Widgets/containerwidget.cpp \
+    Widgets/drawerwidget.cpp \
     Widgets/spvarraywidget.cpp \
     Widgets/spvimagewidget.cpp \
     Widgets/spvmatrixwidget.cpp \
     Widgets/spvresourcewidget.cpp \
     Widgets/spvstructwidget.cpp \
     Widgets/spvvectorwidget.cpp \
+    Widgets/spvwidget.cpp \
     main.cpp \
     mainwindow.cpp \
 
@@ -39,6 +46,8 @@ HEADERS += \
     Vulkan/vertexinput.h \
     Vulkan/vulkanmain.h \
     Vulkan/vulkanrenderer.h \
+    Widgets/containerwidget.h \
+    Widgets/drawerwidget.h \
     Widgets/spvarraywidget.h \
     Widgets/spvimagewidget.h \
     Widgets/spvmatrixwidget.h \

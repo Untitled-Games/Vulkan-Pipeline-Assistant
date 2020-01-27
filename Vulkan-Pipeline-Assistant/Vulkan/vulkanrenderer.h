@@ -21,16 +21,16 @@ namespace vpa {
         bool isPresenting;
     };
 
-    class VulkanRenderer : public QVulkanWindowRenderer {
+    class VulkanRenderer {
     public:
-        VulkanRenderer(QVulkanWindow* window, VulkanMain* main, std::function<void(void)> creationCallback, std::function<void(void)> postInitCallback);
+        VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback);
+        ~VulkanRenderer();
 
-        void initResources() override;
-        void initSwapChainResources() override;
-        void releaseSwapChainResources() override;
-        void releaseResources() override;
+        void Init();
+        void Release();
+        void CleanUp();
 
-        void startNextFrame() override;
+        VPAError RenderFrame(VkCommandBuffer cmdBuffer, const uint32_t frameIdx);
 
         void SetValid(bool valid) { m_valid = valid; }
         PipelineConfig& GetConfig() { return m_config; }
@@ -41,6 +41,8 @@ namespace vpa {
         VPAError WritePipelineConfig();
         VPAError ReadPipelineConfig();
         VPAError Reload(const ReloadFlags flag);
+
+        VPAError CreateDefaultObjects();
 
     private:
         VPAError CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth);
@@ -82,7 +84,6 @@ namespace vpa {
         bool m_initialised;
         bool m_valid;
         VulkanMain* m_main;
-        QVulkanWindow* m_window;
         QVulkanDeviceFunctions* m_deviceFuncs;
 
         VkRenderPass m_renderPass;
@@ -101,7 +102,6 @@ namespace vpa {
 
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
-        std::function<void(void)> m_postInitCallback;
 
         int m_activeAttachment;
         bool m_useDepth;
@@ -110,6 +110,10 @@ namespace vpa {
         VkPipeline m_depthPipeline;
         VkPipelineLayout m_depthPipelineLayout;
         VkSampler m_depthSampler;
+
+        VkRenderPass m_defaultRenderPass;
+        QVector<VkFramebuffer> m_defaultFramebuffers;
+        AttachmentImage m_defaultDepthAttachment;
     };
 }
 

@@ -18,6 +18,9 @@ QT_END_NAMESPACE
 class QPushButton;
 
 namespace vpa {
+    class DrawerWidget;
+    class ContainerWidget;
+
     class MainWindow : public QMainWindow {
         Q_OBJECT
 
@@ -37,9 +40,11 @@ namespace vpa {
         };
     public:
         MainWindow(QWidget* parent = nullptr);
-        ~MainWindow();
+        ~MainWindow() override;
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
+
+        bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
     private slots:
         void HandleConfigAreaChange(int toIdx);
         void HandleViewChangeReset(QVector<QLineEdit*> v);
@@ -47,6 +52,7 @@ namespace vpa {
         void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
 
     private:
+        bool WindowsNativeEvent(MSG* msg);
         void CreateInterface();
         void AddConfigButtons();
         void AddConfigBlocks();
@@ -76,17 +82,17 @@ namespace vpa {
 
         QWidget* m_masterContainer;
         QWidget* m_leftColumnContainer;
-        QWidget* m_rightTopContainer;
+        ContainerWidget* m_rightTopContainer;
         QWidget* m_rightBottomContainer;
+
+        QWidget* m_descriptorArea;
+        ContainerWidget* m_descriptorContainer;
+        DrawerWidget* m_descriptorDrawer;
 
         QPushButton* m_cacheBtn;
 
         QVector<QPushButton*> m_configButtons;
         QVector<QWidget*> m_configBlocks;
-
-        int m_descriptorBlockIdx;
-        int m_unhiddenIdx;
-        int m_activeDescriptorIdx;
 
         static const QVector<QString> BoolComboOptions;
     };
