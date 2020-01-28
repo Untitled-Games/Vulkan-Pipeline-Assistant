@@ -46,23 +46,19 @@ namespace vpa {
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
 
         void closeEvent(QCloseEvent* event) override;
-        void resizeEvent(QResizeEvent* event) override;
         bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
-    private slots:
+
+    public slots:
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
         void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
 
     private:
         bool WindowsNativeEvent(MSG* msg);
-        void CreateInterface();
+        void ConnectInterface();
 
         void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
-        QWidget* MakeVertexInputBlock();
         QWidget* MakeViewportStateBlock();
-        QWidget* MakeRasterizerBlock();
-        QWidget* MakeMultisampleBlock();
-        QWidget* MakeDepthStencilBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
         template<typename T>

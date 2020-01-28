@@ -175,6 +175,8 @@ namespace vpa {
 
     VPAError VulkanRenderer::Reload(const ReloadFlags flag) {
         m_deviceFuncs->vkDeviceWaitIdle(m_main->Device());
+        if (!m_valid && (flag == ReloadFlags::RenderPass || flag == ReloadFlags::Pipeline)) return VPA_CRITICAL(""); // Silent critical so actual erro isn't hidden
+        else m_valid = true;
 
         if (flag & ReloadFlagBits::Validation) VPA_PASS_ERROR(m_validator->Validate(m_config));
         if (flag & ReloadFlagBits::Shaders) {

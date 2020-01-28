@@ -41,7 +41,7 @@
       <item row="0" column="1" rowspan="2">
        <widget class="QTabWidget" name="ShaderTabs">
         <property name="currentIndex">
-         <number>0</number>
+         <number>4</number>
         </property>
         <widget class="QWidget" name="VertexTab">
          <attribute name="title">
@@ -67,7 +67,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_2"/>
+             <widget class="QLineEdit" name="gtxVertexFileName"/>
             </item>
             <item>
              <widget class="QCheckBox" name="gcVertexFullscreen">
@@ -107,7 +107,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_3"/>
+             <widget class="QLineEdit" name="gtxFragmentFileName"/>
             </item>
            </layout>
           </item>
@@ -140,7 +140,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_4"/>
+             <widget class="QLineEdit" name="gtxGeometryFileName"/>
             </item>
            </layout>
           </item>
@@ -173,7 +173,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_5"/>
+             <widget class="QLineEdit" name="gtxTessControlFileName"/>
             </item>
            </layout>
           </item>
@@ -206,7 +206,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_6"/>
+             <widget class="QLineEdit" name="gtxTessEvalFileName"/>
             </item>
            </layout>
           </item>
@@ -236,22 +236,45 @@
       <item row="0" column="0">
        <widget class="QTabWidget" name="ConfigTabs">
         <property name="currentIndex">
-         <number>0</number>
+         <number>4</number>
         </property>
         <widget class="QWidget" name="VertexInputTab">
          <attribute name="title">
           <string>Vertex Input</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_3">
-          <item row="2" column="1">
-           <widget class="QSlider" name="gsPatchPointCount">
+          <item row="1" column="1">
+           <widget class="QCheckBox" name="gcPrimitiveRestart">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <spacer name="verticalSpacer_3">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Patch Point Count</string>
             </property>
            </widget>
           </item>
           <item row="0" column="1">
            <widget class="QComboBox" name="gcbTopology">
+            <property name="accessibleName">
+             <string>gcbTopology</string>
+            </property>
             <item>
              <property name="text">
               <string>Point List</string>
@@ -309,10 +332,10 @@
             </item>
            </widget>
           </item>
-          <item row="1" column="1">
-           <widget class="QCheckBox" name="gcPrimitiveRestart">
+          <item row="0" column="0">
+           <widget class="QLabel" name="label">
             <property name="text">
-             <string/>
+             <string>Topology</string>
             </property>
            </widget>
           </item>
@@ -336,32 +359,12 @@
             </property>
            </spacer>
           </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label">
-            <property name="text">
-             <string>Topology</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>Patch Point Count</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <spacer name="verticalSpacer_3">
+          <item row="2" column="1">
+           <widget class="QSlider" name="gsPatchPointCount">
             <property name="orientation">
-             <enum>Qt::Vertical</enum>
+             <enum>Qt::Horizontal</enum>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -406,25 +409,6 @@
             <property name="text">
              <string>Depth Clamp</string>
             </property>
-           </widget>
-          </item>
-          <item row="0" column="3">
-           <widget class="QComboBox" name="gcbPolygonMode_2">
-            <item>
-             <property name="text">
-              <string>Fill</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Lines</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>Points</string>
-             </property>
-            </item>
            </widget>
           </item>
           <item row="1" column="0">
@@ -563,6 +547,13 @@
             </property>
            </widget>
           </item>
+          <item row="0" column="3">
+           <widget class="QCheckBox" name="gcDepthClamp">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
         <widget class="QWidget" name="MultisampleTab">
@@ -691,7 +682,7 @@
            </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QCheckBox" name="gcWriteEnable">
+           <widget class="QCheckBox" name="gcDepthWriteEnable">
             <property name="text">
              <string/>
             </property>
@@ -763,21 +754,21 @@
            </widget>
           </item>
           <item row="3" column="1">
-           <widget class="QCheckBox" name="gcBoundsEnable">
+           <widget class="QCheckBox" name="gcDepthBoundsEnable">
             <property name="text">
              <string/>
             </property>
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QCheckBox" name="gcStencilEnable">
+           <widget class="QCheckBox" name="gcDepthStencilEnable">
             <property name="text">
              <string/>
             </property>
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QCheckBox" name="gcTestEnable">
+           <widget class="QCheckBox" name="gcDepthTestEnable">
             <property name="text">
              <string/>
             </property>
@@ -808,7 +799,7 @@
      </layout>
     </item>
     <item row="1" column="0">
-     <widget class="QLineEdit" name="lineEdit"/>
+     <widget class="QLineEdit" name="gtxConsole"/>
     </item>
    </layout>
   </widget>

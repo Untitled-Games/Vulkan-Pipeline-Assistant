@@ -21,33 +21,10 @@ namespace vpa {
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr) {
         m_ui->setupUi(this);
 
-        /*m_masterContainer = new QWidget(this);
-        m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
-        m_layout = new QGridLayout(m_masterContainer);
-
-        m_leftBottomArea = new QWidget(m_masterContainer);
-
-        m_console = new QLineEdit("Console", m_masterContainer);
-        m_console->setReadOnly(true);
-        m_console->setSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
-        m_console->setStyleSheet("background-color:#aa1111;");
-
-        m_rightBottomContainer = new QWidget(m_masterContainer);
-        m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));*/
         m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
-        /*CreateInterface();
-
-        m_layout->addWidget(m_configArea, 0, 0, 1, 2);
-        m_layout->addWidget(m_leftBottomArea, 1, 0);
-        m_layout->addWidget(m_rightBottomContainer, 1, 1);
-        m_layout->addWidget(m_console, 2, 0, 1, 2);
-
-        m_layout->setColumnStretch(0, 1);
-        m_layout->setColumnStretch(1, 1);
-        m_layout->setContentsMargins(0, 5, 0, 0);
-        m_layout->setSpacing(0);
-        m_masterContainer->setLayout(m_layout);
-        this->setCentralWidget(m_masterContainer);*/
+        ConnectInterface();
+        /*CreateInterface();*/
+        // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
     MainWindow::~MainWindow() {
@@ -59,12 +36,7 @@ namespace vpa {
         event->accept();
     }
 
-    void MainWindow::resizeEvent(QResizeEvent* event) {
-        Q_UNUSED(event)
-        //m_console->setMaximumWidth(width());
-    }
-
-    bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long* result) {
+    bool MainWindow::nativeEvent(const QByteArray &eventType, void* message, long* result) {
         Q_UNUSED(result)
         Q_UNUSED(eventType)
         if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
@@ -86,46 +58,105 @@ namespace vpa {
         return false;
     }
 
-    void MainWindow::CreateInterface() {
-        QWidget* shaderWidget = new QWidget();
-        shaderWidget->setLayout(new QVBoxLayout(shaderWidget));
-        MakeShaderBlock(shaderWidget, "Vertex", Config().vertShader, SHADERDIR"vs_test.spv");
-        MakeShaderBlock(shaderWidget, "Fragment", Config().fragShader, SHADERDIR"fs_test.spv");
-        MakeShaderBlock(shaderWidget, "Tess Control", Config().tescShader);
-        MakeShaderBlock(shaderWidget, "Tess Eval", Config().teseShader);
-        MakeShaderBlock(shaderWidget, "Geometry", Config().geomShader);
+    void MainWindow::ConnectInterface() {
+        // ------ Shader connections ------
+        QObject::connect(m_ui->gbVertexFile, &QPushButton::released, [this](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            m_ui->gtxVertexFileName->setText(str);
+            Config().vertShader = str;
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
+        QObject::connect(m_ui->gbFragmentFile, &QPushButton::released, [this](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            m_ui->gtxFragmentFileName->setText(str);
+            Config().fragShader = str;
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
+        QObject::connect(m_ui->gbGeometryFile, &QPushButton::released, [this](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            m_ui->gtxGeometryFileName->setText(str);
+            Config().geomShader = str;
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
+        QObject::connect(m_ui->gbTessControlFile, &QPushButton::released, [this](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            m_ui->gtxTessControlFileName->setText(str);
+            Config().tescShader = str;
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
+        QObject::connect(m_ui->gbTessEvalFile, &QPushButton::released, [this](){
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            m_ui->gtxTessEvalFileName->setText(str);
+            Config().teseShader = str;
+            this->WriteAndReload(ReloadFlags::Everything);
+        });
 
-        m_configArea = new TabbedContainerWidget(TabLayoutDirection::Vertical, 60, 15, m_masterContainer);
-        m_configArea->AddTab("Shaders", shaderWidget);
-        m_configArea->AddTab("Vertex Input", MakeVertexInputBlock());
-        m_configArea->AddTab("Viewport", MakeViewportStateBlock());
-        m_configArea->AddTab("Rasterizer", MakeRasterizerBlock());
-        m_configArea->AddTab("Multisample", MakeMultisampleBlock());
-        m_configArea->AddTab("Depth Stencil", MakeDepthStencilBlock());
-        m_configArea->AddTab("Render pass", MakeRenderPassBlock());
-
-        m_descriptorArea = new QWidget(m_masterContainer);
-        m_descriptorArea->setLayout(new QHBoxLayout(m_descriptorArea));
-        m_descriptorDrawer = new DrawerWidget(m_descriptorArea);
-        m_descriptorDrawer->setMaximumWidth(100);
-        m_descriptorArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
-        m_descriptorContainer = new ContainerWidget(m_descriptorArea);
-        m_descriptorArea->layout()->addWidget(m_descriptorDrawer);
-        m_descriptorArea->layout()->addWidget(m_descriptorContainer);
-
-        m_configArea->AddTab("Descriptors", m_descriptorArea);
-
-        MakeDescriptorBlock();
-
-        m_configArea->layout()->setAlignment(Qt::AlignmentFlag::AlignTop);
-        m_configArea->setMaximumSize(650, height() / 2);
-        m_configArea->setMinimumSize(250, height() / 4);
-        m_configArea->setSizePolicy(QSizePolicy::Policy::Preferred, QSizePolicy::Policy::Preferred);
-        m_configArea->InitSize();
-
-        /*m_cacheBtn = new QPushButton("Create cache", m_leftColumnContainer); TODO add to file toolbar menu
-        m_leftColumnContainer->layout()->addWidget(m_cacheBtn);
-        QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });*/
+        // ------ Vertex Input connections ------
+        QObject::connect(m_ui->gcbTopology, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
+            HandleConfigValueChange<VkPrimitiveTopology>(Config().writables.topology, ReloadFlags::Pipeline, index);
+        });
+        QObject::connect(m_ui->gcPrimitiveRestart, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.primitiveRestartEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gsPatchPointCount, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+           HandleConfigValueChange<uint32_t>(Config().writables.patchControlPoints, ReloadFlags::Pipeline, value);
+        });
+        // ------ Viewport connections ------
+        // ------ Rasterizer connections ------
+        QObject::connect(m_ui->gcbPolygonMode, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            HandleConfigValueChange<VkPolygonMode>(Config().writables.polygonMode, ReloadFlags::Pipeline, index);
+        });
+        QObject::connect(m_ui->gcDiscardEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.rasterizerDiscardEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gsLineWidth, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+           HandleConfigValueChange<float>(Config().writables.lineWidth, ReloadFlags::Pipeline, value);
+        });
+        QObject::connect(m_ui->gcbCullMode, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            HandleConfigValueChange<VkCullModeFlagBits>(Config().writables.cullMode, ReloadFlags::Pipeline, index);
+        });
+        QObject::connect(m_ui->gcbFrontFace, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            HandleConfigValueChange<VkFrontFace>(Config().writables.frontFace, ReloadFlags::Pipeline, index);
+        });
+        QObject::connect(m_ui->gcDepthClamp, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.depthClampEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gcDepthBias, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.depthBiasEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gsDepthBiasConstant, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+           HandleConfigValueChange<float>(Config().writables.depthBiasConstantFactor, ReloadFlags::Pipeline, value);
+        });
+        QObject::connect(m_ui->gsDepthBiasClamp, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+           HandleConfigValueChange<float>(Config().writables.depthBiasClamp, ReloadFlags::Pipeline, value);
+        });
+        QObject::connect(m_ui->gsDepthBiasSlope, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+           HandleConfigValueChange<float>(Config().writables.depthBiasSlopeFactor, ReloadFlags::Pipeline, value);
+        });
+        // ------ Multisample connections ------
+        QObject::connect(m_ui->gcbSampleCount, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            HandleConfigValueChange<VkSampleCountFlagBits>(Config().writables.msaaSamples, ReloadFlags::RenderPass, index);
+        });
+        QObject::connect(m_ui->gsMinSampleShading, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
+            HandleConfigValueChange<float>(Config().writables.minSampleShading, ReloadFlags::RenderPass, value);
+        });
+        // ------ Depth Stencil connections ------
+        QObject::connect(m_ui->gcDepthTestEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.depthTestEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gcDepthWriteEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gcDepthTestEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gcDepthStencilEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+            HandleConfigValueChange<VkBool32>(Config().writables.stencilTestEnable, ReloadFlags::Pipeline, state);
+        });
+        QObject::connect(m_ui->gcbDepthCompareOp, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
+        });
+        // ------ Renderpass connections ------
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
@@ -182,36 +213,6 @@ namespace vpa {
             shaderConfig = field->text();
             this->WriteAndReload(ReloadFlags::Everything);
         });
-    }
-
-    QWidget* MainWindow::MakeVertexInputBlock() {
-        QWidget* container = new QWidget();
-        container->setLayout(new QGridLayout(container));
-
-        // ----------- Topology -------------
-        QComboBox* comboBox = MakeConfigWidget(container, "Topology", 0, 0, 1, 0, MakeComboBox(container, {
-                "Point List", "Line List", "Line Strip", "Triangle List",
-                "Triangle Strip", "Triangle Fan", "Line List With Adjacency", "Line Strip With Adjacency",
-                "Triangle List With Adjacency", "Triangle Strip With Adjacency", "Patch List"
-        }));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
-            HandleConfigValueChange<VkPrimitiveTopology>(Config().writables.topology, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Primitive Restart -------------
-        comboBox = MakeConfigWidget(container, "Primitive Restart", 0, 1, 1, 1, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.primitiveRestartEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Patch Points -------------
-        QSpinBox* spinBox = MakeConfigWidget(container, "Patch Points", 0, 2, 1, 2, new QSpinBox(container));
-        spinBox->setRange(0, int(m_vulkan->Limits().maxTessellationPatchSize));
-        QObject::connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), [this](int value) {
-           HandleConfigValueChange<uint32_t>(Config().writables.patchControlPoints, ReloadFlags::Pipeline, value);
-        });
-
-        return container;
     }
 
     QWidget* MainWindow::MakeViewportStateBlock() {
@@ -297,134 +298,6 @@ namespace vpa {
         return container;
     }
 
-    QWidget* MainWindow::MakeRasterizerBlock() {
-        QWidget* container = new QWidget();
-        container->setLayout(new QGridLayout(container));
-
-        // ----------- Polygon Mode -------------
-        QComboBox* comboBox = MakeConfigWidget(container, "Polygon Mode", 0, 0, 1, 0, MakeComboBox(container, {"Fill", "Line", "Point"}));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkPolygonMode>(Config().writables.polygonMode, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Rasterizer Discard -------------
-        comboBox = MakeConfigWidget(container, "Discard Enable", 0, 1, 1, 1, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.rasterizerDiscardEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Line Width -------------
-        QLineEdit* lineEdit = MakeConfigWidget(container, "Line Width", 0, 2, 1, 2, new QLineEdit("1.0", container));
-        QObject::connect(lineEdit, &QLineEdit::textChanged, [this, lineEdit]() {
-           HandleConfigFloatTextChange(Config().writables.lineWidth, ReloadFlags::Pipeline, lineEdit);
-        });
-
-        // ----------- Cull Mode -------------
-        comboBox = MakeConfigWidget(container, "Cull Mode", 0, 3, 1, 3, MakeComboBox(container, {"None", "Front", "Back", "Front and Back"}));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkCullModeFlagBits>(Config().writables.cullMode, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Front Face -------------
-        comboBox = MakeConfigWidget(container, "Front Face", 0, 4, 1, 4, MakeComboBox(container, {"Counter Clockwise", "Clockwise"}));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkFrontFace>(Config().writables.frontFace, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Depth Clamp -------------
-        comboBox = MakeConfigWidget(container, "Depth Clamp Enable", 2, 0, 3, 0, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthClampEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Depth Bias -------------
-        comboBox = MakeConfigWidget(container, "Depth Bias Enable", 2, 1, 3, 1, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthBiasEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Depth Bias Constant -------------
-        lineEdit = MakeConfigWidget(container, "Depth Bias Constant", 2, 2, 3, 2, new QLineEdit("1.0", container));
-        lineEdit->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(lineEdit, &QLineEdit::textChanged, [this, lineEdit]() {
-           HandleConfigFloatTextChange(Config().writables.depthBiasConstantFactor, ReloadFlags::Pipeline, lineEdit);
-        });
-
-        // ----------- Depth Bias Clamp -------------
-        lineEdit = MakeConfigWidget(container, "Depth Bias Clamp", 2, 3, 3, 3, new QLineEdit("1.0", container));
-        lineEdit->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(lineEdit, &QLineEdit::textChanged, [this, lineEdit]() {
-           HandleConfigFloatTextChange(Config().writables.depthBiasClamp, ReloadFlags::Pipeline, lineEdit);
-        });
-
-        // ----------- Depth Bias Slope -------------
-        lineEdit = MakeConfigWidget(container, "Depth Bias Slope", 2, 4, 3, 4, new QLineEdit("1.0", container));
-        lineEdit->setValidator(new QDoubleValidator(0.0, 9.0, 3, container));
-        QObject::connect(lineEdit, &QLineEdit::textChanged, [this, lineEdit]() {
-           HandleConfigFloatTextChange(Config().writables.depthBiasSlopeFactor, ReloadFlags::Pipeline, lineEdit);
-        });
-
-        return container;
-    }
-
-    QWidget* MainWindow::MakeMultisampleBlock() {
-        QWidget* container = new QWidget();
-        container->setLayout(new QGridLayout(container));
-
-        // ----------- Sample Count -------------
-        QComboBox* comboBox = MakeConfigWidget(container, "Sample Count", 0, 0, 1, 0, MakeComboBox(container, {"1", "2", "4", "8", "16", "32", "64"}));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkSampleCountFlagBits>(Config().writables.msaaSamples, ReloadFlags::RenderPass, index);
-        });
-
-        // ----------- Min Sample Shading -------------
-        QLineEdit* lineEdit = MakeConfigWidget(container, "Min Sample Shading", 0, 1, 1, 1, new QLineEdit("0.2", container));
-        lineEdit->setValidator(new QDoubleValidator(0.0, 1.0, 3, container));
-        QObject::connect(lineEdit, &QLineEdit::textChanged, [this, lineEdit]() {
-            HandleConfigFloatTextChange(Config().writables.minSampleShading, ReloadFlags::RenderPass, lineEdit);
-        });
-
-        return container;
-    }
-
-    QWidget* MainWindow::MakeDepthStencilBlock() {
-        QWidget* container = new QWidget();
-        container->setLayout(new QGridLayout(container));
-
-        // ----------- Depth Test -------------
-        QComboBox* comboBox = MakeConfigWidget(container, "Test Enable", 0, 0, 1, 0, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthTestEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Depth Write -------------
-        comboBox = MakeConfigWidget(container, "Write Enable", 0, 1, 1, 1, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Bounds Enable -------------
-        comboBox = MakeConfigWidget(container, "Bounds Enable", 2, 0, 3, 0, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Stencil Test -------------
-        comboBox = MakeConfigWidget(container, "Stencil Test Enable", 2, 1, 3, 1, MakeComboBox(container, BoolComboOptions));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkBool32>(Config().writables.stencilTestEnable, ReloadFlags::Pipeline, index);
-        });
-
-        // ----------- Compare Op -------------
-        comboBox = MakeConfigWidget(container, "Compare Op", 4, 0, 5, 0, MakeComboBox(container, {
-                "Never", "Less", "Equal", "Less or Equal", "Greater", "Not Equal", "Greater or Equal", "Always" }));
-        QObject::connect(comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
-            HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
-        });
-
-        return container;
-    }
-
     QWidget* MainWindow::MakeRenderPassBlock() {
         QWidget* container = new QWidget();
         QLabel* subpassLabel = new QLabel("Subpass Index", container);
@@ -441,6 +314,11 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
+        // New shit is to add to QTreeWidget the "labels" and add container widget to the other side
+        // Just need logic around the tree items so they can show in the container widget
+
+        // Make SpvWidgets extend QTreeWidgetItem
+
         return;
         m_descriptorContainer->Clear();
         m_descriptorDrawer->Clear();
@@ -479,6 +357,7 @@ namespace vpa {
         }
         return box;
     }
+
     void MainWindow::VulkanCreationCallback() {
         MakeDescriptorBlock();
     }
