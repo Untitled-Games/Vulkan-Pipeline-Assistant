@@ -90,6 +90,7 @@ namespace vpa {
         VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
+        bool RendererValid();
         void ToggleAttachToContainer();
 
         void WritePipelineCache();

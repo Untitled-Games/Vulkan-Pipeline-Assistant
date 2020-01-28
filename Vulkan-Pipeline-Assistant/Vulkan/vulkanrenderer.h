@@ -44,6 +44,8 @@ namespace vpa {
 
         VPAError CreateDefaultObjects();
 
+        bool Valid() { return m_valid; }
+
     private:
         VPAError CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth);
         VPAError CreatePipeline(const PipelineConfig& config, const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions,

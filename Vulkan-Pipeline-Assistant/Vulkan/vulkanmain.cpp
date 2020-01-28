@@ -110,6 +110,10 @@ namespace vpa {
         if (m_container) delete m_container;
     }
 
+    bool VulkanMain::RendererValid() {
+        return m_renderer->Valid();
+    }
+
     void VulkanMain::ToggleAttachToContainer() {
         if (!m_attached) {
             m_attached = true;
@@ -175,7 +179,7 @@ namespace vpa {
             return;
         }
         m_renderer->CreateDefaultObjects();
-        Reload(ReloadFlags::RenderPass);
+        if (RendererValid()) Reload(ReloadFlags::RenderPass);
     }
 
     VPAError VulkanMain::Create(bool destroy) {
@@ -207,7 +211,7 @@ namespace vpa {
         m_details.window->setVulkanInstance(&instance);
         m_details.window->setSurfaceType(QWindow::SurfaceType::VulkanSurface);
         m_details.window->resize(800, 600);
-        m_details.window->setFlags(Qt::WindowStaysOnTopHint);
+        //m_details.window->setFlags(Qt::WindowStaysOnTopHint);
         m_details.window->show();
 
         m_details.surface = QVulkanInstance::surfaceForWindow(m_details.window);

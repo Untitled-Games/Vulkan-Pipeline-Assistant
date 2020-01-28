@@ -21,7 +21,7 @@ namespace vpa {
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr) {
         m_ui->setupUi(this);
 
-        m_masterContainer = new QWidget(this);
+        /*m_masterContainer = new QWidget(this);
         m_masterContainer->setGeometry(10, 20, this->width() - 10, this->height() - 20);
         m_layout = new QGridLayout(m_masterContainer);
 
@@ -33,9 +33,9 @@ namespace vpa {
         m_console->setStyleSheet("background-color:#aa1111;");
 
         m_rightBottomContainer = new QWidget(m_masterContainer);
-        m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));
+        m_rightBottomContainer->setLayout(new QVBoxLayout(m_rightBottomContainer));*/
         m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
-        CreateInterface();
+        /*CreateInterface();
 
         m_layout->addWidget(m_configArea, 0, 0, 1, 2);
         m_layout->addWidget(m_leftBottomArea, 1, 0);
@@ -47,7 +47,7 @@ namespace vpa {
         m_layout->setContentsMargins(0, 5, 0, 0);
         m_layout->setSpacing(0);
         m_masterContainer->setLayout(m_layout);
-        this->setCentralWidget(m_masterContainer);
+        this->setCentralWidget(m_masterContainer);*/
     }
 
     MainWindow::~MainWindow() {
@@ -61,7 +61,7 @@ namespace vpa {
 
     void MainWindow::resizeEvent(QResizeEvent* event) {
         Q_UNUSED(event)
-        m_console->setMaximumWidth(width());
+        //m_console->setMaximumWidth(width());
     }
 
     bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long* result) {
@@ -441,11 +441,11 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
+        return;
         m_descriptorContainer->Clear();
         m_descriptorDrawer->Clear();
         m_descriptorContainer->show();
         m_descriptorDrawer->show();
-
         if (!m_vulkan) return;
 
         Descriptors* descriptors = m_vulkan->GetDescriptors();
