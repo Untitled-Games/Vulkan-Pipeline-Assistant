@@ -28,6 +28,7 @@ namespace vpa {
     }
 
     DescriptorNodeLeaf::~DescriptorNodeLeaf() {
+        root->tree->m_descriptorNodes[treeItem] = nullptr;
         delete widget;
         for (DescriptorNodeLeaf* child : children) {
             delete child;
@@ -62,12 +63,16 @@ namespace vpa {
 
     DescriptorTree::~DescriptorTree() {
         for (QTreeWidgetItem* nodeKey : m_descriptorNodes.keys()) {
-            m_tree->removeItemWidget(nodeKey, 0);
-            delete nodeKey;
             DescriptorNode* node = m_descriptorNodes[nodeKey];
-            if (node->Type() == NodeType::Root) {
+            if (node != nullptr && node->Type() == NodeType::Root) {
                 delete node; // Only deleting root since it recurseively deletes all nodes, even those normally hidden
             }
+
+            m_tree->removeItemWidget(nodeKey, 0);
+            for(QTreeWidgetItem* item : nodeKey->takeChildren()) {
+                nodeKey->removeChild(item);
+            }
+            delete nodeKey;
         }
     }
 
@@ -148,12 +153,12 @@ namespace vpa {
         leaf->root = root;
         leaf->type = type;
 
-        QTreeWidgetItem* treeItem = parentTreeItem;
+        leaf->treeItem = parentTreeItem;
         if (!topLevel) {
-            treeItem = new QTreeWidgetItem();
-            treeItem->setText(0, type->name);
-            parentTreeItem->addChild(treeItem);
-            m_descriptorNodes.insert(treeItem, leaf);
+            leaf->treeItem = new QTreeWidgetItem();
+            leaf->treeItem->setText(0, type->name);
+            parentTreeItem->addChild(leaf->treeItem);
+            m_descriptorNodes.insert(leaf->treeItem, leaf);
         }
 
         switch (type->Type()) {
@@ -166,7 +171,7 @@ namespace vpa {
         case SpvTypeName::Struct:
             leaf->widget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(type));
             for (int i = 0; i < reinterpret_cast<SpvStructType*>(type)->members.size(); ++i) {
-                leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvStructType*>(type)->members[i], root, treeItem, false));
+                leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvStructType*>(type)->members[i], root, leaf->treeItem, false));
             }
             break;
         case SpvTypeName::Array:

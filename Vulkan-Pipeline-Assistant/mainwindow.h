@@ -41,6 +41,8 @@ namespace vpa {
             QVector<QPair<QLabel*, QWidget*>> options;
         };
     public:
+        static QLineEdit* Console();
+
         MainWindow(QWidget* parent = nullptr);
         ~MainWindow() override;
 
@@ -72,6 +74,8 @@ namespace vpa {
         VulkanMain* m_vulkan;
         ContainerWidget* m_descriptorTypeWidget;
         DescriptorTree* m_descriptorTree;
+
+        static QLineEdit* s_console;
     };
 
     template<typename T>

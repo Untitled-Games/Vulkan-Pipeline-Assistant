@@ -12,6 +12,7 @@
 #include <qt_windows.h>
 
 #include "common.h"
+#include "../mainwindow.h"
 
 namespace vpa {
     const QVector<const char*> VulkanMain::LayerNames = { QByteArrayLiteral("VK_LAYER_LUNARG_standard_validation") };
@@ -93,7 +94,7 @@ namespace vpa {
 
             if (vpaErr != VPA_OK) {
                 m_currentState = VulkanState::Disabled;
-                qDebug("Error in vulkan main create %s", qPrintable(VPAError::lastMessage)); // TODO when console exists output to it
+                MainWindow::Console()->setText("Error in vulkan main create " + VPAError::lastMessage);
                 return;
             }
 
@@ -174,7 +175,7 @@ namespace vpa {
 
         VPAError err = CreateSwapchain(m_details.swapchainDetails);
         if (err != VPA_OK) {
-            qDebug("Failed to recreate swapchain"); // TODO when console exists, output this
+            MainWindow::Console()->setText("Failed to recreate swapchain");
             m_currentState = VulkanState::Disabled;
             return;
         }
@@ -680,7 +681,7 @@ namespace vpa {
         VPAError err = m_renderer->Reload(flag);
         if (err != VPA_OK) {
             m_renderer->SetValid(false);
-            qDebug(qPrintable(VPAError::lastMessage));
+            MainWindow::Console()->setText(VPAError::lastMessage);
         }
         else {
             m_renderer->SetValid(true);

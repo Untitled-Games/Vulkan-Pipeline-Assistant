@@ -14,9 +14,16 @@
 namespace vpa {
     QString VPAError::lastMessage = "";
 
+    QLineEdit* MainWindow::s_console = nullptr;
+
+    QLineEdit* MainWindow::Console() {
+        return s_console;
+    }
+
     MainWindow::MainWindow(QWidget* parent)
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_descriptorTree(nullptr) {
         m_ui->setupUi(this);
+        s_console = m_ui->gtxConsole;
         m_ui->gtxVertexFileName->setText(SHADERDIR"vs_test.spv");
         m_ui->gtxFragmentFileName->setText(SHADERDIR"fs_test.spv");
 
@@ -311,6 +318,7 @@ namespace vpa {
 
         m_descriptorTypeWidget->Clear();
         delete m_descriptorTree;
+        m_descriptorTree = nullptr;
         if (!m_vulkan) return;
 
         Descriptors* descriptors = m_vulkan->GetDescriptors();

@@ -67,7 +67,11 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="gtxVertexFileName"/>
+             <widget class="QLineEdit" name="gtxVertexFileName">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QCheckBox" name="gcVertexFullscreen">
@@ -107,7 +111,11 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="gtxFragmentFileName"/>
+             <widget class="QLineEdit" name="gtxFragmentFileName">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -140,7 +148,11 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="gtxGeometryFileName"/>
+             <widget class="QLineEdit" name="gtxGeometryFileName">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -173,7 +185,11 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="gtxTessControlFileName"/>
+             <widget class="QLineEdit" name="gtxTessControlFileName">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -206,7 +222,11 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="gtxTessEvalFileName"/>
+             <widget class="QLineEdit" name="gtxTessEvalFileName">
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -232,10 +252,24 @@
          <widget class="QWidget" name="gwDescriptorContainer" native="true">
           <layout class="QVBoxLayout" name="verticalLayout_6">
            <item>
-            <widget class="QTextEdit" name="gtxDescriptorGroupInfo"/>
+            <widget class="QTextEdit" name="gtxDescriptorGroupInfo">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>50</height>
+              </size>
+             </property>
+            </widget>
            </item>
            <item>
-            <widget class="QTextEdit" name="gtxDescriptorTypeInfo"/>
+            <widget class="QTextEdit" name="gtxDescriptorTypeInfo">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>50</height>
+              </size>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>

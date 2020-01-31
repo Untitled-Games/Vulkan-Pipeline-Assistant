@@ -45,6 +45,7 @@ namespace vpa {
 
     struct DescriptorNodeLeaf : public DescriptorNode {
         DescriptorNodeRoot* root;
+        QTreeWidgetItem* treeItem;
         SpvType* type;
         SpvWidget* widget; // Vector or Matrix or Array or Struct or Image
         QVector<DescriptorNodeLeaf*> children;
@@ -60,6 +61,8 @@ namespace vpa {
     };
 
     class DescriptorTree {
+        friend struct DescriptorNodeRoot;
+        friend struct DescriptorNodeLeaf;
     public:
         DescriptorTree(QTreeWidget* tree, QTextEdit* groupInfoWidget, QTextEdit* typeInfoWidget, ContainerWidget* typeWidget, Descriptors* descriptors)
             : m_tree(tree), m_descriptors(descriptors), m_groupInfo(groupInfoWidget), m_typeInfo(typeInfoWidget), m_typeWidget(typeWidget) {
