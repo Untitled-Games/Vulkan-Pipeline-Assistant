@@ -23,6 +23,9 @@ namespace vpa {
         m_descriptorTypeWidget = new ContainerWidget(m_ui->gwDescriptorContainer);
         m_ui->gwDescriptorContainer->layout()->addWidget(m_descriptorTypeWidget);
 
+        m_ui->ShaderTabs->setCurrentIndex(0);
+        m_ui->ConfigTabs->setCurrentIndex(0);
+
         m_vulkan = new VulkanMain(nullptr, std::bind(&MainWindow::VulkanCreationCallback, this));
 
         m_vulkan->GetConfig().vertShader = SHADERDIR"vs_test.spv";
@@ -66,31 +69,31 @@ namespace vpa {
     void MainWindow::ConnectInterface() {
         // ------ Shader connections ------
         QObject::connect(m_ui->gbVertexFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERDIR, tr("Shader Files (*.spv)"));
             m_ui->gtxVertexFileName->setText(str);
             Config().vertShader = str;
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbFragmentFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERDIR, tr("Shader Files (*.spv)"));
             m_ui->gtxFragmentFileName->setText(str);
             Config().fragShader = str;
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbGeometryFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERDIR, tr("Shader Files (*.spv)"));
             m_ui->gtxGeometryFileName->setText(str);
             Config().geomShader = str;
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbTessControlFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERDIR, tr("Shader Files (*.spv)"));
             m_ui->gtxTessControlFileName->setText(str);
             Config().tescShader = str;
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbTessEvalFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Shader Files (*.spv)"));
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERDIR, tr("Shader Files (*.spv)"));
             m_ui->gtxTessEvalFileName->setText(str);
             Config().teseShader = str;
             this->WriteAndReload(ReloadFlags::Everything);

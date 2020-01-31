@@ -61,7 +61,10 @@ namespace vpa {
     }
 
     DescriptorTree::~DescriptorTree() {
-        for (DescriptorNode* node : m_descriptorNodes) {
+        for (QTreeWidgetItem* nodeKey : m_descriptorNodes.keys()) {
+            m_tree->removeItemWidget(nodeKey, 0);
+            delete nodeKey;
+            DescriptorNode* node = m_descriptorNodes[nodeKey];
             if (node->Type() == NodeType::Root) {
                 delete node; // Only deleting root since it recurseively deletes all nodes, even those normally hidden
             }
