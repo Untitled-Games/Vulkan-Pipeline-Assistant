@@ -228,8 +228,17 @@
           </column>
          </widget>
         </item>
-        <item>
-         <widget class="QWidget" name="gwDescriptorContainer" native="true"/>
+        <item alignment="Qt::AlignTop">
+         <widget class="QWidget" name="gwDescriptorContainer" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_6">
+           <item>
+            <widget class="QTextEdit" name="gtxDescriptorGroupInfo"/>
+           </item>
+           <item>
+            <widget class="QTextEdit" name="gtxDescriptorTypeInfo"/>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </item>
@@ -809,7 +818,7 @@
      <x>0</x>
      <y>0</y>
      <width>1149</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

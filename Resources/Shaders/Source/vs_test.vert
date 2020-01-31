@@ -9,7 +9,7 @@ layout(location = 1) in vec2 inTexcoord;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec4 inColour;
 
-layout(location = 1) out vec2 outTexcoord;
+layout(location = 0) out vec2 outTexcoord;
 
 out gl_PerVertex {
 	vec4 gl_Position;

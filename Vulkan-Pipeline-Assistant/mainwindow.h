@@ -21,6 +21,7 @@ namespace vpa {
     class DrawerWidget;
     class ContainerWidget;
     class TabbedContainerWidget;
+    class DescriptorTree;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
@@ -51,18 +52,14 @@ namespace vpa {
     public slots:
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
-        void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
 
     private:
         bool WindowsNativeEvent(MSG* msg);
         void ConnectInterface();
 
-        void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
-        template<typename T>
-        T* MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox);
 
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;
@@ -73,36 +70,14 @@ namespace vpa {
 
         Ui::MainWindow* m_ui;
         VulkanMain* m_vulkan;
-        QPushButton* m_createCacheBtn;
-        QGridLayout* m_layout;
-
-        QWidget* m_masterContainer;
-        QWidget* m_leftBottomArea;
-        QWidget* m_rightBottomContainer;
-        TabbedContainerWidget* m_configArea;
-        QLineEdit* m_console;
-
-        QWidget* m_descriptorArea;
-        ContainerWidget* m_descriptorContainer;
-        DrawerWidget* m_descriptorDrawer;
-
-        QPushButton* m_cacheBtn;
-
-        static const QVector<QString> BoolComboOptions;
+        ContainerWidget* m_descriptorTypeWidget;
+        DescriptorTree* m_descriptorTree;
     };
 
     template<typename T>
     inline void MainWindow::HandleConfigValueChange(T& configVar, ReloadFlags reloadFlag, int index) {
         configVar = T(index);
         WriteAndReload(reloadFlag);
-    }
-
-    template<typename T>
-    inline T* MainWindow::MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox) {
-        QLabel* label = new QLabel(name, parent);
-        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(label, labRow, labCol);
-        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(inputBox, boxRow, boxCol);
-        return inputBox;
     }
 }
 #endif // MAINWINDOW_H

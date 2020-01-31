@@ -8,26 +8,16 @@ namespace vpa {
     struct SpvStructType;
 
     class SpvStructWidget : public SpvWidget {
+        Q_OBJECT
     public:
-        SpvStructWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvStructType* type, QWidget* parent);
-
-        void Data(unsigned char* dataPtr) const override;
-        void Fill(const unsigned char* data) override;
-        void OnDrawerInit() override;
-        void Init() override;
-
-        SpvWidget* GetTypeWidget(int i);
-
-    private slots:
-        void HandleMemberButtonPress(int idx);
+        SpvStructWidget(SpvStructType* type);
+    protected:
+        void Data(unsigned char* dataPtr) const override { Q_UNUSED(dataPtr) }
+        void Fill(const unsigned char* data) override { Q_UNUSED(data) }
+        void InitData() override { }
 
     private:
         SpvStructType* m_type;
-        QWidget* m_infoGroup;
-        QWidget* m_typesGroup;
-        QVector<QPushButton*> m_memberButtons;
-        QVector<SpvWidget*> m_typeWidgets;
-        int m_activeIndex;
     };
 }
 

@@ -1,38 +1,32 @@
 #include "spvmatrixwidget.h"
 
 #include <QLineEdit>
-#include <QLabel>
 #include <QLayout>
 #include <QPushButton>
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QMatrix4x4>
-#include <QValidator>
 
-#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 #include "../Vulkan/descriptors.h"
+#include "descriptortree.h"
 #include "mainwindow.h"
 
 namespace vpa {
-    SpvMatrixWidget::SpvMatrixWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvMatrixType* type, QWidget* parent)
-        : SpvWidget(cont, resourceWidget, parent), m_type(type) {
-        QVBoxLayout* layout = new QVBoxLayout(this);
+    SpvMatrixWidget::SpvMatrixWidget(SpvMatrixType* type, DescriptorNodeRoot* root)
+        : SpvWidget(root), m_type(type) {
+        QGridLayout* layout = new QGridLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
-        m_infoGroup = new QWidget(parent);
-        m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
-        m_infoGroup->layout()->setAlignment(Qt::AlignTop);
-        m_infoGroup->layout()->addWidget(new QLabel(QStringLiteral("mat %1x%2").arg(m_type->rows).arg(m_type->columns), parent));
-        QPushButton* invBtn = new QPushButton("Inverse", m_infoGroup);
-        m_infoGroup->layout()->addWidget(invBtn);
+        QPushButton* invBtn = new QPushButton("Inverse", this);
         connect(invBtn, SIGNAL(pressed()), this, SLOT(HandleInverse()));
+        layout->addWidget(invBtn, 0, 0);
 
         if (m_type->rows == 4 && m_type->columns == 4) {
-            QComboBox* defaultMatricesBox = MainWindow::MakeComboBox(m_infoGroup, { "Model", "View", "Projection", "MVP" });
-            m_infoGroup->layout()->addWidget(defaultMatricesBox);
+            QComboBox* defaultMatricesBox = MainWindow::MakeComboBox(this, { "Model", "View", "Projection", "MVP" });
+            layout->addWidget(defaultMatricesBox, 0, 1);
             QPushButton* defaultMatrixbutton = new QPushButton("Apply");
-            m_infoGroup->layout()->addWidget(defaultMatrixbutton);
+            layout->addWidget(defaultMatrixbutton, 0, 2);
             QObject::connect(defaultMatrixbutton, &QPushButton::pressed, [this, defaultMatricesBox] {
                 if (defaultMatricesBox->currentIndex() == 0) this->Fill(BYTE_CPTR(Descriptors::DefaultModelMatrix().data()));
                 if (defaultMatricesBox->currentIndex() == 1) this->Fill(BYTE_CPTR(Descriptors::DefaultViewMatrix().data()));
@@ -41,24 +35,15 @@ namespace vpa {
             });
         }
 
-        m_inputsGroup = new QWidget(parent);
-        QGridLayout* inputsGroupLayout = new QGridLayout(m_inputsGroup);
-        inputsGroupLayout->setAlignment(Qt::AlignTop);
         for (size_t row = 0; row < m_type->rows; ++row) {
             for (size_t col = 0; col < m_type->columns; ++col) {
-                m_inputs[row][col] = new QLineEdit(m_inputsGroup);
-                m_inputs[row][col]->setValidator(new QDoubleValidator(double(FLT_MIN + FLT_EPSILON), (double(FLT_MAX - FLT_EPSILON)), 4, m_inputs[row][col]));
-                inputsGroupLayout->addWidget(m_inputs[row][col], int(row), int(col));
-                QObject::connect(m_inputs[row][col], &QLineEdit::textChanged, [this] { m_resourceWidget->WriteDescriptorData(); });
+                m_inputs[row][col] = new QLineEdit(this);
+                layout->addWidget(m_inputs[row][col], int(row) + 1, int(col));
+                QObject::connect(m_inputs[row][col], &QLineEdit::textChanged, [this] { m_root->WriteDescriptorData(); });
             }
         }
 
-        m_inputsGroup->setLayout(inputsGroupLayout);
-        layout->addWidget(m_infoGroup);
-        layout->addWidget(m_inputsGroup);
         setLayout(layout);
-
-        hide();
     }
 
     void SpvMatrixWidget::Data(unsigned char* dataPtr) const {
@@ -79,11 +64,7 @@ namespace vpa {
         }
     }
 
-    void SpvMatrixWidget::OnClick(bool) {
-        m_container->ShowWidget(this);
-    }
-
-    void SpvMatrixWidget::Init() {
+    void SpvMatrixWidget::InitData() {
         Fill(BYTE_CPTR(DefaultData));
         if (m_type->name == "mvp") {
             Fill(BYTE_CPTR(Descriptors::DefaultMVPMatrix().data()));

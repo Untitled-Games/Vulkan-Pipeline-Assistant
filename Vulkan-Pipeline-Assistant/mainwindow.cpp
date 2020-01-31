@@ -8,22 +8,27 @@
 
 #include "./Vulkan/pipelineconfig.h"
 #include "./Vulkan/descriptors.h"
-#include "./Widgets/spvresourcewidget.h"
-#include "./Widgets/drawerwidget.h"
 #include "./Widgets/containerwidget.h"
-#include "./Widgets/tabbedcontainerwidget.h"
+#include "./Widgets/descriptortree.h"
 
 namespace vpa {
     QString VPAError::lastMessage = "";
-    const QVector<QString> MainWindow::BoolComboOptions = { "False", "True" };
 
     MainWindow::MainWindow(QWidget* parent)
-        : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr) {
+        : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_descriptorTree(nullptr) {
         m_ui->setupUi(this);
+        m_ui->gtxVertexFileName->setText(SHADERDIR"vs_test.spv");
+        m_ui->gtxFragmentFileName->setText(SHADERDIR"fs_test.spv");
 
-        m_vulkan = new VulkanMain(m_rightBottomContainer, std::bind(&MainWindow::VulkanCreationCallback, this));
+        m_descriptorTypeWidget = new ContainerWidget(m_ui->gwDescriptorContainer);
+        m_ui->gwDescriptorContainer->layout()->addWidget(m_descriptorTypeWidget);
+
+        m_vulkan = new VulkanMain(nullptr, std::bind(&MainWindow::VulkanCreationCallback, this));
+
+        m_vulkan->GetConfig().vertShader = SHADERDIR"vs_test.spv";
+        m_vulkan->GetConfig().fragShader = SHADERDIR"fs_test.spv";
+
         ConnectInterface();
-        /*CreateInterface();*/
         // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
@@ -96,7 +101,7 @@ namespace vpa {
             HandleConfigValueChange<VkPrimitiveTopology>(Config().writables.topology, ReloadFlags::Pipeline, index);
         });
         QObject::connect(m_ui->gcPrimitiveRestart, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.primitiveRestartEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.primitiveRestartEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gsPatchPointCount, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
            HandleConfigValueChange<uint32_t>(Config().writables.patchControlPoints, ReloadFlags::Pipeline, value);
@@ -107,7 +112,7 @@ namespace vpa {
             HandleConfigValueChange<VkPolygonMode>(Config().writables.polygonMode, ReloadFlags::Pipeline, index);
         });
         QObject::connect(m_ui->gcDiscardEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.rasterizerDiscardEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.rasterizerDiscardEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gsLineWidth, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
            HandleConfigValueChange<float>(Config().writables.lineWidth, ReloadFlags::Pipeline, value);
@@ -119,10 +124,10 @@ namespace vpa {
             HandleConfigValueChange<VkFrontFace>(Config().writables.frontFace, ReloadFlags::Pipeline, index);
         });
         QObject::connect(m_ui->gcDepthClamp, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthClampEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.depthClampEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcDepthBias, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthBiasEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.depthBiasEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gsDepthBiasConstant, QOverload<int>::of(&QSlider::valueChanged), [this](int value) {
            HandleConfigValueChange<float>(Config().writables.depthBiasConstantFactor, ReloadFlags::Pipeline, value);
@@ -142,16 +147,16 @@ namespace vpa {
         });
         // ------ Depth Stencil connections ------
         QObject::connect(m_ui->gcDepthTestEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthTestEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.depthTestEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcDepthWriteEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcDepthTestEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcDepthStencilEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
-            HandleConfigValueChange<VkBool32>(Config().writables.stencilTestEnable, ReloadFlags::Pipeline, state);
+            HandleConfigValueChange<VkBool32>(Config().writables.stencilTestEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcbDepthCompareOp, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
             HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
@@ -171,23 +176,7 @@ namespace vpa {
     }
 
     void MainWindow::HandleViewChangeReset(QVector<QLineEdit*> v) {
-        PipelineConfig& config = this->m_vulkan->GetConfig();
-        VkViewport viewport = config.viewports[0];
-        v.at(0)->setText(QString::number(double(viewport.x)));
-        v.at(1)->setText(QString::number(double(viewport.y)));
-        v.at(2)->setText(QString::number(double(viewport.width)));
-        v.at(3)->setText(QString::number(double(viewport.height)));
-        v.at(4)->setText(QString::number(double(viewport.minDepth)));
-        v.at(5)->setText(QString::number(double(viewport.maxDepth)));
-    }
-
-    void MainWindow::HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox) {
-        configVar = editBox->text().toFloat();
-        WriteAndReload(reloadFlag);
-    }
-
-    void MainWindow::MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader) {
-        if (defaultShader != "") shaderConfig = defaultShader;
+        /*if (defaultShader != "") shaderConfig = defaultShader;
 
         QWidget* container = new QWidget(parent);
 
@@ -212,7 +201,7 @@ namespace vpa {
             field->setText(str);
             shaderConfig = field->text();
             this->WriteAndReload(ReloadFlags::Everything);
-        });
+        });*/
     }
 
     QWidget* MainWindow::MakeViewportStateBlock() {
@@ -317,36 +306,32 @@ namespace vpa {
         // New shit is to add to QTreeWidget the "labels" and add container widget to the other side
         // Just need logic around the tree items so they can show in the container widget
 
-        // Make SpvWidgets extend QTreeWidgetItem
-
-        return;
-        m_descriptorContainer->Clear();
-        m_descriptorDrawer->Clear();
-        m_descriptorContainer->show();
-        m_descriptorDrawer->show();
+        m_descriptorTypeWidget->Clear();
+        delete m_descriptorTree;
         if (!m_vulkan) return;
 
         Descriptors* descriptors = m_vulkan->GetDescriptors();
         if (!descriptors) return;
+        m_descriptorTree = new DescriptorTree(m_ui->gtDescriptors, m_ui->gtxDescriptorGroupInfo, m_ui->gtxDescriptorTypeInfo, m_descriptorTypeWidget, descriptors);
 
         for (auto& set : descriptors->Buffers().keys()) {
             for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
                 SpvResource* resource = descriptors->Buffers()[set][i].descriptor.resource;
-                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
+                //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_ui->gtDescriptors));
+                m_descriptorTree->CreateDescriptorWidgetTree(set, i, resource);
             }
         }
         for (auto& set : descriptors->Buffers().keys()) {
             for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
                 SpvResource* resource = descriptors->Images()[set][i].descriptor.resource;
-                m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                    new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_descriptorContainer), resource->name, Qt::gray));
+                //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_ui->gtDescriptors));
+                m_descriptorTree->CreateDescriptorWidgetTree(set, i, resource);
             }
         }
         for (auto& pushConstant : descriptors->PushConstants().values()) {
             SpvResource* resource = pushConstant.resource;
-            m_descriptorDrawer->AddRootItem(new DrawerItemWidget(m_descriptorDrawer,
-                new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_descriptorContainer), resource->name, Qt::gray));
+            //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_ui->gtDescriptors));
+            m_descriptorTree->CreateDescriptorWidgetTree(0, 0, resource);
         }
     }
 

@@ -9,20 +9,20 @@
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
 #include "spvstructwidget.h"
-#include "spvresourcewidget.h"
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent)
+    /*SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QTreeWidgetItem* parent)
         : SpvWidget(cont, resourceWidget, parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
-        QVBoxLayout* layout = new QVBoxLayout(this);
+        ContainerItem* item = new ContainerItem(this);
+        QVBoxLayout* layout = new QVBoxLayout(item);
         layout->setAlignment(Qt::AlignTop);
 
-        m_infoGroup = new QWidget(parent);
+        m_infoGroup = new QWidget(item);
         m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
         m_infoGroup->layout()->setAlignment(Qt::AlignTop);
 
-        m_inputArea = new ContainerWidget(parent);
+        m_inputArea = new ContainerWidget(item);
 
         QString infoStr;
         infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypeNameStrings[size_t(m_type->subtype->Type())]).arg(m_type->lengths.size()));
@@ -33,15 +33,15 @@ namespace vpa {
 
             m_totalNumElements += m_type->lengths[i];
         }
-        m_infoGroup->layout()->addWidget(new QLabel(infoStr, parent));
+        m_infoGroup->layout()->addWidget(new QLabel(infoStr, item));
 
-        m_indicesGroup = new QWidget(parent);
+        m_indicesGroup = new QWidget(item);
         m_indicesGroup->setLayout(new QHBoxLayout(m_indicesGroup));
         m_indicesGroup->layout()->setAlignment(Qt::AlignTop);
         m_dimensionIndices.resize(m_type->lengths.size());
         for (int i = 0; i < m_dimensionIndices.size(); ++i) {
             m_dimensionIndices[i] = 0;
-            QSpinBox* indexEdit = new QSpinBox(parent);
+            QSpinBox* indexEdit = new QSpinBox(item);
             indexEdit->setRange(0, int(m_type->lengths[i]) - 1);
             indexEdit->setMaximumWidth(40);
             m_indicesGroup->layout()->addWidget(indexEdit);
@@ -56,14 +56,13 @@ namespace vpa {
         memset(m_data, 0, m_type->size);
         m_stride = m_type->subtype->size;
 
-        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea, m_resourceWidget);
+        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea, m_resourceWidget, this);
 
         layout->addWidget(m_infoGroup);
         layout->addWidget(m_indicesGroup);
         layout->addWidget(m_inputArea);
-        setLayout(layout);
-
-        hide();
+        item->setLayout(layout);
+        SetContainerItem(item);
     }
 
     SpvArrayWidget::~SpvArrayWidget() {
@@ -78,19 +77,12 @@ namespace vpa {
         memcpy(m_data, data, m_type->size);
     }
 
-    void SpvArrayWidget::OnDrawerInit() {
-        if (m_type->subtype->Type() == SpvTypeName::Struct) {
-            m_inputWidget->SetDrawerItemWidget(GetDrawerItemWidget());
-            m_inputWidget->OnDrawerInit();
-        }
-    }
-
     void SpvArrayWidget::Init() {
         m_inputWidget->Init();
         HandleArrayElementChange();
     }
 
-    void SpvArrayWidget::OnClick(bool expanding) {
+    /*void SpvArrayWidget::OnClick(bool expanding) {
         if (!expanding) return;
 
         m_container->ShowWidget(this);
@@ -101,9 +93,9 @@ namespace vpa {
             SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
             if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
         }
-    }
+    }*/
 
-    void SpvArrayWidget::OnRelease() {
+    /*void SpvArrayWidget::OnRelease() {
         m_inputArea->Clear();
     }
 
@@ -119,5 +111,5 @@ namespace vpa {
         m_inputWidget->Data(&m_data[m_activeWidgetIdx]);
         m_activeWidgetIdx = newIndex;
         m_inputWidget->Fill(&m_data[m_activeWidgetIdx]);
-    }
+    }*/
 }

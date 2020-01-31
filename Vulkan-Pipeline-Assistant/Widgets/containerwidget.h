@@ -6,11 +6,12 @@
 #include "../common.h"
 
 namespace vpa {
-    class ContainerItem {
+    class ContainerItem : public QWidget {
     public:
+        ContainerItem(QWidget* parent = nullptr) : QWidget(parent) { }
         virtual ~ContainerItem() = default;
         // Called When the container clears the widget from the container
-        virtual void OnRelease() = 0;
+        virtual void OnRelease() { }
     };
 
     // This class defines a very simple area container which controls hiding an existing widget to display a new one
