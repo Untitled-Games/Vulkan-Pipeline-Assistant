@@ -22,6 +22,26 @@ namespace vpa {
         if(m_main->m_currentState == VulkanState::Ok && !m_handlingResize) m_main->RecreateSwapchain();
     }
 
+    bool VulkanWindow::nativeEvent(const QByteArray &eventType, void* message, long* result) {
+        Q_UNUSED(result)
+        Q_UNUSED(eventType)
+        if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
+        return false;
+    }
+
+    bool VulkanWindow::WindowsNativeEvent(MSG* msg) {
+        if (msg->message == WM_ENTERSIZEMOVE) {
+            HandlingResize(true);
+            return true;
+        }
+        else if (msg->message == WM_EXITSIZEMOVE) {
+            HandlingResize(false);
+            m_main->RecreateSwapchain();
+            return true;
+        }
+        return false;
+    }
+
 #ifdef __clang__
 #pragma clang diagnostic push
 #if __has_warning("-Wswitch-enum")
@@ -212,7 +232,9 @@ namespace vpa {
         m_details.window->setVulkanInstance(&instance);
         m_details.window->setSurfaceType(QWindow::SurfaceType::VulkanSurface);
         m_details.window->resize(800, 600);
-        //m_details.window->setFlags(Qt::WindowStaysOnTopHint);
+#ifndef _DEBUG
+        m_details.window->setFlags(Qt::WindowStaysOnTopHint);
+#endif
         m_details.window->show();
 
         m_details.surface = QVulkanInstance::surfaceForWindow(m_details.window);

@@ -73,6 +73,8 @@ namespace vpa {
         VulkanWindow(VulkanMain* main) : m_main(main), m_handlingResize(false) { }
         ~VulkanWindow() override = default;
         void resizeEvent(QResizeEvent* event) override;
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
+        bool WindowsNativeEvent(MSG* msg);
         bool event(QEvent* event) override;
         void showEvent(QShowEvent* event) override;
         void hideEvent(QHideEvent* event) override;
