@@ -10,23 +10,23 @@ namespace vpa {
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root) : SpvWidget(root), m_type(type) {}
-        void OnRelease() override {};
+        SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer) : SpvWidget(root) {}
+        ~SpvArrayWidget() override {}
+        void OnRelease() override {}
     protected:
-        void Data(unsigned char* dataPtr) const override {} // TODO implement
+        void Data(unsigned char* dataPtr) const override {}
 
         // Fill the widget with data
-        void Fill(const unsigned char* data) override {} // TODO implement
+        void Fill(const unsigned char* data) override {}
 
         // Called after it becomes safe to write descriptor data
-        void InitData() override {};
+        void InitData() override {}
 
     private slots:
         void HandleArrayElementChange() {}
 
     private:
         SpvArrayType* m_type;
-        QWidget* m_infoGroup;
         QWidget* m_indicesGroup;
         SpvWidget* m_inputWidget;
         ContainerWidget* m_inputArea;

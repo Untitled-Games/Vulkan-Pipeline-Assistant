@@ -74,6 +74,7 @@ namespace vpa {
             }
             delete nodeKey;
         }
+        QObject::disconnect(m_clickConnection);
     }
 
     void DescriptorTree::WriteDescriptorData(DescriptorNodeRoot* root) {
@@ -121,12 +122,22 @@ namespace vpa {
         else if (type->Type() == SpvTypeName::Image) {
             return "image " + SpvImageTypeNameStrings[size_t(reinterpret_cast<SpvImageType*>(type)->imageTypename)];
         }
+        else if (type->Type() == SpvTypeName::Array) {
+            SpvArrayType* atype = reinterpret_cast<SpvArrayType*>(type);
+            QString infoStr = "";
+            infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypeNameStrings[size_t(atype->Type())]).arg(atype->lengths.size()));
+            for (int i = 0; i < atype->lengths.size(); ++i) {
+                infoStr.append(QStringLiteral("[%1").arg(atype->lengths[i]));
+                if (atype->lengthsUnsized[i]) infoStr.append("*");
+                infoStr.append("]");
+            }
+            return infoStr;
+        }
         return "";
     }
 
     void DescriptorTree::HandleButtonClick(QTreeWidgetItem* item, int column) {
         Q_UNUSED(column)
-        qDebug("Handling tree click");
         DescriptorNode* node = m_descriptorNodes[item];
         if (node->Type() == NodeType::Leaf) {
             DescriptorNodeLeaf* leaf = reinterpret_cast<DescriptorNodeLeaf*>(node);
@@ -174,10 +185,13 @@ namespace vpa {
                 leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvStructType*>(type)->members[i], root, leaf->treeItem, false));
             }
             break;
-        case SpvTypeName::Array:
-            leaf->widget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(type), root);
-            //leaf->children = ; TODO
+        case SpvTypeName::Array: {
+            QPair<QTreeWidgetItem*, ContainerWidget*> arrContainer;
+            arrContainer.first = leaf->treeItem;
+            leaf->widget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(type), root, arrContainer.second);
+            leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvArrayType*>(type)->subtype, root, leaf->treeItem, false));
             break;
+        }
         case SpvTypeName::Image:
             leaf->widget = new SpvImageWidget(reinterpret_cast<SpvImageType*>(type), root);
             break;

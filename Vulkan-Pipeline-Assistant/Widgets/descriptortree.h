@@ -66,7 +66,7 @@ namespace vpa {
     public:
         DescriptorTree(QTreeWidget* tree, QTextEdit* groupInfoWidget, QTextEdit* typeInfoWidget, ContainerWidget* typeWidget, Descriptors* descriptors)
             : m_tree(tree), m_descriptors(descriptors), m_groupInfo(groupInfoWidget), m_typeInfo(typeInfoWidget), m_typeWidget(typeWidget) {
-            QObject::connect(m_tree, QOverload<QTreeWidgetItem*, int>::of(&QTreeWidget::itemClicked), [this](QTreeWidgetItem* item, int col){ qDebug("Enter handle func"); HandleButtonClick(item, col); });
+            m_clickConnection = QObject::connect(m_tree, QOverload<QTreeWidgetItem*, int>::of(&QTreeWidget::itemClicked), [this](QTreeWidgetItem* item, int col){ HandleButtonClick(item, col); });
         }
         ~DescriptorTree();
 
@@ -89,6 +89,7 @@ namespace vpa {
         QTextEdit* m_groupInfo;
         QTextEdit* m_typeInfo;
         ContainerWidget* m_typeWidget;
+        QMetaObject::Connection m_clickConnection;
     };
 }
 

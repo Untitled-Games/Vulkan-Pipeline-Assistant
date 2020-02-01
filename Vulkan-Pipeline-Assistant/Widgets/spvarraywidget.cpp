@@ -9,46 +9,36 @@
 #include "spvmatrixwidget.h"
 #include "spvvectorwidget.h"
 #include "spvstructwidget.h"
+#include "descriptortree.h"
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    /*SpvArrayWidget::SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QTreeWidgetItem* parent)
-        : SpvWidget(cont, resourceWidget, parent), m_type(type),  m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
-        ContainerItem* item = new ContainerItem(this);
-        QVBoxLayout* layout = new QVBoxLayout(item);
+    /*SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer)
+        : SpvWidget(root), m_type(type), m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
+        QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
-        m_infoGroup = new QWidget(item);
-        m_infoGroup->setLayout(new QHBoxLayout(m_infoGroup));
-        m_infoGroup->layout()->setAlignment(Qt::AlignTop);
+        m_inputArea = new ContainerWidget(this);
+        subContainer = m_inputArea;
 
-        m_inputArea = new ContainerWidget(item);
-
-        QString infoStr;
-        infoStr.append(QStringLiteral("Array(%1) %2D ").arg(SpvTypeNameStrings[size_t(m_type->subtype->Type())]).arg(m_type->lengths.size()));
         for (int i = 0; i < m_type->lengths.size(); ++i) {
-            infoStr.append(QStringLiteral("[%1").arg(m_type->lengths[i]));
-            if (m_type->lengthsUnsized[i]) infoStr.append("*");
-            infoStr.append("]");
-
             m_totalNumElements += m_type->lengths[i];
         }
-        m_infoGroup->layout()->addWidget(new QLabel(infoStr, item));
 
-        m_indicesGroup = new QWidget(item);
+        m_indicesGroup = new QWidget(this);
         m_indicesGroup->setLayout(new QHBoxLayout(m_indicesGroup));
         m_indicesGroup->layout()->setAlignment(Qt::AlignTop);
         m_dimensionIndices.resize(m_type->lengths.size());
         for (int i = 0; i < m_dimensionIndices.size(); ++i) {
             m_dimensionIndices[i] = 0;
-            QSpinBox* indexEdit = new QSpinBox(item);
+            QSpinBox* indexEdit = new QSpinBox(this);
             indexEdit->setRange(0, int(m_type->lengths[i]) - 1);
             indexEdit->setMaximumWidth(40);
             m_indicesGroup->layout()->addWidget(indexEdit);
             QObject::connect(indexEdit, QOverload<int>::of(&QSpinBox::valueChanged), [=](int){
                 m_dimensionIndices[i] = size_t(indexEdit->value());
                 HandleArrayElementChange();
-                m_resourceWidget->WriteDescriptorData();
+                m_root->WriteDescriptorData();
             });
         }
 
@@ -56,13 +46,9 @@ namespace vpa {
         memset(m_data, 0, m_type->size);
         m_stride = m_type->subtype->size;
 
-        m_inputWidget = MakeSpvWidget(m_type->subtype, m_inputArea, m_resourceWidget, this);
-
-        layout->addWidget(m_infoGroup);
         layout->addWidget(m_indicesGroup);
-        layout->addWidget(m_inputArea);
-        item->setLayout(layout);
-        SetContainerItem(item);
+        layout->addWidget(subContainer);
+        setLayout(layout);
     }
 
     SpvArrayWidget::~SpvArrayWidget() {
@@ -77,12 +63,11 @@ namespace vpa {
         memcpy(m_data, data, m_type->size);
     }
 
-    void SpvArrayWidget::Init() {
-        m_inputWidget->Init();
+    void SpvArrayWidget::InitData() {
         HandleArrayElementChange();
     }
 
-    /*void SpvArrayWidget::OnClick(bool expanding) {
+    void SpvArrayWidget::OnClick(bool expanding) {
         if (!expanding) return;
 
         m_container->ShowWidget(this);
@@ -93,9 +78,9 @@ namespace vpa {
             SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
             if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
         }
-    }*/
+    }
 
-    /*void SpvArrayWidget::OnRelease() {
+    void SpvArrayWidget::OnRelease() {
         m_inputArea->Clear();
     }
 
