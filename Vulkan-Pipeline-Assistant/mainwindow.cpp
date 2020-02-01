@@ -1,9 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "ui_vulkandockwidget.h"
 
 #include <QPushButton>
 #include <QFileDialog>
 #include <QKeyEvent>
+#include <QDockWidget>
 #include <qt_windows.h>
 
 #include "./Vulkan/pipelineconfig.h"
@@ -13,6 +15,13 @@
 
 namespace vpa {
     QString VPAError::lastMessage = "";
+
+    bool DockWidget::nativeEvent(const QByteArray &eventType, void* message, long* result) {
+        Q_UNUSED(result)
+        Q_UNUSED(eventType)
+        if (QGuiApplication::platformName() == "windows") return m_window->WindowsNativeEvent(static_cast<MSG*>(message));
+        return false;
+    }
 
     QLineEdit* MainWindow::s_console = nullptr;
 
@@ -26,6 +35,7 @@ namespace vpa {
         s_console = m_ui->gtxConsole;
         m_ui->gtxVertexFileName->setText(SHADERDIR"vs_test.spv");
         m_ui->gtxFragmentFileName->setText(SHADERDIR"fs_test.spv");
+        this->setCentralWidget(m_ui->centralwidget);
 
         m_descriptorTypeWidget = new ContainerWidget(m_ui->gwDescriptorContainer);
         m_ui->gwDescriptorContainer->layout()->addWidget(m_descriptorTypeWidget);
@@ -33,7 +43,12 @@ namespace vpa {
         m_ui->ShaderTabs->setCurrentIndex(0);
         m_ui->ConfigTabs->setCurrentIndex(0);
 
-        m_vulkan = new VulkanMain(nullptr, std::bind(&MainWindow::VulkanCreationCallback, this));
+        m_vkDockWidget = new DockWidget(this);
+        m_vkDockUi = new Ui::DockWidget();
+        m_vkDockUi->setupUi(m_vkDockWidget);
+        m_vkDockUi->gwDisplayArea->setLayout(new QHBoxLayout());
+        m_vkDockWidget->show();
+        m_vulkan = new VulkanMain(m_vkDockUi->gwDisplayArea, std::bind(&MainWindow::VulkanCreationCallback, this));
 
         m_vulkan->GetConfig().vertShader = SHADERDIR"vs_test.spv";
         m_vulkan->GetConfig().fragShader = SHADERDIR"fs_test.spv";

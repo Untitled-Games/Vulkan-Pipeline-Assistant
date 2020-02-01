@@ -8,7 +8,9 @@
 #include <QVulkanDeviceFunctions>
 #include <QPlatformSurfaceEvent>
 #include <QTimer>
+#include <QLineEdit>
 #include <QGuiApplication>
+#include <QDockWidget>
 #include <qt_windows.h>
 
 #include "common.h"
@@ -92,7 +94,7 @@ namespace vpa {
     }
 
     VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
-        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending), m_attached(false) {
+        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending) {
         m_details.window = nullptr;
         m_renderer = new VulkanRenderer(this, creationCallback);
         memset(m_renderFinished, 0, sizeof(m_renderFinished));
@@ -133,22 +135,6 @@ namespace vpa {
 
     bool VulkanMain::RendererValid() {
         return m_renderer->Valid();
-    }
-
-    void VulkanMain::ToggleAttachToContainer() {
-        if (!m_attached) {
-            m_attached = true;
-            m_container = QWidget::createWindowContainer(m_details.window);
-            m_container->setFocusPolicy(Qt::NoFocus);
-            m_parent->layout()->addWidget(m_container);
-        }
-        else {
-            m_attached = false;
-            m_details.window->setParent(nullptr);
-            m_parent->layout()->removeWidget(m_container);
-            delete m_container;
-            m_container = nullptr;
-        }
     }
 
     void VulkanMain::Destroy() {
@@ -239,6 +225,10 @@ namespace vpa {
 
         m_details.surface = QVulkanInstance::surfaceForWindow(m_details.window);
         if (m_details.surface == VK_NULL_HANDLE) return VPA_CRITICAL("Cannot get vulkan surface");
+
+        m_container = QWidget::createWindowContainer(m_details.window);
+        m_container->setFocusPolicy(Qt::NoFocus);
+        m_parent->layout()->addWidget(m_container);
 
         return VPA_OK;
     }

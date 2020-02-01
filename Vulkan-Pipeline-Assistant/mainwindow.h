@@ -2,20 +2,21 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QSpinBox>
-#include <QComboBox>
-#include <QLayout>
-#include <QLineEdit>
+#include <QDockWidget>
 
 #include "./Vulkan/vulkanmain.h"
 #include "common.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
+namespace Ui {
+    class MainWindow;
+    class DockWidget;
+}
 QT_END_NAMESPACE
 
 class QPushButton;
+class QLineEdit;
+class QComboBox;
 
 namespace vpa {
     class DrawerWidget;
@@ -25,21 +26,7 @@ namespace vpa {
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
-
-        struct ShaderBlock {
-            QString text;
-            QWidget* container;
-            QLayout* layout;
-            QLabel* label;
-            QLineEdit* field;
-            QPushButton* dialogBtn;
-        };
-
-        struct ConfigBlock {
-            QLabel* title;
-            QWidget* container;
-            QVector<QPair<QLabel*, QWidget*>> options;
-        };
+        friend class DockWidget;
     public:
         static QLineEdit* Console();
 
@@ -75,7 +62,19 @@ namespace vpa {
         ContainerWidget* m_descriptorTypeWidget;
         DescriptorTree* m_descriptorTree;
 
+        QDockWidget* m_vkDockWidget;
+        Ui::DockWidget* m_vkDockUi;
+
         static QLineEdit* s_console;
+    };
+
+    class DockWidget : public QDockWidget {
+        Q_OBJECT
+    public:
+        DockWidget(MainWindow* window) : QDockWidget(window), m_window(window) { }
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
+    private:
+        MainWindow* m_window;
     };
 
     template<typename T>

@@ -7,6 +7,7 @@
 #include "reloadflags.h"
 
 class QWidget;
+class QDockWidget;
 
 namespace vpa {
     struct PipelineConfig;
@@ -93,7 +94,6 @@ namespace vpa {
         ~VulkanMain();
 
         bool RendererValid();
-        void ToggleAttachToContainer();
 
         void WritePipelineCache();
         void WritePipelineConfig();
@@ -150,8 +150,6 @@ namespace vpa {
         uint32_t m_frameIndex;
 
         VulkanState m_currentState;
-
-        bool m_attached;
 
         static const QVector<const char*> LayerNames;
     };

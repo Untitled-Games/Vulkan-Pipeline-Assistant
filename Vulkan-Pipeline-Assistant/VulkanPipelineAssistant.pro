@@ -58,7 +58,8 @@ HEADERS += \
     tiny_obj_loader.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    vulkandockwidget.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
