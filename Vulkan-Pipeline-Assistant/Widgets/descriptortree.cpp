@@ -23,6 +23,7 @@ namespace vpa {
     void DescriptorNodeRoot::WriteDescriptorData() {
         tree->WriteDescriptorData(this);
     }
+
     void DescriptorNodeRoot::WriteDescriptorData(QString fileName) {
         tree->WriteDescriptorData(this, fileName);
     }
@@ -143,7 +144,17 @@ namespace vpa {
             DescriptorNodeLeaf* leaf = reinterpret_cast<DescriptorNodeLeaf*>(node);
             m_groupInfo->setText(MakeGroupInfoText(*leaf->root));
             m_typeInfo->setText(MakeTypeInfoText(leaf->type));
-            if (leaf->arrayParentInfo.arr) {
+            if (leaf->type->Type() == SpvTypeName::Array) {
+                if (leaf->children[0]->type->Type() == SpvTypeName::Struct) {
+                    leaf->arrayParentInfo.cont->ShowWidget(leaf->children[0]->children[0]->widget);
+                    m_typeWidget->ShowWidget(leaf->widget);
+                }
+                else {
+                    leaf->arrayParentInfo.cont->ShowWidget(leaf->children[0]->widget);
+                    m_typeWidget->ShowWidget(leaf->widget);
+                }
+            }
+            else if (leaf->arrayParentInfo.arr) {
                 m_typeWidget->ShowWidget(leaf->arrayParentInfo.arr);
                 leaf->arrayParentInfo.cont->ShowWidget(leaf->widget);
             }
@@ -196,8 +207,9 @@ namespace vpa {
             ContainerWidget* arrContainer;
             SpvArrayWidget* arrWidget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(type), root, arrContainer);
             leaf->widget = arrWidget;
-            leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvArrayType*>(type)->subtype, root, leaf->treeItem, false, { arrWidget, arrContainer }));
-            arrWidget->SetChildWidget(leaf->children[0]->widget);
+            leaf->arrayParentInfo = { arrWidget, arrContainer };
+            leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvArrayType*>(type)->subtype, root, leaf->treeItem, true, { arrWidget, arrContainer }));
+            arrWidget->SetChildLeaf(leaf->children[0]);
             break;
         }
         case SpvTypeName::Image:

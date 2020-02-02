@@ -14,7 +14,7 @@
 
 namespace vpa {
     SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer)
-        : SpvWidget(root), m_type(type), m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
+        : SpvWidget(root), m_type(type), m_inputLeaf(nullptr), m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
 
@@ -79,8 +79,8 @@ namespace vpa {
         }
         newIndex *= int(m_stride);
 
-        m_inputWidget->Data(&m_data[m_activeWidgetIdx]);
+        m_inputLeaf->Data(&m_data[m_activeWidgetIdx]);
         m_activeWidgetIdx = newIndex;
-        m_inputWidget->Fill(&m_data[m_activeWidgetIdx]);
+        m_inputLeaf->Fill(&m_data[m_activeWidgetIdx]);
     }
 }

@@ -5,6 +5,7 @@
 
 namespace vpa {
     struct SpvArrayType;
+    struct DescriptorNodeLeaf;
     class ContainerWidget;
 
     class SpvArrayWidget : public SpvWidget {
@@ -14,7 +15,7 @@ namespace vpa {
         ~SpvArrayWidget() override;
         void OnRelease() override;
 
-        void SetChildWidget(SpvWidget* widget) { m_inputWidget = widget; }
+        void SetChildLeaf(DescriptorNodeLeaf* leaf) { m_inputLeaf = leaf; }
     protected:
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
@@ -26,7 +27,7 @@ namespace vpa {
     private:
         SpvArrayType* m_type;
         QWidget* m_indicesGroup;
-        SpvWidget* m_inputWidget;
+        DescriptorNodeLeaf* m_inputLeaf;
         ContainerWidget* m_inputArea;
         QVector<size_t> m_dimensionIndices;
         unsigned char* m_data;
