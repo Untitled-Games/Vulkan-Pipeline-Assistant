@@ -104,6 +104,7 @@ namespace vpa {
         void RecreateSwapchain();
 
         Descriptors* GetDescriptors();
+        QStringList AttachmentNames() const;
         const VkPhysicalDeviceLimits& Limits() const;
         const VulkanDetails& Details() const { return m_details; }
         VkDevice Device() const { return m_details.device; }

@@ -94,6 +94,19 @@ namespace vpa {
         return m_modules[size_t(ShaderStage::Fragment)] != VK_NULL_HANDLE ? m_resources[size_t(ShaderStage::Fragment)].stage_outputs.size() : 0;
     }
 
+    QStringList ShaderAnalytics::ColourAttachmentNames() const {
+        if (m_modules[size_t(ShaderStage::Fragment)] == VK_NULL_HANDLE) {
+            return { };
+        }
+        else {
+            QStringList attachmentNames;
+            for (const Resource& res : m_resources[size_t(ShaderStage::Fragment)].stage_outputs) {
+                attachmentNames.push_back(QString::fromStdString(res.name));
+            }
+            return attachmentNames;
+        }
+    }
+
     VPAError ShaderAnalytics::CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob) {
         QFile file(name);
         if (!file.open(QIODevice::ReadOnly)) {

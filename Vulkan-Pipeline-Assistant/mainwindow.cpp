@@ -328,9 +328,6 @@ namespace vpa {
     }
 
     void MainWindow::MakeDescriptorBlock() {
-        // New shit is to add to QTreeWidget the "labels" and add container widget to the other side
-        // Just need logic around the tree items so they can show in the container widget
-
         m_descriptorTypeWidget->Clear();
         delete m_descriptorTree;
         m_descriptorTree = nullptr;
@@ -343,22 +340,28 @@ namespace vpa {
         for (auto& set : descriptors->Buffers().keys()) {
             for (int i = 0; i < descriptors->Buffers()[set].size(); ++i) {
                 SpvResource* resource = descriptors->Buffers()[set][i].descriptor.resource;
-                //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_ui->gtDescriptors));
                 m_descriptorTree->CreateDescriptorWidgetTree(set, i, resource);
             }
         }
         for (auto& set : descriptors->Buffers().keys()) {
             for (int i = 0; i < descriptors->Images()[set].size(); ++i) {
                 SpvResource* resource = descriptors->Images()[set][i].descriptor.resource;
-                //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, set, i, m_ui->gtDescriptors));
                 m_descriptorTree->CreateDescriptorWidgetTree(set, i, resource);
             }
         }
         for (auto& pushConstant : descriptors->PushConstants().values()) {
             SpvResource* resource = pushConstant.resource;
-            //m_ui->gtDescriptors->addTopLevelItem(new SpvResourceWidget(m_descriptorContainer, descriptors, resource, 0, 0, m_ui->gtDescriptors));
             m_descriptorTree->CreateDescriptorWidgetTree(0, 0, resource);
         }
+    }
+
+    void MainWindow::SetupDisplayAttachments() {
+        m_vkDockUi->gcbAttachment->clear();
+        if (!m_vulkan) return;
+
+        m_vkDockUi->gcbAttachment->addItems(m_vulkan->AttachmentNames());
+
+        // TODO connect to change attachment to display
     }
 
     QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {
@@ -371,6 +374,7 @@ namespace vpa {
 
     void MainWindow::VulkanCreationCallback() {
         MakeDescriptorBlock();
+        SetupDisplayAttachments();
     }
 
     void MainWindow::WriteAndReload(ReloadFlags flag) const {

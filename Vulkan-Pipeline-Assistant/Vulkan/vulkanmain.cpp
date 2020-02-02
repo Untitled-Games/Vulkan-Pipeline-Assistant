@@ -683,6 +683,10 @@ namespace vpa {
         return m_renderer ? m_renderer->GetDescriptors() : nullptr;
     }
 
+    QStringList VulkanMain::AttachmentNames() const {
+        return m_renderer ? m_renderer->AttachmentNames() : QStringList(0);
+    }
+
     const VkPhysicalDeviceLimits& VulkanMain::Limits() const {
         return m_details.physicalDeviceProperties.limits;
     }

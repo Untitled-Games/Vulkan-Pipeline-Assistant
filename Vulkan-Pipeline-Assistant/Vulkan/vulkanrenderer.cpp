@@ -17,8 +17,8 @@ namespace vpa {
     VulkanRenderer::VulkanRenderer(VulkanMain* main, std::function<void(void)> creationCallback)
         : m_initialised(false), m_valid(false), m_main(main), m_deviceFuncs(nullptr), m_renderPass(VK_NULL_HANDLE), m_pipeline(VK_NULL_HANDLE),
           m_pipelineLayout(VK_NULL_HANDLE), m_pipelineCache(VK_NULL_HANDLE), m_shaderAnalytics(nullptr), m_allocator(nullptr), m_vertexInput(nullptr),
-          m_descriptors(nullptr), m_validator(nullptr), m_creationCallback(creationCallback), m_activeAttachment(0), m_useDepth(true),
-          m_depthPipeline(VK_NULL_HANDLE), m_depthPipelineLayout(VK_NULL_HANDLE), m_depthSampler(VK_NULL_HANDLE), m_defaultRenderPass(VK_NULL_HANDLE) {
+          m_descriptors(nullptr), m_validator(nullptr), m_creationCallback(creationCallback), m_activeAttachment(0), m_outputPipeline(VK_NULL_HANDLE),
+          m_outputPipelineLayout(VK_NULL_HANDLE), m_defaultRenderPass(VK_NULL_HANDLE) {
         m_main->m_renderer = this;
         m_config = {};
         m_defaultDepthAttachment.view = VK_NULL_HANDLE;
@@ -61,9 +61,12 @@ namespace vpa {
     }
 
     void VulkanRenderer::CleanUp() {
-        DESTROY_HANDLE(m_main->Device(), m_depthPipeline, m_deviceFuncs->vkDestroyPipeline);
-        DESTROY_HANDLE(m_main->Device(), m_depthPipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
-        DESTROY_HANDLE(m_main->Device(), m_depthSampler, m_deviceFuncs->vkDestroySampler);
+        DESTROY_HANDLE(m_main->Device(), m_outputPipeline, m_deviceFuncs->vkDestroyPipeline);
+        DESTROY_HANDLE(m_main->Device(), m_outputPipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
+        for (VkSampler sampler : m_outputSamplers) {
+            DESTROY_HANDLE(m_main->Device(), sampler, m_deviceFuncs->vkDestroySampler);
+        }
+        m_outputSamplers.clear();
         DESTROY_HANDLE(m_main->Device(), m_pipeline, m_deviceFuncs->vkDestroyPipeline);
         DESTROY_HANDLE(m_main->Device(), m_pipelineLayout, m_deviceFuncs->vkDestroyPipelineLayout);
         DESTROY_HANDLE(m_main->Device(), m_pipelineCache, m_deviceFuncs->vkDestroyPipelineCache);
@@ -87,22 +90,23 @@ namespace vpa {
     }
 
     VPAError VulkanRenderer::RenderFrame(VkCommandBuffer cmdBuffer, const uint32_t frameIdx) {
-        VkClearValue clearValues[2];
-        clearValues[0].color = m_valid ? VkClearColorValue({{0.0f, 0.0f, 0.0f, 1.0f}}) : VkClearColorValue({{1.0f, 0.0f, 0.0f, 1.0f}}); // clear colour for each attachment
-        clearValues[1].depthStencil = { 1.0f, 0 };
-
-        VkRenderPassBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        beginInfo.renderPass = m_valid ? m_renderPass : m_defaultRenderPass;
-        beginInfo.framebuffer =  m_valid ? m_framebuffers[int(frameIdx)] : m_defaultFramebuffers[int(frameIdx)];
-        beginInfo.renderArea.extent.width = m_main->Details().swapchainDetails.extent.width;
-        beginInfo.renderArea.extent.height = m_main->Details().swapchainDetails.extent.height;
-        beginInfo.clearValueCount = m_valid ? (m_useDepth ? 2 : 1) : 2;
-        beginInfo.pClearValues = clearValues;
-
-        m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
         if (m_valid) {
+            QVector<VkClearValue> clearValues = QVector<VkClearValue>(int(m_shaderAnalytics->NumColourAttachments()) + 1);
+            for (int i = 0; i < int(m_shaderAnalytics->NumColourAttachments()); ++i) {
+                clearValues[i].color = VkClearColorValue({{0.0f, 0.0f, 0.0f, 1.0f}});
+            }
+            clearValues[int(m_shaderAnalytics->NumColourAttachments())].depthStencil = { 1.0f, 0 };
+
+            VkRenderPassBeginInfo beginInfo = {};
+            beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            beginInfo.renderPass = m_renderPass;
+            beginInfo.framebuffer = m_framebuffers[int(frameIdx)];
+            beginInfo.renderArea.extent.width = m_main->Details().swapchainDetails.extent.width;
+            beginInfo.renderArea.extent.height = m_main->Details().swapchainDetails.extent.height;
+            beginInfo.clearValueCount = uint32_t(m_shaderAnalytics->NumColourAttachments() + 1);
+            beginInfo.pClearValues = clearValues.data();
+
+            m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
             m_descriptors->CmdPushConstants(cmdBuffer, m_pipelineLayout);
             m_descriptors->CmdBindSets(cmdBuffer, m_pipelineLayout);
             m_vertexInput->BindBuffers(cmdBuffer);
@@ -114,27 +118,42 @@ namespace vpa {
                 m_deviceFuncs->vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
             }
             m_deviceFuncs->vkCmdEndRenderPass(cmdBuffer);
-
-            if (DepthDrawing()) {
-                beginInfo.renderPass = m_defaultRenderPass;
-                beginInfo.framebuffer =  m_defaultFramebuffers[int(frameIdx)];
-                beginInfo.clearValueCount = 2;
-                beginInfo.pClearValues = clearValues;
-
-                VkDescriptorSet depthSet = m_descriptors->BuiltInSet(BuiltInSets::DepthPostPass);
-                m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineLayout, 0, 1, &depthSet, 0, nullptr);
-
-                m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-                m_deviceFuncs->vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipeline);
-                m_deviceFuncs->vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
-                m_deviceFuncs->vkCmdEndRenderPass(cmdBuffer);
-            }
         }
-        else {
-            m_deviceFuncs->vkCmdEndRenderPass(cmdBuffer);
+
+        VkClearValue outputClearValues[2];
+        outputClearValues[0].color = VkClearColorValue({{1.0f, 0.0f, 0.0f, 1.0f}});
+        outputClearValues[1].depthStencil = { 1.0f, 0 };
+
+        VkRenderPassBeginInfo outputBeginInfo = {};
+        outputBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        outputBeginInfo.renderPass = m_defaultRenderPass;
+        outputBeginInfo.framebuffer = m_defaultFramebuffers[int(frameIdx)];
+        outputBeginInfo.renderArea.extent.width = m_main->Details().swapchainDetails.extent.width;
+        outputBeginInfo.renderArea.extent.height = m_main->Details().swapchainDetails.extent.height;
+        outputBeginInfo.clearValueCount = 2;
+        outputBeginInfo.pClearValues = outputClearValues;
+
+        if (m_valid) {
+            VkDescriptorSet outputSet = m_descriptors->BuiltInSet(BuiltInSets::OutputPostPass);
+            m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipelineLayout, 0, 1, &outputSet, 0, nullptr);
+
+            m_deviceFuncs->vkCmdPushConstants(cmdBuffer, m_outputPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t), &m_activeAttachment);
+            m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &outputBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+            m_deviceFuncs->vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipeline);
+            m_deviceFuncs->vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
         }
+
+        m_deviceFuncs->vkCmdEndRenderPass(cmdBuffer);
 
         return VPA_OK;
+    }
+
+    QStringList VulkanRenderer::AttachmentNames() const {
+        if (!m_shaderAnalytics) return { };
+
+        QStringList attachmentNames = m_shaderAnalytics->ColourAttachmentNames();
+        attachmentNames.push_back("Depth");
+        return attachmentNames;
     }
 
     VPAError VulkanRenderer::WritePipelineCache() {
@@ -190,7 +209,11 @@ namespace vpa {
             m_creationCallback();
             if (err != VPA_OK) return err;
         }
-        if (flag & ReloadFlagBits::RenderPass) VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), m_useDepth));
+        if (flag & ReloadFlagBits::RenderPass) {
+            m_activeAttachment = 0;
+            VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), true));
+            VPA_PASS_ERROR(MakeOutputPostPass());
+        }
         if (flag & ReloadFlagBits::Pipeline) {
             VkPipelineLayoutCreateInfo layoutInfo = {};
             layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -342,11 +365,9 @@ namespace vpa {
 
         attachmentImages.resize(attachmentImageViews.size());
         for (int i = 0; i < colourAttachmentCount; ++i) {
-            bool present = i == m_activeAttachment;
             VkFormat colourFormat = m_main->Details().swapchainDetails.surfaceFormat.format;
             attachments.push_back(MakeAttachment(colourFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL));
-            if (present) attachments[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
             VkAttachmentReference positionsRef = {};
             positionsRef.attachment = uint32_t(i);
@@ -354,28 +375,22 @@ namespace vpa {
             colourAttachmentRefs[i] = positionsRef;
 
             VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[i], height, width,
-                    colourFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, "colour attachment " + QString::number(i), present));
+                    colourFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "colour attachment " + QString::number(i), false));
             attachmentImageViews[i] = attachmentImages[i].view;
         }
 
         if (hasDepth) {
             int index = attachmentImages.size() - 1;
-            bool present = index == m_activeAttachment;
             VkFormat depthFormat = m_main->Details().swapchainDetails.depthFormat;
             attachments.push_back(MakeAttachment(depthFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL));
-            if (present) attachments[index].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
             depthAttachmentRef.attachment = uint32_t(colourAttachmentCount);
             depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
             VPA_PASS_ERROR(MakeAttachmentImage(attachmentImages[index], height, width, depthFormat,
                     VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, "depth attachment", false));
             attachmentImageViews[index] = attachmentImages[index].view;
-
-            if (present) VPA_PASS_ERROR(MakeDepthPresentPostPass(attachmentImageViews[index]));
-        }
-        else if (m_config.writables.depthWriteEnable) {
-            return VPA_WARN("Depth write is enabled but there is no depth buffer.");
         }
 
         subpasses.push_back(MakeSubpass(VK_PIPELINE_BIND_POINT_GRAPHICS, colourAttachmentRefs, &depthAttachmentRef, nullptr));
@@ -462,7 +477,8 @@ namespace vpa {
         }
 
         if (m_descriptors) delete m_descriptors;
-        m_descriptors = new Descriptors(m_main, m_deviceFuncs, m_allocator, m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), m_main->Limits(), err);
+        m_descriptors = new Descriptors(m_main, m_deviceFuncs, m_allocator, uint32_t(m_shaderAnalytics->NumColourAttachments()) + 1,
+                                        m_shaderAnalytics->DescriptorLayoutMap(), m_shaderAnalytics->PushConstantRanges(), m_main->Limits(), err);
         if (err != VPA_OK) {
             delete m_descriptors;
             m_descriptors = nullptr;
@@ -519,20 +535,37 @@ namespace vpa {
         return VPA_OK;
     }
 
-    VPAError VulkanRenderer::MakeDepthPresentPostPass(VkImageView& imageView) {
+    VPAError VulkanRenderer::MakeOutputPostPass() {
         VkPipelineLayoutCreateInfo layoutInfo = {};
         layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layoutInfo.setLayoutCount = 1;
-        layoutInfo.pSetLayouts = m_descriptors->BuiltInSetLayout(BuiltInSets::DepthPostPass);
-        layoutInfo.pushConstantRangeCount = 0;
-        layoutInfo.pPushConstantRanges = nullptr;
+        layoutInfo.pSetLayouts = m_descriptors->BuiltInSetLayout(BuiltInSets::OutputPostPass);
+
+        VkPushConstantRange range = {};
+        range.size = sizeof(uint32_t);
+        range.offset = 0;
+        range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        layoutInfo.pushConstantRangeCount = 1;
+        layoutInfo.pPushConstantRanges = &range;
+
+        VkSpecializationMapEntry specEntry = {};
+        specEntry.size = sizeof(uint32_t);
+        specEntry.offset = 0;
+        specEntry.constantID = 0;
+        VkSpecializationInfo specInfo = {};
+        specInfo.mapEntryCount = 1;
+        specInfo.pMapEntries = &specEntry;
+        specInfo.dataSize = sizeof(uint32_t);
+        uint32_t specData = uint32_t(m_shaderAnalytics->NumColourAttachments()) + 1;
+        specInfo.pData = &specData;
 
         QByteArray blob;
         VkShaderModule vertModule;
         VkShaderModule fragModule;
         VPA_PASS_ERROR(m_shaderAnalytics->CreateModule(vertModule, SHADERDIR"fullscreen.spv", &blob));
         blob.clear();
-        VPAError err = m_shaderAnalytics->CreateModule(fragModule, SHADERDIR"depth_frag.spv", &blob);
+        VPAError err = m_shaderAnalytics->CreateModule(fragModule, SHADERDIR"passthrough.spv", &blob);
         if (err != VPA_OK) {
             DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule);
             return err;
@@ -542,7 +575,7 @@ namespace vpa {
         shaderStageInfos.push_back({ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
                                      VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr });
         shaderStageInfos.push_back({ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
-                                     VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", nullptr });
+                                     VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", &specInfo });
 
         PipelineConfig config = {};
         config.writables.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
@@ -553,55 +586,63 @@ namespace vpa {
 
         VkRenderPass pass = m_defaultRenderPass;
         VkPipelineCache cache = VK_NULL_HANDLE;
-        err = CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_depthPipelineLayout, m_depthPipeline, cache);
+        err = CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_outputPipelineLayout, m_outputPipeline, cache);
         if (err != VPA_OK) {
             DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule);
             DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule);
             return err;
         }
 
-        VkSamplerCreateInfo samplerInfo = {};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.anisotropyEnable = VK_FALSE;
-        samplerInfo.maxAnisotropy = 0.0f;
-        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = 1.0f;
-
-        DESTROY_HANDLE(m_main->Device(), m_depthSampler, m_deviceFuncs->vkDestroySampler);
-
-        VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_main->Device(), &samplerInfo, nullptr, &m_depthSampler), "create sampler for depth post pass", err);
-        if (err != VPA_OK) {
-            DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule);
-            DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule);
-            DESTROY_HANDLE(m_main->Device(), m_depthSampler, m_deviceFuncs->vkDestroySampler);
-            return err;
+        for (VkSampler sampler : m_outputSamplers) {
+            DESTROY_HANDLE(m_main->Device(), sampler, m_deviceFuncs->vkDestroySampler);
         }
 
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo = {};
-        imageInfo.imageView = imageView;
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.sampler = m_depthSampler;
+        m_outputSamplers.clear();
+        m_outputSamplers.resize(m_attachmentImages.size());
+        QVector<VkDescriptorImageInfo> imageInfos = QVector<VkDescriptorImageInfo>(m_outputSamplers.size());
+        for (int i = 0; i < m_attachmentImages.size(); ++i) {
+            VkSamplerCreateInfo samplerInfo = {};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = VK_FILTER_LINEAR;
+            samplerInfo.minFilter = VK_FILTER_LINEAR;
+            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.anisotropyEnable = VK_FALSE;
+            samplerInfo.maxAnisotropy = 0.0f;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.mipLodBias = 0.0f;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = 1.0f;
+
+            VPA_VKCRITICAL(m_deviceFuncs->vkCreateSampler(m_main->Device(), &samplerInfo, nullptr, &m_outputSamplers[i]), "create sampler for output post pass", err);
+            if (err != VPA_OK) {
+                DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule);
+                DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule);
+                return err;
+            }
+
+            VkDescriptorImageInfo imageInfo = {};
+            imageInfo = {};
+            imageInfo.imageView = m_attachmentImages[i].view;
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.sampler = m_outputSamplers[i];
+
+            imageInfos[i] = imageInfo;
+        }
 
         VkWriteDescriptorSet writeSet = {};
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeSet.dstSet = m_descriptors->BuiltInSet(BuiltInSets::DepthPostPass);
+        writeSet.dstSet = m_descriptors->BuiltInSet(BuiltInSets::OutputPostPass);
         writeSet.dstBinding = 0;
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writeSet.descriptorCount = 1;
-        writeSet.pImageInfo = &imageInfo;
+        writeSet.descriptorCount = uint32_t(imageInfos.size());
+        writeSet.pImageInfo = imageInfos.data();
 
         m_deviceFuncs->vkUpdateDescriptorSets(m_main->Device(), 1, &writeSet, 0, nullptr);
 

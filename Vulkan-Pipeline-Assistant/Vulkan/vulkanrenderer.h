@@ -35,6 +35,8 @@ namespace vpa {
         void SetValid(bool valid) { m_valid = valid; }
         PipelineConfig& GetConfig() { return m_config; }
         Descriptors* GetDescriptors() { return m_descriptors; }
+        QStringList AttachmentNames() const;
+        void SetActiveAttachment(uint32_t index) { m_activeAttachment = index; }
 
         VPAError WritePipelineCache();
 
@@ -54,7 +56,7 @@ namespace vpa {
         VPAError CreatePipelineCache();
         VPAError CreateShaders();
 
-        bool DepthDrawing() const { return m_useDepth && m_attachmentImages.size() == 1; }
+        bool DepthDrawing() const { return m_attachmentImages.size() == 1; }
 
         // Helper functions for making a render pass
         VkAttachmentDescription MakeAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp,
@@ -65,7 +67,7 @@ namespace vpa {
             VkAccessFlags srcAccess, VkPipelineStageFlags dstStage, VkAccessFlags dstAccess);
         VPAError MakeAttachmentImage(AttachmentImage& image, uint32_t height, uint32_t width, VkFormat format, VkImageUsageFlags usage, QString name, bool present);
         VPAError MakeFrameBuffers(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<VkImageView>& imageViews, uint32_t width, uint32_t height);
-        VPAError MakeDepthPresentPostPass(VkImageView& imageView);
+        VPAError MakeOutputPostPass();
 
         // Helper functions for making a graphics pipeline
         VkPipelineVertexInputStateCreateInfo MakeVertexInputStateCI(const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions) const;
@@ -105,13 +107,12 @@ namespace vpa {
         PipelineConfig m_config;
         std::function<void(void)> m_creationCallback;
 
-        int m_activeAttachment;
-        bool m_useDepth;
+        uint32_t m_activeAttachment;
         QVector<AttachmentImage> m_attachmentImages;
 
-        VkPipeline m_depthPipeline;
-        VkPipelineLayout m_depthPipelineLayout;
-        VkSampler m_depthSampler;
+        VkPipeline m_outputPipeline;
+        VkPipelineLayout m_outputPipelineLayout;
+        QVector<VkSampler> m_outputSamplers;
 
         VkRenderPass m_defaultRenderPass;
         QVector<VkFramebuffer> m_defaultFramebuffers;

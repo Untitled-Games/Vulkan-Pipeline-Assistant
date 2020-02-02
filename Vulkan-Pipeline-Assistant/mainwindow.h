@@ -49,6 +49,7 @@ namespace vpa {
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
+        void SetupDisplayAttachments();
 
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;

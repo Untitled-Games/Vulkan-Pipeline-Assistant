@@ -43,7 +43,7 @@ namespace vpa {
     };
 
     enum class BuiltInSets : uint32_t {
-        DepthPostPass = 0, //, EnvironmentMap //, ShadowMap
+        OutputPostPass = 0, //, EnvironmentMap //, ShadowMap
         Count_
     };
 
@@ -51,7 +51,7 @@ namespace vpa {
         static constexpr float NearPlane = 1.0f;
         static constexpr float FarPlane = 100.0f;
     public:
-        Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+        Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator, uint32_t attachmentCount,
                     const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err);
         ~Descriptors();
 
@@ -82,7 +82,7 @@ namespace vpa {
 
     private:
         VPAError EnumerateShaderRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants);
-        VPAError EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount);
+        VPAError EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, uint32_t attachmentCount);
 
         VPAError Validate(size_t numSets, const QVector<VkDescriptorPoolSize>& poolSizes);
         VPAError BuildDescriptors(QSet<uint32_t>& sets, QVector<VkDescriptorPoolSize>& poolSizes, const DescriptorLayoutMap& layoutMap);
