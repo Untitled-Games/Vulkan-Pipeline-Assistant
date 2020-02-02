@@ -143,7 +143,13 @@ namespace vpa {
             DescriptorNodeLeaf* leaf = reinterpret_cast<DescriptorNodeLeaf*>(node);
             m_groupInfo->setText(MakeGroupInfoText(*leaf->root));
             m_typeInfo->setText(MakeTypeInfoText(leaf->type));
-            m_typeWidget->ShowWidget(leaf->widget);
+            if (leaf->arrayParentInfo.arr) {
+                m_typeWidget->ShowWidget(leaf->arrayParentInfo.arr);
+                leaf->arrayParentInfo.cont->ShowWidget(leaf->widget);
+            }
+            else {
+                m_typeWidget->ShowWidget(leaf->widget);
+            }
         }
         else {
             DescriptorNodeRoot* root = reinterpret_cast<DescriptorNodeRoot*>(node);
@@ -159,10 +165,11 @@ namespace vpa {
         }
     }
 
-    DescriptorNodeLeaf* DescriptorTree::CreateDescriptorWidgetLeaf(SpvType* type, DescriptorNodeRoot* root, QTreeWidgetItem* parentTreeItem, bool topLevel) {
+    DescriptorNodeLeaf* DescriptorTree::CreateDescriptorWidgetLeaf(SpvType* type, DescriptorNodeRoot* root, QTreeWidgetItem* parentTreeItem, bool topLevel, ArrayLeafInfo arrayParentInfo) {
         DescriptorNodeLeaf* leaf = new DescriptorNodeLeaf();
         leaf->root = root;
         leaf->type = type;
+        leaf->arrayParentInfo = arrayParentInfo;
 
         leaf->treeItem = parentTreeItem;
         if (!topLevel) {
@@ -182,14 +189,15 @@ namespace vpa {
         case SpvTypeName::Struct:
             leaf->widget = new SpvStructWidget(reinterpret_cast<SpvStructType*>(type));
             for (int i = 0; i < reinterpret_cast<SpvStructType*>(type)->members.size(); ++i) {
-                leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvStructType*>(type)->members[i], root, leaf->treeItem, false));
+                leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvStructType*>(type)->members[i], root, leaf->treeItem, false, arrayParentInfo));
             }
             break;
         case SpvTypeName::Array: {
-            QPair<QTreeWidgetItem*, ContainerWidget*> arrContainer;
-            arrContainer.first = leaf->treeItem;
-            leaf->widget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(type), root, arrContainer.second);
-            leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvArrayType*>(type)->subtype, root, leaf->treeItem, false));
+            ContainerWidget* arrContainer;
+            SpvArrayWidget* arrWidget = new SpvArrayWidget(reinterpret_cast<SpvArrayType*>(type), root, arrContainer);
+            leaf->widget = arrWidget;
+            leaf->children.push_back(CreateDescriptorWidgetLeaf(reinterpret_cast<SpvArrayType*>(type)->subtype, root, leaf->treeItem, false, { arrWidget, arrContainer }));
+            arrWidget->SetChildWidget(leaf->children[0]->widget);
             break;
         }
         case SpvTypeName::Image:
@@ -213,7 +221,7 @@ namespace vpa {
 
         QTreeWidgetItem* treeItem = new QTreeWidgetItem();
         treeItem->setText(0, res->name);
-        root->child = CreateDescriptorWidgetLeaf(res->type, root, treeItem, true);
+        root->child = CreateDescriptorWidgetLeaf(res->type, root, treeItem, true, {});
 
         m_descriptorNodes.insert(treeItem, root);
         m_tree->addTopLevelItem(treeItem);

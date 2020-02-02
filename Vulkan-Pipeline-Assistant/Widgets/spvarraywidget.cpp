@@ -13,7 +13,7 @@
 #include "../Vulkan/spirvresource.h"
 
 namespace vpa {
-    /*SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer)
+    SpvArrayWidget::SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer)
         : SpvWidget(root), m_type(type), m_data(nullptr), m_totalNumElements(0), m_activeWidgetIdx(0) {
         QVBoxLayout* layout = new QVBoxLayout(this);
         layout->setAlignment(Qt::AlignTop);
@@ -38,7 +38,6 @@ namespace vpa {
             QObject::connect(indexEdit, QOverload<int>::of(&QSpinBox::valueChanged), [=](int){
                 m_dimensionIndices[i] = size_t(indexEdit->value());
                 HandleArrayElementChange();
-                m_root->WriteDescriptorData();
             });
         }
 
@@ -67,19 +66,6 @@ namespace vpa {
         HandleArrayElementChange();
     }
 
-    void SpvArrayWidget::OnClick(bool expanding) {
-        if (!expanding) return;
-
-        m_container->ShowWidget(this);
-        if (m_type->subtype->Type() == SpvTypeName::Matrix || m_type->subtype->Type() == SpvTypeName::Vector) {
-            m_inputArea->ShowWidget(m_inputWidget);
-        }
-        else if (m_type->subtype->Type() == SpvTypeName::Struct) {
-            SpvWidget* defaultStructWidget = reinterpret_cast<SpvStructWidget*>(m_inputWidget)->GetTypeWidget(0);
-            if (defaultStructWidget) m_inputArea->ShowWidget(defaultStructWidget);
-        }
-    }
-
     void SpvArrayWidget::OnRelease() {
         m_inputArea->Clear();
     }
@@ -96,5 +82,5 @@ namespace vpa {
         m_inputWidget->Data(&m_data[m_activeWidgetIdx]);
         m_activeWidgetIdx = newIndex;
         m_inputWidget->Fill(&m_data[m_activeWidgetIdx]);
-    }*/
+    }
 }

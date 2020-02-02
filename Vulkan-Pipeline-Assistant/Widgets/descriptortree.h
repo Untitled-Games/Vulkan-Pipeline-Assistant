@@ -11,9 +11,15 @@ namespace vpa {
     struct SpvType;
     struct SpvResource;
     class SpvWidget;
+    class SpvArrayWidget;
     class ContainerWidget;
     class DescriptorTree;
     class Descriptors;
+
+    struct ArrayLeafInfo {
+        SpvArrayWidget* arr = nullptr;
+        ContainerWidget* cont = nullptr;
+    };
 
     enum class NodeType {
         Root, Leaf
@@ -50,6 +56,8 @@ namespace vpa {
         SpvWidget* widget; // Vector or Matrix or Array or Struct or Image
         QVector<DescriptorNodeLeaf*> children;
 
+        ArrayLeafInfo arrayParentInfo;
+
         void Data(unsigned char* dataPtr) const;
         void Fill(const unsigned char* data);
 
@@ -72,7 +80,7 @@ namespace vpa {
 
         QString MakeGroupInfoText(DescriptorNodeRoot& root);
         QString MakeTypeInfoText(SpvType* type);
-        DescriptorNodeLeaf* CreateDescriptorWidgetLeaf(SpvType* type, DescriptorNodeRoot* root, QTreeWidgetItem* parentTreeItem, bool topLevel);
+        DescriptorNodeLeaf* CreateDescriptorWidgetLeaf(SpvType* type, DescriptorNodeRoot* root, QTreeWidgetItem* parentTreeItem, bool topLevel, ArrayLeafInfo arrayParentInfo);
         void CreateDescriptorWidgetTree(uint32_t set, int index, SpvResource* res);
 
         void WriteDescriptorData(DescriptorNodeRoot* root);
