@@ -103,6 +103,7 @@ namespace vpa {
         void RequestUpdate();
         void RecreateSwapchain();
 
+        void SetActiveAttachment(uint32_t index);
         Descriptors* GetDescriptors();
         QStringList AttachmentNames() const;
         const VkPhysicalDeviceLimits& Limits() const;

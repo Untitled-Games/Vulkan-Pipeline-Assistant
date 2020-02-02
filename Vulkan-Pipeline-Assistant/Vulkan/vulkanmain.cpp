@@ -679,12 +679,16 @@ namespace vpa {
         return m_renderer->GetConfig();
     }
 
+    void VulkanMain::SetActiveAttachment(uint32_t index) {
+        if (m_renderer) m_renderer->SetActiveAttachment(index);
+    }
+
     Descriptors* VulkanMain::GetDescriptors() {
         return m_renderer ? m_renderer->GetDescriptors() : nullptr;
     }
 
     QStringList VulkanMain::AttachmentNames() const {
-        return m_renderer ? m_renderer->AttachmentNames() : QStringList(0);
+        return m_renderer ? m_renderer->AttachmentNames() : QStringList("INVALID");
     }
 
     const VkPhysicalDeviceLimits& VulkanMain::Limits() const {

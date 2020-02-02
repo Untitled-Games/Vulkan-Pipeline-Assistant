@@ -177,7 +177,7 @@ namespace vpa {
         QObject::connect(m_ui->gcDepthWriteEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
             HandleConfigValueChange<VkBool32>(Config().writables.depthWriteEnable, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
-        QObject::connect(m_ui->gcDepthTestEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
+        QObject::connect(m_ui->gcDepthBoundsEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
             HandleConfigValueChange<VkBool32>(Config().writables.depthBoundsTest, ReloadFlags::Pipeline, state == 0 ? VK_FALSE : VK_TRUE);
         });
         QObject::connect(m_ui->gcDepthStencilEnable, QOverload<int>::of(&QCheckBox::stateChanged), [this](int state){
@@ -360,8 +360,9 @@ namespace vpa {
         if (!m_vulkan) return;
 
         m_vkDockUi->gcbAttachment->addItems(m_vulkan->AttachmentNames());
-
-        // TODO connect to change attachment to display
+        QObject::connect(m_vkDockUi->gcbAttachment, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index){
+            if (m_vulkan) m_vulkan->SetActiveAttachment(uint32_t(index));
+        });
     }
 
     QComboBox* MainWindow::MakeComboBox(QWidget* parent, QVector<QString> items) {

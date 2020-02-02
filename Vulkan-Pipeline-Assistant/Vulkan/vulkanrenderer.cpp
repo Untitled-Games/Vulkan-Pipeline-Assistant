@@ -133,12 +133,14 @@ namespace vpa {
         outputBeginInfo.clearValueCount = 2;
         outputBeginInfo.pClearValues = outputClearValues;
 
+        m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &outputBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
         if (m_valid) {
             VkDescriptorSet outputSet = m_descriptors->BuiltInSet(BuiltInSets::OutputPostPass);
             m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipelineLayout, 0, 1, &outputSet, 0, nullptr);
 
+            qDebug() << m_activeAttachment;
             m_deviceFuncs->vkCmdPushConstants(cmdBuffer, m_outputPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t), &m_activeAttachment);
-            m_deviceFuncs->vkCmdBeginRenderPass(cmdBuffer, &outputBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
             m_deviceFuncs->vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipeline);
             m_deviceFuncs->vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
         }
@@ -149,11 +151,20 @@ namespace vpa {
     }
 
     QStringList VulkanRenderer::AttachmentNames() const {
-        if (!m_shaderAnalytics) return { };
+        if (!m_shaderAnalytics) return { "INVALID" };
 
         QStringList attachmentNames = m_shaderAnalytics->ColourAttachmentNames();
-        attachmentNames.push_back("Depth");
+        if (m_valid) attachmentNames.push_back("Depth");
+        else attachmentNames.push_back("INVALID");
         return attachmentNames;
+    }
+
+
+    void VulkanRenderer::SetActiveAttachment(uint32_t index) {
+        if (m_valid) {
+            m_activeAttachment = index;
+            m_main->RequestUpdate();
+        }
     }
 
     VPAError VulkanRenderer::WritePipelineCache() {
@@ -199,18 +210,19 @@ namespace vpa {
 
         if (flag & ReloadFlagBits::Validation) VPA_PASS_ERROR(m_validator->Validate(m_config));
         if (flag & ReloadFlagBits::Shaders) {
+            m_activeAttachment = 0;
             VPAError err = CreateShaders();
             if (err != VPA_OK) {
                 if (m_descriptors) {
                     delete m_descriptors;
                     m_descriptors = nullptr;
                 }
+                m_valid = false;
             }
             m_creationCallback();
             if (err != VPA_OK) return err;
         }
         if (flag & ReloadFlagBits::RenderPass) {
-            m_activeAttachment = 0;
             VPA_PASS_ERROR(CreateRenderPass(m_renderPass, m_framebuffers, m_attachmentImages, int(m_shaderAnalytics->NumColourAttachments()), true));
             VPA_PASS_ERROR(MakeOutputPostPass());
         }
@@ -225,7 +237,12 @@ namespace vpa {
             auto bindingDescription = m_vertexInput->InputBindingDescription();
             auto attribDescriptions = m_vertexInput->InputAttribDescription();
 
-            VPA_PASS_ERROR(CreatePipeline(m_config, bindingDescription, attribDescriptions, m_shaderStageInfos, layoutInfo, m_renderPass, m_pipelineLayout, m_pipeline, m_pipelineCache));
+            QVector<VkPipelineColorBlendAttachmentState> colourBlendAttachments;
+            for (size_t i = 0; i < m_shaderAnalytics->NumColourAttachments(); ++i) {
+                colourBlendAttachments.push_back(MakeColourBlendAttachmentState(m_config.writables.attachments));
+            }
+
+            VPA_PASS_ERROR(CreatePipeline(m_config, bindingDescription, attribDescriptions, m_shaderStageInfos, colourBlendAttachments, layoutInfo, m_renderPass, m_pipelineLayout, m_pipeline, m_pipelineCache));
         }
         return VPA_OK;
     }
@@ -418,7 +435,8 @@ namespace vpa {
 
     VPAError VulkanRenderer::CreatePipeline(const PipelineConfig& config, const VkVertexInputBindingDescription& bindingDescription,
             const QVector<VkVertexInputAttributeDescription>& attribDescriptions, QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos,
-            VkPipelineLayoutCreateInfo& layoutInfo, VkRenderPass& renderPass, VkPipelineLayout& layout, VkPipeline& pipeline, VkPipelineCache& cache) {
+            QVector<VkPipelineColorBlendAttachmentState> colourBlendAttachments, VkPipelineLayoutCreateInfo& layoutInfo,
+            VkRenderPass& renderPass, VkPipelineLayout& layout, VkPipeline& pipeline, VkPipelineCache& cache) {
         DESTROY_HANDLE(m_main->Device(), pipeline, m_deviceFuncs->vkDestroyPipeline);
         DESTROY_HANDLE(m_main->Device(), layout, m_deviceFuncs->vkDestroyPipelineLayout);
 
@@ -437,9 +455,7 @@ namespace vpa {
         VkPipelineMultisampleStateCreateInfo multisampling = MakeMsaaCI(config);
         VkPipelineDepthStencilStateCreateInfo depthStencil = MakeDepthStencilCI(config);
 
-        QVector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
-        colorBlendAttachments.push_back(MakeColourBlendAttachmentState(config.writables.attachments));
-        VkPipelineColorBlendStateCreateInfo colourBlending = MakeColourBlendStateCI(config, colorBlendAttachments);
+        VkPipelineColorBlendStateCreateInfo colourBlending = MakeColourBlendStateCI(config, colourBlendAttachments);
 
         VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreatePipelineLayout(m_main->Device(), &layoutInfo, nullptr, &layout), "Failed to create pipeline layout");
 
@@ -586,7 +602,9 @@ namespace vpa {
 
         VkRenderPass pass = m_defaultRenderPass;
         VkPipelineCache cache = VK_NULL_HANDLE;
-        err = CreatePipeline(config, {}, {}, shaderStageInfos, layoutInfo, pass, m_outputPipelineLayout, m_outputPipeline, cache);
+        QVector<VkPipelineColorBlendAttachmentState> colourBlendAttachments;
+        colourBlendAttachments.push_back(MakeColourBlendAttachmentState(ColourAttachmentConfig()));
+        err = CreatePipeline(config, {}, {}, shaderStageInfos, colourBlendAttachments, layoutInfo, pass, m_outputPipelineLayout, m_outputPipeline, cache);
         if (err != VPA_OK) {
             DESTROY_HANDLE(m_main->Device(), vertModule, m_deviceFuncs->vkDestroyShaderModule);
             DESTROY_HANDLE(m_main->Device(), fragModule, m_deviceFuncs->vkDestroyShaderModule);

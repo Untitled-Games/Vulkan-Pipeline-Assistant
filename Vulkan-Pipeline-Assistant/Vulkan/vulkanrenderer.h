@@ -36,7 +36,7 @@ namespace vpa {
         PipelineConfig& GetConfig() { return m_config; }
         Descriptors* GetDescriptors() { return m_descriptors; }
         QStringList AttachmentNames() const;
-        void SetActiveAttachment(uint32_t index) { m_activeAttachment = index; }
+        void SetActiveAttachment(uint32_t index);
 
         VPAError WritePipelineCache();
 
@@ -51,7 +51,8 @@ namespace vpa {
     private:
         VPAError CreateRenderPass(VkRenderPass& renderPass, QVector<VkFramebuffer>& framebuffers, QVector<AttachmentImage>& attachmentImages, int colourAttachmentCount, bool hasDepth);
         VPAError CreatePipeline(const PipelineConfig& config, const VkVertexInputBindingDescription& bindingDescription, const QVector<VkVertexInputAttributeDescription>& attribDescriptions,
-                                QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos, VkPipelineLayoutCreateInfo& layoutInfo, VkRenderPass& renderPass, VkPipelineLayout& layout,
+                                QVector<VkPipelineShaderStageCreateInfo>& shaderStageInfos, QVector<VkPipelineColorBlendAttachmentState> colourBlendAttachments, VkPipelineLayoutCreateInfo& layoutInfo,
+                                VkRenderPass& renderPass, VkPipelineLayout& layout,
                                 VkPipeline& pipeline, VkPipelineCache& cache);
         VPAError CreatePipelineCache();
         VPAError CreateShaders();
