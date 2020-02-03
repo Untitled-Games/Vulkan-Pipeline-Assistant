@@ -8,10 +8,13 @@
 #include <QVulkanDeviceFunctions>
 #include <QPlatformSurfaceEvent>
 #include <QTimer>
+#include <QLineEdit>
 #include <QGuiApplication>
+#include <QDockWidget>
 #include <qt_windows.h>
 
 #include "common.h"
+#include "../mainwindow.h"
 
 namespace vpa {
     const QVector<const char*> VulkanMain::LayerNames = { QByteArrayLiteral("VK_LAYER_LUNARG_standard_validation") };
@@ -19,6 +22,26 @@ namespace vpa {
     void VulkanWindow::resizeEvent(QResizeEvent* event) {
         Q_UNUSED(event)
         if(m_main->m_currentState == VulkanState::Ok && !m_handlingResize) m_main->RecreateSwapchain();
+    }
+
+    bool VulkanWindow::nativeEvent(const QByteArray &eventType, void* message, long* result) {
+        Q_UNUSED(result)
+        Q_UNUSED(eventType)
+        if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
+        return false;
+    }
+
+    bool VulkanWindow::WindowsNativeEvent(MSG* msg) {
+        if (msg->message == WM_ENTERSIZEMOVE) {
+            HandlingResize(true);
+            return true;
+        }
+        else if (msg->message == WM_EXITSIZEMOVE) {
+            HandlingResize(false);
+            m_main->RecreateSwapchain();
+            return true;
+        }
+        return false;
     }
 
 #ifdef __clang__
@@ -71,7 +94,7 @@ namespace vpa {
     }
 
     VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
-        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending), m_attached(false) {
+        : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending) {
         m_details.window = nullptr;
         m_renderer = new VulkanRenderer(this, creationCallback);
         memset(m_renderFinished, 0, sizeof(m_renderFinished));
@@ -93,7 +116,7 @@ namespace vpa {
 
             if (vpaErr != VPA_OK) {
                 m_currentState = VulkanState::Disabled;
-                qDebug("Error in vulkan main create %s", qPrintable(VPAError::lastMessage)); // TODO when console exists output to it
+                MainWindow::Console()->setText("Error in vulkan main create " + VPAError::lastMessage);
                 return;
             }
 
@@ -110,20 +133,8 @@ namespace vpa {
         if (m_container) delete m_container;
     }
 
-    void VulkanMain::ToggleAttachToContainer() {
-        if (!m_attached) {
-            m_attached = true;
-            m_container = QWidget::createWindowContainer(m_details.window);
-            m_container->setFocusPolicy(Qt::NoFocus);
-            m_parent->layout()->addWidget(m_container);
-        }
-        else {
-            m_attached = false;
-            m_details.window->setParent(nullptr);
-            m_parent->layout()->removeWidget(m_container);
-            delete m_container;
-            m_container = nullptr;
-        }
+    bool VulkanMain::RendererValid() {
+        return m_renderer->Valid();
     }
 
     void VulkanMain::Destroy() {
@@ -170,12 +181,12 @@ namespace vpa {
 
         VPAError err = CreateSwapchain(m_details.swapchainDetails);
         if (err != VPA_OK) {
-            qDebug("Failed to recreate swapchain"); // TODO when console exists, output this
+            MainWindow::Console()->setText("Failed to recreate swapchain");
             m_currentState = VulkanState::Disabled;
             return;
         }
         m_renderer->CreateDefaultObjects();
-        Reload(ReloadFlags::RenderPass);
+        if (RendererValid()) Reload(ReloadFlags::RenderPass);
     }
 
     VPAError VulkanMain::Create(bool destroy) {
@@ -207,11 +218,17 @@ namespace vpa {
         m_details.window->setVulkanInstance(&instance);
         m_details.window->setSurfaceType(QWindow::SurfaceType::VulkanSurface);
         m_details.window->resize(800, 600);
+#ifndef _DEBUG
         m_details.window->setFlags(Qt::WindowStaysOnTopHint);
+#endif
         m_details.window->show();
 
         m_details.surface = QVulkanInstance::surfaceForWindow(m_details.window);
         if (m_details.surface == VK_NULL_HANDLE) return VPA_CRITICAL("Cannot get vulkan surface");
+
+        m_container = QWidget::createWindowContainer(m_details.window);
+        m_container->setFocusPolicy(Qt::NoFocus);
+        m_parent->layout()->addWidget(m_container);
 
         return VPA_OK;
     }
@@ -662,8 +679,16 @@ namespace vpa {
         return m_renderer->GetConfig();
     }
 
+    void VulkanMain::SetActiveAttachment(uint32_t index) {
+        if (m_renderer) m_renderer->SetActiveAttachment(index);
+    }
+
     Descriptors* VulkanMain::GetDescriptors() {
         return m_renderer ? m_renderer->GetDescriptors() : nullptr;
+    }
+
+    QStringList VulkanMain::AttachmentNames() const {
+        return m_renderer ? m_renderer->AttachmentNames() : QStringList("INVALID");
     }
 
     const VkPhysicalDeviceLimits& VulkanMain::Limits() const {
@@ -676,7 +701,7 @@ namespace vpa {
         VPAError err = m_renderer->Reload(flag);
         if (err != VPA_OK) {
             m_renderer->SetValid(false);
-            qDebug(qPrintable(VPAError::lastMessage));
+            MainWindow::Console()->setText(VPAError::lastMessage);
         }
         else {
             m_renderer->SetValid(true);

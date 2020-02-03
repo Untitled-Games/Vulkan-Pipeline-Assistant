@@ -7,6 +7,7 @@
 #include "reloadflags.h"
 
 class QWidget;
+class QDockWidget;
 
 namespace vpa {
     struct PipelineConfig;
@@ -73,6 +74,8 @@ namespace vpa {
         VulkanWindow(VulkanMain* main) : m_main(main), m_handlingResize(false) { }
         ~VulkanWindow() override = default;
         void resizeEvent(QResizeEvent* event) override;
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
+        bool WindowsNativeEvent(MSG* msg);
         bool event(QEvent* event) override;
         void showEvent(QShowEvent* event) override;
         void hideEvent(QHideEvent* event) override;
@@ -90,7 +93,7 @@ namespace vpa {
         VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
-        void ToggleAttachToContainer();
+        bool RendererValid();
 
         void WritePipelineCache();
         void WritePipelineConfig();
@@ -100,7 +103,9 @@ namespace vpa {
         void RequestUpdate();
         void RecreateSwapchain();
 
+        void SetActiveAttachment(uint32_t index);
         Descriptors* GetDescriptors();
+        QStringList AttachmentNames() const;
         const VkPhysicalDeviceLimits& Limits() const;
         const VulkanDetails& Details() const { return m_details; }
         VkDevice Device() const { return m_details.device; }
@@ -147,8 +152,6 @@ namespace vpa {
         uint32_t m_frameIndex;
 
         VulkanState m_currentState;
-
-        bool m_attached;
 
         static const QVector<const char*> LayerNames;
     };

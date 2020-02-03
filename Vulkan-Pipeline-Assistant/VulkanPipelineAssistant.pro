@@ -24,15 +24,12 @@ SOURCES += \
     Vulkan/vulkanmain.cpp \
     Vulkan/vulkanrenderer.cpp \
     Widgets/containerwidget.cpp \
-    Widgets/drawerwidget.cpp \
+    Widgets/descriptortree.cpp \
     Widgets/spvarraywidget.cpp \
     Widgets/spvimagewidget.cpp \
     Widgets/spvmatrixwidget.cpp \
-    Widgets/spvresourcewidget.cpp \
     Widgets/spvstructwidget.cpp \
     Widgets/spvvectorwidget.cpp \
-    Widgets/spvwidget.cpp \
-    Widgets/tabbedcontainerwidget.cpp \
     main.cpp \
     mainwindow.cpp \
 
@@ -48,22 +45,21 @@ HEADERS += \
     Vulkan/vulkanmain.h \
     Vulkan/vulkanrenderer.h \
     Widgets/containerwidget.h \
-    Widgets/drawerwidget.h \
+    Widgets/descriptortree.h \
     Widgets/spvarraywidget.h \
     Widgets/spvimagewidget.h \
     Widgets/spvmatrixwidget.h \
-    Widgets/spvresourcewidget.h \
     Widgets/spvstructwidget.h \
     Widgets/spvvectorwidget.h \
     Widgets/spvwidget.h \
-    Widgets/tabbedcontainerwidget.h \
     common.h \
     filemanager.h \
     mainwindow.h \
     tiny_obj_loader.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    vulkandockwidget.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

@@ -21,9 +21,7 @@ namespace vpa {
             m_currentWidget->hide();
             layout()->removeWidget(m_currentWidget);
             ContainerItem* citem = dynamic_cast<ContainerItem*>(m_currentWidget);
-            if (citem) {
-                citem->OnRelease();
-            }
+            if (citem) { citem->OnRelease(); }
             m_currentWidget = nullptr;
         }
     }

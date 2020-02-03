@@ -2,71 +2,54 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QSpinBox>
-#include <QComboBox>
-#include <QLayout>
-#include <QLineEdit>
+#include <QDockWidget>
 
 #include "./Vulkan/vulkanmain.h"
 #include "common.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
+namespace Ui {
+    class MainWindow;
+    class DockWidget;
+}
 QT_END_NAMESPACE
 
 class QPushButton;
+class QLineEdit;
+class QComboBox;
 
 namespace vpa {
     class DrawerWidget;
     class ContainerWidget;
     class TabbedContainerWidget;
+    class DescriptorTree;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
-
-        struct ShaderBlock {
-            QString text;
-            QWidget* container;
-            QLayout* layout;
-            QLabel* label;
-            QLineEdit* field;
-            QPushButton* dialogBtn;
-        };
-
-        struct ConfigBlock {
-            QLabel* title;
-            QWidget* container;
-            QVector<QPair<QLabel*, QWidget*>> options;
-        };
+        friend class DockWidget;
     public:
+        static QLineEdit* Console();
+
         MainWindow(QWidget* parent = nullptr);
         ~MainWindow() override;
 
         static QComboBox* MakeComboBox(QWidget* parent, QVector<QString> items);
 
         void closeEvent(QCloseEvent* event) override;
-        void resizeEvent(QResizeEvent* event) override;
         bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
-    private slots:
+
+    public slots:
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
-        void HandleConfigFloatTextChange(float& configVar, ReloadFlags reloadFlag, QLineEdit* editBox);
 
     private:
         bool WindowsNativeEvent(MSG* msg);
-        void CreateInterface();
+        void ConnectInterface();
 
-        void MakeShaderBlock(QWidget* parent, QString labelStr, QString& shaderConfig, QString defaultShader = "");
-        QWidget* MakeVertexInputBlock();
         QWidget* MakeViewportStateBlock();
-        QWidget* MakeRasterizerBlock();
-        QWidget* MakeMultisampleBlock();
-        QWidget* MakeDepthStencilBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
-        template<typename T>
-        T* MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox);
+        void SetupDisplayAttachments();
 
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;
@@ -77,36 +60,28 @@ namespace vpa {
 
         Ui::MainWindow* m_ui;
         VulkanMain* m_vulkan;
-        QPushButton* m_createCacheBtn;
-        QGridLayout* m_layout;
+        ContainerWidget* m_descriptorTypeWidget;
+        DescriptorTree* m_descriptorTree;
 
-        QWidget* m_masterContainer;
-        QWidget* m_leftBottomArea;
-        QWidget* m_rightBottomContainer;
-        TabbedContainerWidget* m_configArea;
-        QLineEdit* m_console;
+        QDockWidget* m_vkDockWidget;
+        Ui::DockWidget* m_vkDockUi;
 
-        QWidget* m_descriptorArea;
-        ContainerWidget* m_descriptorContainer;
-        DrawerWidget* m_descriptorDrawer;
+        static QLineEdit* s_console;
+    };
 
-        QPushButton* m_cacheBtn;
-
-        static const QVector<QString> BoolComboOptions;
+    class DockWidget : public QDockWidget {
+        Q_OBJECT
+    public:
+        DockWidget(MainWindow* window) : QDockWidget(window), m_window(window) { }
+        bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
+    private:
+        MainWindow* m_window;
     };
 
     template<typename T>
     inline void MainWindow::HandleConfigValueChange(T& configVar, ReloadFlags reloadFlag, int index) {
         configVar = T(index);
         WriteAndReload(reloadFlag);
-    }
-
-    template<typename T>
-    inline T* MainWindow::MakeConfigWidget(QWidget* parent, QString name, int labRow, int labCol, int boxRow, int boxCol, T* inputBox) {
-        QLabel* label = new QLabel(name, parent);
-        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(label, labRow, labCol);
-        reinterpret_cast<QGridLayout*>(parent->layout())->addWidget(inputBox, boxRow, boxCol);
-        return inputBox;
     }
 }
 #endif // MAINWINDOW_H

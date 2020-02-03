@@ -10,7 +10,7 @@
 namespace vpa {
     double Descriptors::s_aspectRatio = 0.0;
 
-    Descriptors::Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator,
+    Descriptors::Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator, uint32_t attachmentCount,
                              const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err)
         : m_main(main), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE), m_limits(limits) {
         s_aspectRatio = m_main->Details().window->width() / m_main->Details().window->height();
@@ -23,7 +23,7 @@ namespace vpa {
 
         uint32_t setCount = 0;
         EnumerateShaderRequirements(poolSizes, m_descriptorLayouts, setCount, layoutMap, pushConstants);
-        EnumerateBuiltInRequirements(poolSizes, m_builtInLayouts, setCount);
+        EnumerateBuiltInRequirements(poolSizes, m_builtInLayouts, setCount, attachmentCount);
 
         VkDescriptorPoolCreateInfo poolInfo = {};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -169,28 +169,28 @@ namespace vpa {
         return VPA_OK;
     }
 
-    VPAError Descriptors::EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount) {
+    VPAError Descriptors::EnumerateBuiltInRequirements(QVector<VkDescriptorPoolSize>& poolSizes, QVector<VkDescriptorSetLayout>& layouts, uint32_t& setCount, uint32_t attachmentCount) {
 
         setCount += uint32_t(BuiltInSets::Count_);
         layouts.resize(int(BuiltInSets::Count_));
 
         // ------- Depth post pass ------
-        VkDescriptorSetLayoutBinding depthLayoutBinding = {};
-        depthLayoutBinding.binding = 0;
-        depthLayoutBinding.descriptorCount = 1;
-        depthLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        depthLayoutBinding.pImmutableSamplers = nullptr;
-        depthLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        VkDescriptorSetLayoutBinding outputLayoutBinding = {};
+        outputLayoutBinding.binding = 0;
+        outputLayoutBinding.descriptorCount = attachmentCount;
+        outputLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        outputLayoutBinding.pImmutableSamplers = nullptr;
+        outputLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         poolSizes[4].descriptorCount++;
 
         VkDescriptorSetLayoutCreateInfo layoutInfo = {};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = 1;
-        layoutInfo.pBindings = &depthLayoutBinding;
+        layoutInfo.pBindings = &outputLayoutBinding;
         layoutInfo.pNext = nullptr;
 
-        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_main->Device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::DepthPostPass)]), "create descriptor set layout for depth set ");
+        VPA_VKCRITICAL_PASS(m_deviceFuncs->vkCreateDescriptorSetLayout(m_main->Device(), &layoutInfo, nullptr, &layouts[int(BuiltInSets::OutputPostPass)]), "create descriptor set layout for output set ");
 
         return VPA_OK;
     }

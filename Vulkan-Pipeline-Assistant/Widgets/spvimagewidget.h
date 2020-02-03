@@ -8,15 +8,13 @@ namespace vpa {
 
     class SpvImageWidget : public SpvWidget {
     public:
-        SpvImageWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvImageType* type, QWidget* parent);
+        SpvImageWidget(SpvImageType* type, DescriptorNodeRoot* root);
 
         void Data(unsigned char*) const override { }
         void Fill(const unsigned char*) override { }
 
     private:
         SpvImageType* m_type;
-        QWidget* m_infoGroup;
-        QWidget* m_inputsGroup;
     };
 }
 

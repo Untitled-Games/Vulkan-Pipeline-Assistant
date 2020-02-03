@@ -24,6 +24,7 @@ namespace vpa {
         void SetShader(ShaderStage stage, const QString& name);
 
         size_t NumColourAttachments() const;
+        QStringList ColourAttachmentNames() const;
         const QVector<SpvResource*>& InputAttributes() const { return m_inputAttributes; }
         const DescriptorLayoutMap& DescriptorLayoutMap() const { return m_descriptorLayoutMap; }
         const QVector<SpvResource*>& PushConstantRanges() const { return m_pushConstants; }

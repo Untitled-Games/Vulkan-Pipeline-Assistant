@@ -5,29 +5,29 @@
 
 namespace vpa {
     struct SpvArrayType;
+    struct DescriptorNodeLeaf;
     class ContainerWidget;
 
     class SpvArrayWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvArrayWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvArrayType* type, QWidget* parent);
+        SpvArrayWidget(SpvArrayType* type, DescriptorNodeRoot* root, ContainerWidget*& subContainer);
         ~SpvArrayWidget() override;
+        void OnRelease() override;
 
+        void SetChildLeaf(DescriptorNodeLeaf* leaf) { m_inputLeaf = leaf; }
+    protected:
         void Data(unsigned char* dataPtr) const override;
         void Fill(const unsigned char* data) override;
-        void OnDrawerInit() override;
-        void OnClick(bool expanding) override;
-        void OnRelease() override;
-        void Init() override;
+        void InitData() override;
 
     private slots:
         void HandleArrayElementChange();
 
     private:
         SpvArrayType* m_type;
-        QWidget* m_infoGroup;
         QWidget* m_indicesGroup;
-        SpvWidget* m_inputWidget;
+        DescriptorNodeLeaf* m_inputLeaf;
         ContainerWidget* m_inputArea;
         QVector<size_t> m_dimensionIndices;
         unsigned char* m_data;

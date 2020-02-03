@@ -10,20 +10,21 @@ namespace vpa {
     class SpvMatrixWidget : public SpvWidget {
         Q_OBJECT
     public:
-        SpvMatrixWidget(ContainerWidget* cont, SpvResourceWidget* resourceWidget, SpvMatrixType* type, QWidget* parent);
-
+        SpvMatrixWidget(SpvMatrixType* type, DescriptorNodeRoot* root);
+    protected:
         void Data(unsigned char* dataPtr) const override;
+
+        // Fill the widget with data
         void Fill(const unsigned char* data) override;
-        void OnClick(bool expanding) override;
-        void Init() override;
+
+        // Called after it becomes safe to write descriptor data
+        void InitData() override;
 
     private slots:
         void HandleInverse();
 
     private:
         SpvMatrixType* m_type;
-        QWidget* m_infoGroup;
-        QWidget* m_inputsGroup;
         QLineEdit* m_inputs[4][4];
 
         static constexpr float DefaultData[16] = {
