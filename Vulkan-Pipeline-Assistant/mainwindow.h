@@ -17,6 +17,7 @@ QT_END_NAMESPACE
 class QPushButton;
 class QLineEdit;
 class QComboBox;
+class QPlainTextEdit;
 
 namespace vpa {
     class DrawerWidget;
@@ -50,6 +51,9 @@ namespace vpa {
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
         void SetupDisplayAttachments();
+
+        void LoadShaderText(QPlainTextEdit* textEdit, QString name);
+        void WriteShaderText(QPlainTextEdit* textEdit, QString name);
 
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;

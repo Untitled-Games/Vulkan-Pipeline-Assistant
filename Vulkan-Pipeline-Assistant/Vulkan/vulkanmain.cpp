@@ -24,11 +24,10 @@ namespace vpa {
         if(m_main->m_currentState == VulkanState::Ok && !m_handlingResize) m_main->RecreateSwapchain();
     }
 
-    bool VulkanWindow::nativeEvent(const QByteArray &eventType, void* message, long* result) {
+    bool VulkanWindow::nativeEvent(const QByteArray& eventType, void* message, long* result) {
         Q_UNUSED(result)
         Q_UNUSED(eventType)
-        if (QGuiApplication::platformName() == "windows") return WindowsNativeEvent(static_cast<MSG*>(message));
-        return false;
+        return QGuiApplication::platformName() == "windows" && WindowsNativeEvent(static_cast<MSG*>(message));
     }
 
     bool VulkanWindow::WindowsNativeEvent(MSG* msg) {

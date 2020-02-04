@@ -27,6 +27,7 @@
 #define IMAGEDIR RESDIR"Images/"
 #define MESHDIR RESDIR"Meshes/"
 #define SHADERDIR RESDIR"Shaders/"
+#define SHADERSRCDIR SHADERDIR"Source/"
 
 #define BYTE_CPTR(ptr) reinterpret_cast<const unsigned char*>(ptr)
 

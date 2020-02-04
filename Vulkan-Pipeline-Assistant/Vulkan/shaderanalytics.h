@@ -10,6 +10,8 @@
 #include "spirvresource.h"
 #include "../common.h"
 
+class QPlainTextEdit;
+
 namespace vpa {
     struct PipelineConfig;
 
@@ -31,7 +33,10 @@ namespace vpa {
 
         VPAError CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob);
 
+        static bool TryCompile(QString& srcName, QPlainTextEdit* console = nullptr);
+
     private:
+        static QString SourceNameToBinaryName(const QString& srcName);
         VPAError CreateModule(ShaderStage stage, const QString& name);
         VPAError Validate(ShaderStage stage);
 
