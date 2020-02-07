@@ -139,7 +139,6 @@ namespace vpa {
             VkDescriptorSet outputSet = m_descriptors->BuiltInSet(BuiltInSets::OutputPostPass);
             m_deviceFuncs->vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipelineLayout, 0, 1, &outputSet, 0, nullptr);
 
-            qDebug() << m_activeAttachment;
             m_deviceFuncs->vkCmdPushConstants(cmdBuffer, m_outputPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t), &m_activeAttachment);
             m_deviceFuncs->vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outputPipeline);
             m_deviceFuncs->vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
@@ -158,7 +157,6 @@ namespace vpa {
         else attachmentNames.push_back("INVALID");
         return attachmentNames;
     }
-
 
     void VulkanRenderer::SetActiveAttachment(uint32_t index) {
         if (m_valid) {

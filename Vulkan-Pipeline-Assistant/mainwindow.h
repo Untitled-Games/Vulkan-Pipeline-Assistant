@@ -17,12 +17,14 @@ QT_END_NAMESPACE
 class QPushButton;
 class QLineEdit;
 class QComboBox;
+class QPlainTextEdit;
 
 namespace vpa {
     class DrawerWidget;
     class ContainerWidget;
     class TabbedContainerWidget;
     class DescriptorTree;
+    class GLSLHighlighter;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
@@ -51,6 +53,9 @@ namespace vpa {
         void MakeDescriptorBlock();
         void SetupDisplayAttachments();
 
+        void LoadShaderText(QPlainTextEdit* textEdit, QString name);
+        void WriteShaderText(QPlainTextEdit* textEdit, QString name);
+
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;
         PipelineConfig& Config() const;
@@ -65,6 +70,8 @@ namespace vpa {
 
         QDockWidget* m_vkDockWidget;
         Ui::DockWidget* m_vkDockUi;
+
+        GLSLHighlighter* m_glslHighlighters[5];
 
         static QLineEdit* s_console;
     };

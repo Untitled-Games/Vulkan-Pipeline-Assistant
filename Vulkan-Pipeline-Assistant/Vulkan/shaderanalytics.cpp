@@ -1,7 +1,11 @@
 #include "shaderanalytics.h"
 
 #include <QFile>
-#include <QCoreApplication>
+#include <QDir>
+#include <QProcess>
+#include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QRegularExpression>
 
 #include "pipelineconfig.h"
 #include "common.h"
@@ -55,15 +59,15 @@ namespace vpa {
             return VPA_WARN("Vertex shader required");
         }
         else {
-            VPA_PASS_ERROR(CreateModule(ShaderStage::Vertex, vert));
+            VPA_PASS_ERROR(CreateModule(ShaderStage::Vertex, SourceNameToBinaryName(vert)));
         }
 
         if ((tesc != "" || tese != "") && !(tesc != "" && tese != "")) return VPA_WARN("Missing either tess control or tess eval shaders.");
 
-        if (frag != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Fragment, frag)); }
-        if (tesc != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationControl, tesc)); }
-        if (tese != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationEvaluation, tese)); }
-        if (geom != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Geometry, geom)); }
+        if (frag != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Fragment, SourceNameToBinaryName(frag))); }
+        if (tesc != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationControl, SourceNameToBinaryName(tesc))); }
+        if (tese != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::TessellationEvaluation, SourceNameToBinaryName(tese))); }
+        if (geom != "") { VPA_PASS_ERROR(CreateModule(ShaderStage::Geometry, SourceNameToBinaryName(geom))); }
 
         BuildPushConstants();
         BuildInputAttributes();
@@ -110,7 +114,7 @@ namespace vpa {
     VPAError ShaderAnalytics::CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob) {
         QFile file(name);
         if (!file.open(QIODevice::ReadOnly)) {
-            return VPA_WARN("Failed to read shader " + name);
+            return VPA_WARN("Failed to read shader binary " + name);
         }
 
         *blob = file.readAll();
@@ -126,11 +130,55 @@ namespace vpa {
         return VPA_OK;
     }
 
+    QVector<CompileError> ShaderAnalytics::TryCompile(QString& srcName, QPlainTextEdit* console) {
+        QString binName = SourceNameToBinaryName(srcName);
+
+        QProcess proc;
+        proc.setWorkingDirectory(QDir::currentPath());
+        proc.setProcessChannelMode(QProcess::MergedChannels);
+        QByteArray vkSdkPath = qgetenv("VK_SDK_PATH");
+        vkSdkPath.replace("\\", "/");
+        proc.setProgram(vkSdkPath + "/Bin/glslc.exe");
+        proc.setArguments({ "-c", srcName, "-o", binName });
+        proc.start();
+        proc.waitForFinished(5000);
+
+        QString result = proc.readAllStandardOutput();
+        proc.close();
+
+        if (console) {
+            if (result.size() > 0) console->appendPlainText(result);
+            else console->appendPlainText("Shader compilation for " + srcName.mid(srcName.lastIndexOf('/') + 1) + " success.");
+        }
+
+        QVector<CompileError> errors;
+        if (result.size() > 0) {
+            QVector<QStringRef> errMessages = result.splitRef(QRegularExpression("[:\n]+"));
+            for (int i = 0; i + 5 < errMessages.size(); i+=5) {
+                // Example: ../Resources/Shaders/Source/vs_test.vert:10: error: 'location' : overlapping use of location 3
+                CompileError err;
+                // Discard file [0] Get line number [1] Discard "error" [2] Get error type [3] Get error message [4]
+                err.lineNumber = errMessages[i + 1].toInt();
+                err.message = errMessages[i + 2] + " " + errMessages[i + 3];
+                errors.push_back(err);
+            }
+        }
+
+        return errors;
+    }
+
+    QString ShaderAnalytics::SourceNameToBinaryName(const QString& srcName) {
+        QString binName = SHADERDIR + srcName.mid(srcName.lastIndexOf('/') + 1);
+        binName.truncate(binName.lastIndexOf('.'));
+        binName += ".spv";
+        return binName;
+    }
+
     VPAError ShaderAnalytics::CreateModule(ShaderStage stage, const QString& name) {
         m_modules[size_t(stage)] = VK_NULL_HANDLE;
 
         QByteArray blob;
-        CreateModule(m_modules[size_t(stage)], name, &blob);
+        VPA_PASS_ERROR(CreateModule(m_modules[size_t(stage)], name, &blob));
 
         if (m_compilers[size_t(stage)] != nullptr) {
             delete m_compilers[size_t(stage)];

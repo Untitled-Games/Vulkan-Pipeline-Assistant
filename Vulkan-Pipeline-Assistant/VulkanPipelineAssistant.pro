@@ -1,5 +1,5 @@
 QT       += core gui
-
+QT       += xml
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++14
@@ -23,6 +23,7 @@ SOURCES += \
     Vulkan/vertexinput.cpp \
     Vulkan/vulkanmain.cpp \
     Vulkan/vulkanrenderer.cpp \
+    Widgets/codeeditor.cpp \
     Widgets/containerwidget.cpp \
     Widgets/descriptortree.cpp \
     Widgets/spvarraywidget.cpp \
@@ -30,10 +31,12 @@ SOURCES += \
     Widgets/spvmatrixwidget.cpp \
     Widgets/spvstructwidget.cpp \
     Widgets/spvvectorwidget.cpp \
+    glslhighlighter.cpp \
     main.cpp \
     mainwindow.cpp \
 
 HEADERS += \
+    Vulkan/compileerror.h \
     Vulkan/configvalidator.h \
     Vulkan/descriptors.h \
     Vulkan/memoryallocator.h \
@@ -44,6 +47,7 @@ HEADERS += \
     Vulkan/vertexinput.h \
     Vulkan/vulkanmain.h \
     Vulkan/vulkanrenderer.h \
+    Widgets/codeeditor.h \
     Widgets/containerwidget.h \
     Widgets/descriptortree.h \
     Widgets/spvarraywidget.h \
@@ -54,6 +58,7 @@ HEADERS += \
     Widgets/spvwidget.h \
     common.h \
     filemanager.h \
+    glslhighlighter.h \
     mainwindow.h \
     tiny_obj_loader.h
 
