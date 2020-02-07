@@ -13,7 +13,7 @@ namespace vpa {
     Descriptors::Descriptors(VulkanMain* main, QVulkanDeviceFunctions* deviceFuncs, MemoryAllocator* allocator, uint32_t attachmentCount,
                              const DescriptorLayoutMap& layoutMap, const QVector<SpvResource*>& pushConstants, VkPhysicalDeviceLimits limits, VPAError& err)
         : m_main(main), m_deviceFuncs(deviceFuncs), m_allocator(allocator), m_descriptorPool(VK_NULL_HANDLE), m_limits(limits) {
-        s_aspectRatio = m_main->Details().window->width() / m_main->Details().window->height();
+        s_aspectRatio = double(m_main->Details().window->width()) / double(m_main->Details().window->height());
 
         QVector<VkDescriptorPoolSize> poolSizes = {
             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},

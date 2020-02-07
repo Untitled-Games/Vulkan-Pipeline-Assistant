@@ -30,6 +30,7 @@ SOURCES += \
     Widgets/spvmatrixwidget.cpp \
     Widgets/spvstructwidget.cpp \
     Widgets/spvvectorwidget.cpp \
+    glslhighlighter.cpp \
     main.cpp \
     mainwindow.cpp \
 
@@ -54,6 +55,7 @@ HEADERS += \
     Widgets/spvwidget.h \
     common.h \
     filemanager.h \
+    glslhighlighter.h \
     mainwindow.h \
     tiny_obj_loader.h
 

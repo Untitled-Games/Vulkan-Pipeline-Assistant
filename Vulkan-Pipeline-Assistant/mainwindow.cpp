@@ -13,6 +13,7 @@
 #include "./Vulkan/shaderanalytics.h"
 #include "./Widgets/containerwidget.h"
 #include "./Widgets/descriptortree.h"
+#include "glslhighlighter.h"
 
 namespace vpa {
     QString VPAError::lastMessage = "";
@@ -40,6 +41,12 @@ namespace vpa {
 
         this->setCentralWidget(m_ui->centralwidget);
 
+        m_glslHighlighters[0] = new GLSLHighlighter(m_ui->gtxVertex->document());
+        m_glslHighlighters[1] = new GLSLHighlighter(m_ui->gtxFragment->document());
+        m_glslHighlighters[2] = new GLSLHighlighter(m_ui->gtxGeometry->document());
+        m_glslHighlighters[3] = new GLSLHighlighter(m_ui->gtxTessControl->document());
+        m_glslHighlighters[4] = new GLSLHighlighter(m_ui->gtxTessEval->document());
+
         m_descriptorTypeWidget = new ContainerWidget(m_ui->gwDescriptorContainer);
         m_ui->gwDescriptorContainer->layout()->addWidget(m_descriptorTypeWidget);
 
@@ -62,6 +69,9 @@ namespace vpa {
 
     MainWindow::~MainWindow() {
         delete m_ui;
+        for (int i = 0; i < 5; ++i) {
+            delete m_glslHighlighters[i];
+        }
     }
 
     void MainWindow::closeEvent(QCloseEvent* event) {

@@ -24,6 +24,7 @@ namespace vpa {
     class ContainerWidget;
     class TabbedContainerWidget;
     class DescriptorTree;
+    class GLSLHighlighter;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
@@ -69,6 +70,8 @@ namespace vpa {
 
         QDockWidget* m_vkDockWidget;
         Ui::DockWidget* m_vkDockUi;
+
+        GLSLHighlighter* m_glslHighlighters[5];
 
         static QLineEdit* s_console;
     };
