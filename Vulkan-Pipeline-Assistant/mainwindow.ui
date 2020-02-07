@@ -604,7 +604,7 @@
       <item row="0" column="1" rowspan="2">
        <widget class="QTabWidget" name="ShaderTabs">
         <property name="currentIndex">
-         <number>0</number>
+         <number>4</number>
         </property>
         <widget class="QWidget" name="VertexTab">
          <attribute name="title">
@@ -653,7 +653,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="gtxVertex"/>
+           <widget class="vpa::CodeEditor" name="gtxVertex"/>
           </item>
          </layout>
         </widget>
@@ -697,7 +697,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="gtxFragment"/>
+           <widget class="vpa::CodeEditor" name="gtxFragment"/>
           </item>
          </layout>
         </widget>
@@ -741,7 +741,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="gtxGeometry"/>
+           <widget class="vpa::CodeEditor" name="gtxGeometry"/>
           </item>
          </layout>
         </widget>
@@ -785,7 +785,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="gtxTessControl"/>
+           <widget class="vpa::CodeEditor" name="gtxTessControl"/>
           </item>
          </layout>
         </widget>
@@ -829,14 +829,18 @@
            </layout>
           </item>
           <item>
-           <widget class="QPlainTextEdit" name="gtxTessEval"/>
+           <widget class="vpa::CodeEditor" name="gtxTessEval"/>
           </item>
          </layout>
         </widget>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="QPlainTextEdit" name="gtxShaderConsole"/>
+       <widget class="QPlainTextEdit" name="gtxShaderConsole">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
       </item>
       <item row="1" column="0" rowspan="2">
        <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,3">
@@ -920,6 +924,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>vpa::CodeEditor</class>
+   <extends>QPlainTextEdit</extends>
+   <header>Widgets/codeeditor.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

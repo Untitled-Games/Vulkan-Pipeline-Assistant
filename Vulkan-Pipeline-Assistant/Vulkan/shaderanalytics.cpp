@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QRegularExpression>
 
 #include "pipelineconfig.h"
 #include "common.h"
@@ -129,7 +130,7 @@ namespace vpa {
         return VPA_OK;
     }
 
-    bool ShaderAnalytics::TryCompile(QString& srcName, QPlainTextEdit* console) {
+    QVector<CompileError> ShaderAnalytics::TryCompile(QString& srcName, QPlainTextEdit* console) {
         QString binName = SourceNameToBinaryName(srcName);
 
         QProcess proc;
@@ -143,13 +144,27 @@ namespace vpa {
         proc.waitForFinished(5000);
 
         QString result = proc.readAllStandardOutput();
+        proc.close();
 
         if (console) {
             if (result.size() > 0) console->appendPlainText(result);
             else console->appendPlainText("Shader compilation for " + srcName.mid(srcName.lastIndexOf('/') + 1) + " success.");
         }
-        proc.close();
-        return result.size() == 0;
+
+        QVector<CompileError> errors;
+        if (result.size() > 0) {
+            QVector<QStringRef> errMessages = result.splitRef(QRegularExpression("[:\n]+"));
+            for (int i = 0; i + 5 < errMessages.size(); i+=5) {
+                // Example: ../Resources/Shaders/Source/vs_test.vert:10: error: 'location' : overlapping use of location 3
+                CompileError err;
+                // Discard file [0] Get line number [1] Discard "error" [2] Get error type [3] Get error message [4]
+                err.lineNumber = errMessages[i + 1].toInt();
+                err.message = errMessages[i + 2] + " " + errMessages[i + 3];
+                errors.push_back(err);
+            }
+        }
+
+        return errors;
     }
 
     QString ShaderAnalytics::SourceNameToBinaryName(const QString& srcName) {

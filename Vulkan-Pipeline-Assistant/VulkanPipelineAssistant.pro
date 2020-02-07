@@ -23,6 +23,7 @@ SOURCES += \
     Vulkan/vertexinput.cpp \
     Vulkan/vulkanmain.cpp \
     Vulkan/vulkanrenderer.cpp \
+    Widgets/codeeditor.cpp \
     Widgets/containerwidget.cpp \
     Widgets/descriptortree.cpp \
     Widgets/spvarraywidget.cpp \
@@ -35,6 +36,7 @@ SOURCES += \
     mainwindow.cpp \
 
 HEADERS += \
+    Vulkan/compileerror.h \
     Vulkan/configvalidator.h \
     Vulkan/descriptors.h \
     Vulkan/memoryallocator.h \
@@ -45,6 +47,7 @@ HEADERS += \
     Vulkan/vertexinput.h \
     Vulkan/vulkanmain.h \
     Vulkan/vulkanrenderer.h \
+    Widgets/codeeditor.h \
     Widgets/containerwidget.h \
     Widgets/descriptortree.h \
     Widgets/spvarraywidget.h \

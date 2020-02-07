@@ -8,6 +8,7 @@
 #include <QVulkanDeviceFunctions>
 
 #include "spirvresource.h"
+#include "compileerror.h"
 #include "../common.h"
 
 class QPlainTextEdit;
@@ -33,7 +34,7 @@ namespace vpa {
 
         VPAError CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob);
 
-        static bool TryCompile(QString& srcName, QPlainTextEdit* console = nullptr);
+        static QVector<CompileError> TryCompile(QString& srcName, QPlainTextEdit* console = nullptr);
 
     private:
         static QString SourceNameToBinaryName(const QString& srcName);
