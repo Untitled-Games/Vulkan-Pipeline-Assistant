@@ -1,0 +1,30 @@
+<vpastyle>
+
+    <keywords bold="true" colour="#0000A0">
+        <pattern>\sfloat\s</pattern>
+        <pattern>\sint\s</pattern>
+        <pattern>\suint\s</pattern>
+        <pattern>^((\s)*layout)</pattern>
+        <pattern>\sin\s</pattern>
+        <pattern>((\s)?out)\s</pattern>
+        <pattern>\suniform\s</pattern>
+        <pattern>\sbuffer\s</pattern>
+        <pattern>\svoid\s</pattern>
+        <pattern>\svec2\s</pattern>
+        <pattern>\svec3\s</pattern>
+        <pattern>\svec4\s</pattern>
+        <pattern>\smat3\s</pattern>
+        <pattern>\smat4\s</pattern>
+        <pattern>\s?void\s</pattern>
+        <pattern>\s?struct\s</pattern>
+    </keywords>
+
+    <keywords bold="true" color="#B47800">
+        <pattern>location\s</pattern>
+    </keywords>
+
+    <keywords bold="false" color="#999">
+        <pattern>^#.*</pattern>
+    </keywords>
+
+</vpastyle>

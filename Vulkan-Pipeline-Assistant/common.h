@@ -22,6 +22,7 @@
 
 #define ROOTDIR "../"
 #define RESDIR ROOTDIR"Resources/"
+#define EDIDIR RESDIR"Editor/"
 #define TEXDIR RESDIR"Textures/"
 #define CONFIGDIR RESDIR"Configs/"
 #define IMAGEDIR RESDIR"Images/"
