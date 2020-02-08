@@ -41,7 +41,7 @@
       <item row="0" column="0">
        <widget class="QTabWidget" name="ConfigTabs">
         <property name="currentIndex">
-         <number>5</number>
+         <number>2</number>
         </property>
         <widget class="QWidget" name="VertexInputTab">
          <attribute name="title">
@@ -165,7 +165,7 @@
            </spacer>
           </item>
           <item row="2" column="1">
-           <widget class="QSlider" name="gsPatchPointCount">
+           <widget class="vpa::InformativeSlider" name="gsPatchPointCount">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -252,7 +252,7 @@
            </widget>
           </item>
           <item row="2" column="1">
-           <widget class="QSlider" name="gsLineWidth">
+           <widget class="vpa::InformativeSlider" name="gsLineWidth">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -266,7 +266,7 @@
            </widget>
           </item>
           <item row="2" column="3">
-           <widget class="QSlider" name="gsDepthBiasConstant">
+           <widget class="vpa::InformativeSlider" name="gsDepthBiasConstant">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -311,7 +311,7 @@
            </widget>
           </item>
           <item row="3" column="3">
-           <widget class="QSlider" name="gsDepthBiasClamp">
+           <widget class="vpa::InformativeSlider" name="gsDepthBiasClamp">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -346,7 +346,7 @@
            </widget>
           </item>
           <item row="4" column="3">
-           <widget class="QSlider" name="gsDepthBiasSlope">
+           <widget class="vpa::InformativeSlider" name="gsDepthBiasSlope">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -929,6 +929,11 @@
    <class>vpa::CodeEditor</class>
    <extends>QPlainTextEdit</extends>
    <header>Widgets/codeeditor.h</header>
+  </customwidget>
+  <customwidget>
+   <class>vpa::InformativeSlider</class>
+   <extends>QSlider</extends>
+   <header>Widgets/informativeslider.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

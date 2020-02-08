@@ -26,6 +26,7 @@ SOURCES += \
     Widgets/codeeditor.cpp \
     Widgets/containerwidget.cpp \
     Widgets/descriptortree.cpp \
+    Widgets/informativeslider.cpp \
     Widgets/spvarraywidget.cpp \
     Widgets/spvimagewidget.cpp \
     Widgets/spvmatrixwidget.cpp \
@@ -50,6 +51,7 @@ HEADERS += \
     Widgets/codeeditor.h \
     Widgets/containerwidget.h \
     Widgets/descriptortree.h \
+    Widgets/informativeslider.h \
     Widgets/spvarraywidget.h \
     Widgets/spvimagewidget.h \
     Widgets/spvmatrixwidget.h \
