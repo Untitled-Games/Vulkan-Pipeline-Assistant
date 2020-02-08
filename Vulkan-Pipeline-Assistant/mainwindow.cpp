@@ -142,39 +142,27 @@ namespace vpa {
             this->WriteAndReload(ReloadFlags::Everything);
         });
 
-        QObject::connect(m_ui->gbCompile0, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxVertexFileName->text();
+        QObject::connect(m_ui->gbCompile, &QPushButton::released, [this](){
+            /*QString srcName = m_ui->gtxVertexFileName->text();
             WriteShaderText(m_ui->gtxVertex, srcName);
             auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
             m_ui->gtxVertex->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile1, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxFragmentFileName->text();
-            WriteShaderText(m_ui->gtxFragment, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxFragment->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile2, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxGeometryFileName->text();
-            WriteShaderText(m_ui->gtxGeometry, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxGeometry->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile3, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxTessControlFileName->text();
-            WriteShaderText(m_ui->gtxTessControl, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxTessControl->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile4, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxTessEvalFileName->text();
-            WriteShaderText(m_ui->gtxTessEval, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxTessEval->SetLastCompileErrors(compileErrs);
+            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);*/
+            static CodeEditor* codeEditors[size_t(ShaderStage::Count_)] = {
+                    m_ui->gtxVertex, m_ui->gtxTessControl, m_ui->gtxTessEval, m_ui->gtxGeometry, m_ui->gtxFragment
+            };
+            static QLineEdit* textAreaNames[size_t(ShaderStage::Count_)] = {
+                    m_ui->gtxVertexFileName, m_ui->gtxTessControlFileName, m_ui->gtxTessEvalFileName, m_ui->gtxGeometryFileName, m_ui->gtxFragmentFileName
+            };
+            QString names[size_t(ShaderStage::Count_)];
+            for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+                names[i] = textAreaNames[i]->text();
+                WriteShaderText(codeEditors[i], names[i]);
+            }
+            auto compileErrs = ShaderAnalytics::TryCompile(names, m_vulkan->Limits(), m_ui->gtxShaderConsole);
+            for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+                codeEditors[i]->SetLastCompileErrors(compileErrs[ShaderStage(i)]);
+            }
             if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
         });
 

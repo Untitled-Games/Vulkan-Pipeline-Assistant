@@ -16,10 +16,27 @@ using SPIRV_CROSS_NAMESPACE::SmallVector;
 using SPIRV_CROSS_NAMESPACE::Resource;
 
 namespace vpa {
-    const QString ShaderStageStrings[size_t(ShaderStage::Count_)] = { "Vertex", "Fragment", "TessControl", "TessEval", "Geometry" };
+    const QString ShaderStageStrings[size_t(ShaderStage::Count_)] = { "Vertex", "TessControl", "TessEval", "Geometry", "Fragment" };
     const QString SpvGroupNameStrings[size_t(SpvGroupName::Count_)] = { "InputAttribute", "UniformBuffer", "StorageBuffer", "PushConstant", "Image" };
     const QString SpvTypeNameStrings[size_t(SpvTypeName::Count_)] = { "Image", "Array", "Vector", "Matrix", "Struct" };
     const QString SpvImageTypeNameStrings[size_t(SpvImageTypeName::Count_)] = { "Texture1D", "Texture2D", "Texture3D", "TextureCube", "UnknownTexture" };
+
+    bool operator==(const spirv_cross::SPIRType& t0, const spirv_cross::SPIRType& t1) {
+        bool base = t0.basetype == t1.basetype;
+        bool cols = t0.columns == t1.columns;
+        bool vec = t0.vecsize == t1.vecsize;
+        bool arr = t0.array.size() == t1.array.size();
+        if (arr) {
+            for (size_t i = 0; i < t0.array.size(); ++i) {
+                arr = arr && t0.array[i] == t1.array[i];
+            }
+        }
+        return base && cols && vec && arr;
+    }
+
+    bool operator!=(const spirv_cross::SPIRType& t0, const spirv_cross::SPIRType& t1) {
+        return !operator==(t0, t1);
+    }
 
     ShaderAnalytics::ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config)
         : m_deviceFuncs(deviceFuncs), m_device(device), m_config(config) {
@@ -130,8 +147,9 @@ namespace vpa {
         return VPA_OK;
     }
 
-    QVector<CompileError> ShaderAnalytics::TryCompile(QString& srcName, QPlainTextEdit* console) {
+    QVector<CompileError> ShaderAnalytics::TryCompile(QString& srcName, QString* outBinName, QPlainTextEdit* console) {
         QString binName = SourceNameToBinaryName(srcName);
+        if (outBinName) *outBinName = binName;
 
         QProcess proc;
         proc.setWorkingDirectory(QDir::currentPath());
@@ -165,6 +183,109 @@ namespace vpa {
         }
 
         return errors;
+    }
+
+    // srcNames are assumed to be in order of ShaderStage, undefined behaviour if this is not the case
+    QHash<ShaderStage, QVector<CompileError>> ShaderAnalytics::TryCompile(QString srcNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits, QPlainTextEdit* console) {
+        QHash<ShaderStage, QVector<CompileError>> compileErrors;
+        QString binNames[size_t(ShaderStage::Count_)];
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+            if (srcNames[i] != "") {
+                QVector<CompileError> errs = TryCompile(srcNames[i], &binNames[i], console);
+                if (errs.size() > 0) compileErrors[ShaderStage(i)].append(errs);
+            }
+            else {
+                binNames[i] = "";
+            }
+        }
+        if (compileErrors.size() > 0) return compileErrors;
+
+        compileErrors.unite(ValidateLinker(binNames, limits));
+
+        if (console) {
+            for (CompileError& err : compileErrors[ShaderStage::Count_]) {
+                console->appendPlainText(err.message);
+            }
+            int linkErrorCount = compileErrors[ShaderStage::Count_].size();
+            console->appendPlainText(linkErrorCount == 0 ? "Link successful." : QString::number(linkErrorCount) + " link errors generated.");
+        }
+
+        return compileErrors;
+    }
+
+    QHash<ShaderStage, QVector<CompileError>> ShaderAnalytics::ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits) {
+        // Get spirv-cross compilers for each shader binary
+        QHash<ShaderStage, QVector<CompileError>> linkErrors;
+        Compiler* compilers[size_t(ShaderStage::Count_)];
+        memset(compilers, NULL, sizeof(compilers));
+        size_t shaderCount = 0;
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+            if (binNames[i] != "") {
+                QFile file(binNames[i]);
+                if (!file.open(QIODevice::ReadOnly)) {
+                    linkErrors[ShaderStage(i)].push_back({ CompileError::LinkerErrorValue, "Failed to open file for linking (stage " + ShaderStageStrings[i] + ")" });
+                    continue;
+                }
+                QByteArray blob = file.readAll();
+                file.close();
+
+                std::vector<uint32_t> spirvCrossBuf((size_t(blob.size()) / (sizeof(uint32_t) / sizeof(unsigned char))));
+                memcpy(spirvCrossBuf.data(), blob.data(), size_t(blob.size()));
+                compilers[i] = new Compiler(std::move(spirvCrossBuf));
+
+                ++shaderCount;
+            }
+        }
+
+        // Validate vertex input
+        if (compilers[size_t(ShaderStage::Vertex)]->get_shader_resources().stage_inputs.size() > limits.maxVertexInputAttributes) {
+            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Vertex stage input attribute count exceeds device limits " + QString::number(limits.maxVertexInputAttributes) });
+        }
+        if (shaderCount == 1) return linkErrors; // Early exit when only vertex shader is used
+
+        // Check fragment output against limits, TODO check geom, tesc, and tese against limits and tese + tesc are both needed if one exists
+        if (compilers[size_t(ShaderStage::Fragment)] != nullptr && compilers[size_t(ShaderStage::Fragment)]->get_shader_resources().stage_outputs.size() > limits.maxFragmentOutputAttachments) {
+            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Fragment stage output attachment count exceeds device limits " + QString::number(limits.maxFragmentOutputAttachments) });
+        }
+
+        // Validate stage in and out blocks for linking
+        for (size_t i = 0, j = i + 1; i < size_t(ShaderStage::Count_) - 1 && j < size_t(ShaderStage::Count_); ++i, ++j) {
+            if (compilers[i] == nullptr) continue;
+            while (compilers[j] == nullptr && j < size_t(ShaderStage::Count_)) ++j;
+            if (j == size_t(ShaderStage::Count_)) break;
+
+            const auto& outputs = compilers[i]->get_shader_resources().stage_outputs;
+            const auto& inputs = compilers[j]->get_shader_resources().stage_inputs;
+
+            if (outputs.size() != inputs.size()) {
+                linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Output count for stage " + ShaderStageStrings[i] + " mismatch with input count for stage " + ShaderStageStrings[j] });
+                continue;
+            }
+
+            for (size_t outIdx = 0; outIdx < outputs.size(); ++outIdx) {
+                uint32_t outLocation = compilers[i]->get_decoration(outputs[outIdx].id, spv::DecorationLocation);
+                SPIRType outType = compilers[i]->get_type(outputs[outIdx].base_type_id);
+                for (size_t inIdx = 0; inIdx < inputs.size(); ++inIdx) {
+                    uint32_t inLocation = compilers[j]->get_decoration(inputs[inIdx].id, spv::DecorationLocation);
+                    SPIRType inType = compilers[j]->get_type(inputs[inIdx].base_type_id);
+                    if (outLocation == inLocation) {
+                        if (outType != inType) {
+                            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Type mismatch for location " + QString::number(outLocation) + " in stages " + ShaderStageStrings[i] + " and " + ShaderStageStrings[j] });
+                        }
+                        break;
+                    }
+                    if (inIdx == inputs.size() - 1) {
+                        linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "No IN block location in stage " + ShaderStageStrings[j] + " for OUT location " + QString::number(outLocation) + " in stage " + ShaderStageStrings[outIdx] });
+                    }
+                }
+            }
+        }
+
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+            delete compilers[i];
+        }
+
+        return linkErrors;
     }
 
     QString ShaderAnalytics::SourceNameToBinaryName(const QString& srcName) {
