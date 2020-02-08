@@ -40,6 +40,8 @@ namespace vpa {
         void closeEvent(QCloseEvent* event) override;
         bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
 
+        void PostVulkanSetup();
+
     public slots:
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
@@ -47,6 +49,7 @@ namespace vpa {
     private:
         bool WindowsNativeEvent(MSG* msg);
         void ConnectInterface();
+        void ApplyLimits();
 
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRenderPassBlock();

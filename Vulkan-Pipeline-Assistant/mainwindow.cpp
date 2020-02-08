@@ -58,12 +58,11 @@ namespace vpa {
         m_vkDockUi->setupUi(m_vkDockWidget);
         m_vkDockUi->gwDisplayArea->setLayout(new QHBoxLayout());
         m_vkDockWidget->show();
-        m_vulkan = new VulkanMain(m_vkDockUi->gwDisplayArea, std::bind(&MainWindow::VulkanCreationCallback, this));
+        m_vulkan = new VulkanMain(m_vkDockUi->gwDisplayArea, std::bind(&MainWindow::PostVulkanSetup, this), std::bind(&MainWindow::VulkanCreationCallback, this));
 
         m_vulkan->GetConfig().vertShader = SHADERSRCDIR"vs_test.vert";
         m_vulkan->GetConfig().fragShader = SHADERSRCDIR"fs_test.frag";
 
-        ConnectInterface();
         // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
@@ -83,6 +82,11 @@ namespace vpa {
         Q_UNUSED(result)
         Q_UNUSED(eventType)
         return QGuiApplication::platformName() == "windows" && WindowsNativeEvent(static_cast<MSG*>(message));
+    }
+
+    void MainWindow::PostVulkanSetup() {
+        ApplyLimits();
+        ConnectInterface();
     }
 
     bool MainWindow::WindowsNativeEvent(MSG* msg) {
@@ -240,6 +244,16 @@ namespace vpa {
             HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
         });
         // ------ Renderpass connections ------
+    }
+
+    void MainWindow::ApplyLimits() {
+        if (!m_vulkan) return;
+        auto& limits = m_vulkan->Limits();
+        // gsDepthBiasClamp; gsDepthBiasSlope; gsDepthBiasConstant; gsMinSampleShading; don't appear to have any specific limits
+        m_ui->gsPatchPointCount->setRange(0, int(limits.maxTessellationPatchSize));
+        m_ui->gsPatchPointCount->setValue(0);
+        m_ui->gsLineWidth->setRange(int(limits.lineWidthRange[0] + FLT_EPSILON), int(limits.lineWidthRange[1] + FLT_EPSILON));
+        m_ui->gsLineWidth->setValue(int(limits.lineWidthRange[0] + FLT_EPSILON));
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {

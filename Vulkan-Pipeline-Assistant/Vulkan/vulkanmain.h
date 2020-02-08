@@ -90,7 +90,7 @@ namespace vpa {
         friend class VulkanWindow;
         friend class VulkanRenderer;
     public:
-        VulkanMain(QWidget* parent, std::function<void(void)> creationCallback);
+        VulkanMain(QWidget* parent, std::function<void(void)> physDeviceCallback, std::function<void(void)> creationCallback);
         ~VulkanMain();
 
         bool RendererValid();
