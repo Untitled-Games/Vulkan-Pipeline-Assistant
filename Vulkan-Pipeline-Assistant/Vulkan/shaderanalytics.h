@@ -44,7 +44,7 @@ namespace vpa {
         static QString SourceNameToBinaryName(const QString& srcName);
         VPAError CreateModule(ShaderStage stage, const QString& name);
         VPAError Validate(ShaderStage stage);
-        static QHash<ShaderStage, QVector<CompileError>> ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits);
+        static QVector<CompileError> ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits);
 
         size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
         SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);

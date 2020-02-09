@@ -2,9 +2,13 @@
 
 #include <QPainter>
 #include <QTextBlock>
+#include <QLineEdit>
+#include <QFileDialog>
+#include <QLabel>
 
 namespace vpa {
-    CodeEditor::CodeEditor(QWidget* parent) : QPlainTextEdit(parent) {
+    CodeEditor::CodeEditor(QWidget* parent) : QPlainTextEdit(parent), m_fileExt("") {
+        document()->setModified(false);
         m_lineNumberArea = new LineNumberArea(this);
         connect(this, &CodeEditor::blockCountChanged, this, &CodeEditor::UpdateLineNumberAreaWidth);
         connect(this, &CodeEditor::updateRequest, this, &CodeEditor::UpdateLineNumberArea);
@@ -13,6 +17,8 @@ namespace vpa {
         HighlightCurrentLine();
         QFontMetrics metrics(font());
         setTabStopDistance(NumSpacesInTab * metrics.averageCharWidth());
+
+        connect(this, SIGNAL(modificationChanged(bool)), this, SLOT(DisplayModificationState(bool)));
     }
 
     void CodeEditor::LineNumberAreaPaintEvent(QPaintEvent* event) {
@@ -59,6 +65,41 @@ namespace vpa {
     void CodeEditor::SetLastCompileErrors(QVector<CompileError>& errors) {
         m_compileErrors = errors;
         m_lineNumberArea->repaint();
+    }
+
+    void CodeEditor::Save() {
+        if (!m_fileNameWidget) return;
+        if (!document()->isModified()) return;
+
+        if (m_fileNameWidget->text() == "") {
+            QString name = QFileDialog::getSaveFileName(this, tr("Save File"), SHADERSRCDIR, tr(qPrintable("Shader Files (*." + m_fileExt + ")")));
+            m_fileNameWidget->setText(name);
+            *m_configStr = name;
+        }
+
+        QFile file(m_fileNameWidget->text());
+        if (file.open(QIODevice::Text | QIODevice::WriteOnly)) {
+            file.write(toPlainText().toUtf8());
+            file.close();
+            document()->setModified(false);
+        }
+    }
+
+    void CodeEditor::Load() {
+        if (!m_fileNameWidget) return;
+
+        QFile file(m_fileNameWidget->text());
+        if (file.open(QIODevice::Text | QIODevice::ReadOnly)) {
+            setPlainText(file.readAll());
+            file.close();
+            document()->setModified(false);
+        }
+    }
+
+    void CodeEditor::DisplayModificationState(bool changed) {
+        if (!m_modifiedLabel) return;
+        if (changed) m_modifiedLabel->setText("*");
+        else m_modifiedLabel->setText("");
     }
 
     void CodeEditor::resizeEvent(QResizeEvent* event) {

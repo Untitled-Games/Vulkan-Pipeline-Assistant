@@ -200,7 +200,7 @@ namespace vpa {
         }
         if (compileErrors.size() > 0) return compileErrors;
 
-        compileErrors.unite(ValidateLinker(binNames, limits));
+        compileErrors[ShaderStage::Count_] = ValidateLinker(binNames, limits);
 
         if (console) {
             for (CompileError& err : compileErrors[ShaderStage::Count_]) {
@@ -213,9 +213,15 @@ namespace vpa {
         return compileErrors;
     }
 
-    QHash<ShaderStage, QVector<CompileError>> ShaderAnalytics::ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits) {
+    QVector<CompileError> ShaderAnalytics::ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits) {
         // Get spirv-cross compilers for each shader binary
-        QHash<ShaderStage, QVector<CompileError>> linkErrors;
+        QVector<CompileError> linkErrors;
+
+        if (binNames[size_t(ShaderStage::Vertex)] == "") {
+            linkErrors.push_back({ CompileError::LinkerErrorValue, "No vertex stage found, but is required." });
+            return linkErrors;
+        }
+
         Compiler* compilers[size_t(ShaderStage::Count_)];
         memset(compilers, NULL, sizeof(compilers));
         size_t shaderCount = 0;
@@ -223,7 +229,7 @@ namespace vpa {
             if (binNames[i] != "") {
                 QFile file(binNames[i]);
                 if (!file.open(QIODevice::ReadOnly)) {
-                    linkErrors[ShaderStage(i)].push_back({ CompileError::LinkerErrorValue, "Failed to open file for linking (stage " + ShaderStageStrings[i] + ")" });
+                    linkErrors.push_back({ CompileError::LinkerErrorValue, "Failed to open file for linking (stage " + ShaderStageStrings[i] + ")" });
                     continue;
                 }
                 QByteArray blob = file.readAll();
@@ -237,15 +243,23 @@ namespace vpa {
             }
         }
 
-        // Validate vertex input
+        // Validate stages in general TODO check geom, tesc, and tese against limits
         if (compilers[size_t(ShaderStage::Vertex)]->get_shader_resources().stage_inputs.size() > limits.maxVertexInputAttributes) {
-            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Vertex stage input attribute count exceeds device limits " + QString::number(limits.maxVertexInputAttributes) });
+            linkErrors.push_back({ CompileError::LinkerErrorValue, "Vertex stage input attribute count exceeds device limits " + QString::number(limits.maxVertexInputAttributes) });
         }
-        if (shaderCount == 1) return linkErrors; // Early exit when only vertex shader is used
+        if (shaderCount == 1) {
+            for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+                delete compilers[i];
+            }
+            return linkErrors; // Early exit when only vertex shader is used
+        }
 
-        // Check fragment output against limits, TODO check geom, tesc, and tese against limits and tese + tesc are both needed if one exists
+        if ((compilers[size_t(ShaderStage::TessellationControl)] != nullptr) != (compilers[size_t(ShaderStage::TessellationEvaluation)] != nullptr)) {
+            linkErrors.push_back({ CompileError::LinkerErrorValue, "Tessellation control or evaluation exists but the other does not." });
+        }
+
         if (compilers[size_t(ShaderStage::Fragment)] != nullptr && compilers[size_t(ShaderStage::Fragment)]->get_shader_resources().stage_outputs.size() > limits.maxFragmentOutputAttachments) {
-            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Fragment stage output attachment count exceeds device limits " + QString::number(limits.maxFragmentOutputAttachments) });
+            linkErrors.push_back({ CompileError::LinkerErrorValue, "Fragment stage output attachment count exceeds device limits " + QString::number(limits.maxFragmentOutputAttachments) });
         }
 
         // Validate stage in and out blocks for linking
@@ -258,7 +272,7 @@ namespace vpa {
             const auto& inputs = compilers[j]->get_shader_resources().stage_inputs;
 
             if (outputs.size() != inputs.size()) {
-                linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Output count for stage " + ShaderStageStrings[i] + " mismatch with input count for stage " + ShaderStageStrings[j] });
+                linkErrors.push_back({ CompileError::LinkerErrorValue, "Output count for stage " + ShaderStageStrings[i] + " mismatch with input count for stage " + ShaderStageStrings[j] });
                 continue;
             }
 
@@ -270,12 +284,12 @@ namespace vpa {
                     SPIRType inType = compilers[j]->get_type(inputs[inIdx].base_type_id);
                     if (outLocation == inLocation) {
                         if (outType != inType) {
-                            linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "Type mismatch for location " + QString::number(outLocation) + " in stages " + ShaderStageStrings[i] + " and " + ShaderStageStrings[j] });
+                            linkErrors.push_back({ CompileError::LinkerErrorValue, "Type mismatch for location " + QString::number(outLocation) + " in stages " + ShaderStageStrings[i] + " and " + ShaderStageStrings[j] });
                         }
                         break;
                     }
                     if (inIdx == inputs.size() - 1) {
-                        linkErrors[ShaderStage::Count_].push_back({ CompileError::LinkerErrorValue, "No IN block location in stage " + ShaderStageStrings[j] + " for OUT location " + QString::number(outLocation) + " in stage " + ShaderStageStrings[outIdx] });
+                        linkErrors.push_back({ CompileError::LinkerErrorValue, "No IN block location in stage " + ShaderStageStrings[j] + " for OUT location " + QString::number(outLocation) + " in stage " + ShaderStageStrings[outIdx] });
                     }
                 }
             }

@@ -34,10 +34,6 @@ namespace vpa {
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_descriptorTree(nullptr) {
         m_ui->setupUi(this);
         s_console = m_ui->gtxConsole;
-        m_ui->gtxVertexFileName->setText(SHADERSRCDIR"vs_test.vert");
-        m_ui->gtxFragmentFileName->setText(SHADERSRCDIR"fs_test.frag");
-        LoadShaderText(m_ui->gtxVertex, SHADERSRCDIR"vs_test.vert");
-        LoadShaderText(m_ui->gtxFragment, SHADERSRCDIR"fs_test.frag");
 
         this->setCentralWidget(m_ui->centralwidget);
 
@@ -62,6 +58,21 @@ namespace vpa {
 
         m_vulkan->GetConfig().vertShader = SHADERSRCDIR"vs_test.vert";
         m_vulkan->GetConfig().fragShader = SHADERSRCDIR"fs_test.frag";
+
+        m_codeEditors[0] = m_ui->gtxVertex;
+        m_codeEditors[1] = m_ui->gtxTessControl;
+        m_codeEditors[2] = m_ui->gtxTessEval;
+        m_codeEditors[3] = m_ui->gtxGeometry;
+        m_codeEditors[4] = m_ui->gtxFragment;
+        m_codeEditors[0]->Init(m_ui->glVertexModified, m_ui->gtxVertexFileName, "vert", &Config().vertShader);
+        m_codeEditors[1]->Init(m_ui->glTessControlModified, m_ui->gtxTessControlFileName, "tesc", &Config().tescShader);
+        m_codeEditors[2]->Init(m_ui->glTessEvalModified, m_ui->gtxTessEvalFileName, "tese", &Config().teseShader);
+        m_codeEditors[3]->Init(m_ui->glGeometryModified, m_ui->gtxGeometryFileName, "geom", &Config().geomShader);
+        m_codeEditors[4]->Init(m_ui->glFragmentModified, m_ui->gtxFragmentFileName, "frag", &Config().fragShader);
+        m_ui->gtxVertexFileName->setText(SHADERSRCDIR"vs_test.vert");
+        m_ui->gtxFragmentFileName->setText(SHADERSRCDIR"fs_test.frag");
+        m_codeEditors[0]->Load();
+        m_codeEditors[4]->Load();
 
         // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
@@ -104,64 +115,59 @@ namespace vpa {
         return false;
     }
 
+    void MainWindow::keyPressEvent(QKeyEvent* event) {
+        if (event->key() == Qt::Key_S && QApplication::keyboardModifiers() && Qt::ControlModifier) {
+            m_codeEditors[m_ui->ShaderTabs->currentIndex()]->Save();
+        }
+    }
+
     void MainWindow::ConnectInterface() {
         // ------ Shader connections ------
         QObject::connect(m_ui->gbVertexFile, &QPushButton::released, [this](){
             QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.vert)"));
             m_ui->gtxVertexFileName->setText(str);
             Config().vertShader = str;
-            LoadShaderText(m_ui->gtxVertex, str);
+            m_ui->gtxVertex->Load();
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbFragmentFile, &QPushButton::released, [this](){
             QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.frag)"));
             m_ui->gtxFragmentFileName->setText(str);
             Config().fragShader = str;
-            LoadShaderText(m_ui->gtxFragment, str);
+            m_ui->gtxFragment->Load();
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbGeometryFile, &QPushButton::released, [this](){
             QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.geom)"));
             m_ui->gtxGeometryFileName->setText(str);
             Config().geomShader = str;
-            LoadShaderText(m_ui->gtxGeometry, str);
+            m_ui->gtxGeometry->Load();
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbTessControlFile, &QPushButton::released, [this](){
             QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tesc)"));
             m_ui->gtxTessControlFileName->setText(str);
             Config().tescShader = str;
-            LoadShaderText(m_ui->gtxTessControl, str);
+            m_ui->gtxTessControl->Load();
             this->WriteAndReload(ReloadFlags::Everything);
         });
         QObject::connect(m_ui->gbTessEvalFile, &QPushButton::released, [this](){
             QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tese)"));
             m_ui->gtxTessEvalFileName->setText(str);
             Config().teseShader = str;
-            LoadShaderText(m_ui->gtxTessEval, str);
+            m_ui->gtxTessEval->Load();
             this->WriteAndReload(ReloadFlags::Everything);
         });
 
         QObject::connect(m_ui->gbCompile, &QPushButton::released, [this](){
-            /*QString srcName = m_ui->gtxVertexFileName->text();
-            WriteShaderText(m_ui->gtxVertex, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxVertex->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);*/
-            static CodeEditor* codeEditors[size_t(ShaderStage::Count_)] = {
-                    m_ui->gtxVertex, m_ui->gtxTessControl, m_ui->gtxTessEval, m_ui->gtxGeometry, m_ui->gtxFragment
-            };
-            static QLineEdit* textAreaNames[size_t(ShaderStage::Count_)] = {
-                    m_ui->gtxVertexFileName, m_ui->gtxTessControlFileName, m_ui->gtxTessEvalFileName, m_ui->gtxGeometryFileName, m_ui->gtxFragmentFileName
-            };
             QString names[size_t(ShaderStage::Count_)];
             for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
-                names[i] = textAreaNames[i]->text();
-                WriteShaderText(codeEditors[i], names[i]);
+                m_codeEditors[i]->Save();
+                names[i] = m_codeEditors[i]->FileNameWidget()->text();
             }
             auto compileErrs = ShaderAnalytics::TryCompile(names, m_vulkan->Limits(), m_ui->gtxShaderConsole);
             for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
-                codeEditors[i]->SetLastCompileErrors(compileErrs[ShaderStage(i)]);
+                m_codeEditors[i]->SetLastCompileErrors(compileErrs[ShaderStage(i)]);
             }
             if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
         });
@@ -426,19 +432,6 @@ namespace vpa {
             box->addItem(str);
         }
         return box;
-    }
-
-    void MainWindow::LoadShaderText(QPlainTextEdit* textEdit, QString name) {
-        QFile file(name);
-        file.open(QIODevice::Text | QIODevice::ReadOnly);
-        textEdit->setPlainText(file.readAll());
-    }
-
-    void MainWindow::WriteShaderText(QPlainTextEdit* textEdit, QString name) {
-        QString output = textEdit->toPlainText();
-        QFile file(name);
-        file.open(QIODevice::Text | QIODevice::WriteOnly);
-        file.write(output.toUtf8());
     }
 
     void MainWindow::VulkanCreationCallback() {
