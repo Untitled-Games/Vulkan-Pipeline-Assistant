@@ -85,8 +85,14 @@ namespace vpa {
         }
     }
 
-    void CodeEditor::Load() {
+    void CodeEditor::Load(bool openDialog) {
         if (!m_fileNameWidget) return;
+
+        if (openDialog) {
+            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr(qPrintable("Shader Files (*." + m_fileExt + ")")));
+            m_fileNameWidget->setText(str);
+            *m_configStr = str;
+        }
 
         QFile file(m_fileNameWidget->text());
         if (file.open(QIODevice::Text | QIODevice::ReadOnly)) {

@@ -31,7 +31,7 @@ namespace vpa {
 
     public slots:
         void Save();
-        void Load();
+        void Load(bool openDialog);
         void DisplayModificationState(bool changed);
 
     protected:

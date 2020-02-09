@@ -71,8 +71,8 @@ namespace vpa {
         m_codeEditors[4]->Init(m_ui->glFragmentModified, m_ui->gtxFragmentFileName, "frag", &Config().fragShader);
         m_ui->gtxVertexFileName->setText(SHADERSRCDIR"vs_test.vert");
         m_ui->gtxFragmentFileName->setText(SHADERSRCDIR"fs_test.frag");
-        m_codeEditors[0]->Load();
-        m_codeEditors[4]->Load();
+        m_codeEditors[0]->Load(false);
+        m_codeEditors[4]->Load(false);
 
         // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
@@ -123,41 +123,13 @@ namespace vpa {
 
     void MainWindow::ConnectInterface() {
         // ------ Shader connections ------
-        QObject::connect(m_ui->gbVertexFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.vert)"));
-            m_ui->gtxVertexFileName->setText(str);
-            Config().vertShader = str;
-            m_ui->gtxVertex->Load();
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbFragmentFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.frag)"));
-            m_ui->gtxFragmentFileName->setText(str);
-            Config().fragShader = str;
-            m_ui->gtxFragment->Load();
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbGeometryFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.geom)"));
-            m_ui->gtxGeometryFileName->setText(str);
-            Config().geomShader = str;
-            m_ui->gtxGeometry->Load();
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbTessControlFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tesc)"));
-            m_ui->gtxTessControlFileName->setText(str);
-            Config().tescShader = str;
-            m_ui->gtxTessControl->Load();
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbTessEvalFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tese)"));
-            m_ui->gtxTessEvalFileName->setText(str);
-            Config().teseShader = str;
-            m_ui->gtxTessEval->Load();
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
+        QToolButton* fileButtons[size_t(ShaderStage::Count_)] = { m_ui->gbVertexFile, m_ui->gbTessControlFile, m_ui->gbTessEvalFile, m_ui->gbGeometryFile, m_ui->gbFragmentFile } ;
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+            QObject::connect(fileButtons[i], &QPushButton::released, [this, i](){
+                m_codeEditors[i]->Load(true);
+                this->WriteAndReload(ReloadFlags::Everything);
+            });
+        }
 
         QObject::connect(m_ui->gbCompile, &QPushButton::released, [this](){
             QString names[size_t(ShaderStage::Count_)];
