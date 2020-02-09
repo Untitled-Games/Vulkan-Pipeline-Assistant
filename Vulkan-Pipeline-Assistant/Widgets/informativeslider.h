@@ -13,7 +13,7 @@ namespace vpa {
         InformativeSlider(Qt::Orientation orientation, QWidget* parent = nullptr);
 
    protected:
-       virtual void sliderChange(SliderChange change);
+       void sliderChange(SliderChange change) override;
     };
 }
 

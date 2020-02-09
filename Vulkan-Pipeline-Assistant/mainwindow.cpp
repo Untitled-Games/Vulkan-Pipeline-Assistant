@@ -137,11 +137,11 @@ namespace vpa {
                 m_codeEditors[i]->Save();
                 names[i] = m_codeEditors[i]->FileNameWidget()->text();
             }
-            auto compileErrs = ShaderAnalytics::TryCompile(names, m_vulkan->Limits(), m_ui->gtxShaderConsole);
+            auto compileErrors = ShaderAnalytics::TryCompile(names, m_vulkan->Limits(), m_ui->gtxShaderConsole);
             for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
-                m_codeEditors[i]->SetLastCompileErrors(compileErrs[ShaderStage(i)]);
+                m_codeEditors[i]->SetLastCompileErrors(compileErrors[ShaderStage(i)]);
             }
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
+            if (compileErrors.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
         });
 
         // ------ Vertex Input connections ------
