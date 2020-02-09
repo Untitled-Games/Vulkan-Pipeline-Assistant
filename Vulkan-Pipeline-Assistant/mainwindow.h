@@ -4,7 +4,8 @@
 #include <QMainWindow>
 #include <QDockWidget>
 
-#include "./Vulkan/vulkanmain.h"
+#include "Vulkan/vulkanmain.h"
+#include "Vulkan/spirvresource.h"
 #include "common.h"
 
 QT_BEGIN_NAMESPACE
@@ -25,6 +26,7 @@ namespace vpa {
     class TabbedContainerWidget;
     class DescriptorTree;
     class GLSLHighlighter;
+    class CodeEditor;
 
     class MainWindow : public QMainWindow {
         Q_OBJECT
@@ -40,21 +42,24 @@ namespace vpa {
         void closeEvent(QCloseEvent* event) override;
         bool nativeEvent(const QByteArray &eventType, void* message, long* result) override;
 
+        void PostVulkanSetup();
+
     public slots:
         void HandleViewChangeReset(QVector<QLineEdit*> v);
         void HandleViewChangeApply(QVector<QLineEdit*> v);
 
+    protected:
+        void keyPressEvent(QKeyEvent* event) override;
+
     private:
         bool WindowsNativeEvent(MSG* msg);
         void ConnectInterface();
+        void ApplyLimits();
 
         QWidget* MakeViewportStateBlock();
         QWidget* MakeRenderPassBlock();
         void MakeDescriptorBlock();
         void SetupDisplayAttachments();
-
-        void LoadShaderText(QPlainTextEdit* textEdit, QString name);
-        void WriteShaderText(QPlainTextEdit* textEdit, QString name);
 
         void VulkanCreationCallback();
         void WriteAndReload(ReloadFlags flag) const;
@@ -72,6 +77,7 @@ namespace vpa {
         Ui::DockWidget* m_vkDockUi;
 
         GLSLHighlighter* m_glslHighlighters[5];
+        CodeEditor* m_codeEditors[size_t(ShaderStage::Count_)];
 
         static QLineEdit* s_console;
     };

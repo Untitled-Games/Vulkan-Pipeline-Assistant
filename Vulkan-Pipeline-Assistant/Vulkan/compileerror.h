@@ -5,6 +5,8 @@
 
 namespace vpa {
     struct CompileError {
+        static constexpr int LinkerErrorValue = ~0;
+
         int lineNumber;
         QString message;
 

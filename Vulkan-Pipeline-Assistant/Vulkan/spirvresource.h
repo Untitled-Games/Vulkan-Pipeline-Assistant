@@ -11,8 +11,10 @@
 
 namespace vpa {
     enum class ShaderStage {
-        Vertex, Fragment, TessellationControl, TessellationEvaluation, Geometry, Count_
+        Vertex, TessellationControl, TessellationEvaluation, Geometry, Fragment, Count_
     };
+
+    inline uint qHash(ShaderStage key, uint seed) { return ::qHash(uint(key), seed); }
 
     extern const QString ShaderStageStrings[size_t(ShaderStage::Count_)];
 
@@ -20,14 +22,14 @@ namespace vpa {
         switch (stage) {
         case ShaderStage::Vertex:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderStage::Fragment:
-            return VK_SHADER_STAGE_FRAGMENT_BIT;
         case ShaderStage::TessellationControl:
             return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
         case ShaderStage::TessellationEvaluation:
             return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
         case ShaderStage::Geometry:
             return VK_SHADER_STAGE_GEOMETRY_BIT;
+        case ShaderStage::Fragment:
+            return VK_SHADER_STAGE_FRAGMENT_BIT;
         case ShaderStage::Count_:
             assert(false);
         }

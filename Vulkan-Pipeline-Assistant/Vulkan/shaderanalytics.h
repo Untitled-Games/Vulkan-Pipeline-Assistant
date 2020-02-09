@@ -16,6 +16,9 @@ class QPlainTextEdit;
 namespace vpa {
     struct PipelineConfig;
 
+    extern bool operator==(const spirv_cross::SPIRType& t0, const spirv_cross::SPIRType& t1);
+    extern bool operator!=(const spirv_cross::SPIRType& t0, const spirv_cross::SPIRType& t1);
+
     class ShaderAnalytics final {
     public:
         ShaderAnalytics(QVulkanDeviceFunctions* deviceFuncs, VkDevice device, PipelineConfig* config);
@@ -34,12 +37,14 @@ namespace vpa {
 
         VPAError CreateModule(VkShaderModule& module, const QString& name, QByteArray* blob);
 
-        static QVector<CompileError> TryCompile(QString& srcName, QPlainTextEdit* console = nullptr);
+        static QVector<CompileError> TryCompile(QString& srcName, QString* outBinName = nullptr, QPlainTextEdit* console = nullptr);
+        static QHash<ShaderStage, QVector<CompileError>> TryCompile(QString srcNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits, QPlainTextEdit* console = nullptr);
 
     private:
         static QString SourceNameToBinaryName(const QString& srcName);
         VPAError CreateModule(ShaderStage stage, const QString& name);
         VPAError Validate(ShaderStage stage);
+        static QVector<CompileError> ValidateLinker(QString binNames[size_t(ShaderStage::Count_)], VkPhysicalDeviceLimits limits);
 
         size_t GetComponentSize(const spirv_cross::SPIRType& spirType);
         SpvType* CreateVectorType(const spirv_cross::SPIRType& spirType);

@@ -6,6 +6,9 @@
 #include "Vulkan/compileerror.h"
 #include "common.h"
 
+class QLineEdit;
+class QLabel;
+
 namespace vpa {
     struct CompileError;
     class CodeEditor : public QPlainTextEdit {
@@ -16,7 +19,20 @@ namespace vpa {
         void LineNumberAreaPaintEvent(QPaintEvent* event);
         int LineNumberAreaWidth();
 
+        void Init(QLabel* modifiedLabel, QLineEdit* fileNameWidget, QString fileExt, QString* configStr) {
+            m_modifiedLabel = modifiedLabel;
+            m_fileNameWidget = fileNameWidget;
+            m_fileExt = fileExt;
+            m_configStr = configStr;
+        }
+
         void SetLastCompileErrors(QVector<CompileError>& errors);
+        QLineEdit* FileNameWidget() const { return m_fileNameWidget; }
+
+    public slots:
+        void Save();
+        void Load(bool openDialog);
+        void DisplayModificationState(bool changed);
 
     protected:
         void resizeEvent(QResizeEvent* event) override;
@@ -29,6 +45,11 @@ namespace vpa {
     private:
         QWidget* m_lineNumberArea;
         QVector<CompileError> m_compileErrors;
+        QLineEdit* m_fileNameWidget;
+        QString m_fileExt;
+        QString* m_configStr;
+        QLabel* m_modifiedLabel;
+
         static constexpr int NumSpacesInTab = 4;
     };
 

@@ -34,10 +34,6 @@ namespace vpa {
         : QMainWindow(parent), m_ui(new Ui::MainWindow), m_vulkan(nullptr), m_descriptorTree(nullptr) {
         m_ui->setupUi(this);
         s_console = m_ui->gtxConsole;
-        m_ui->gtxVertexFileName->setText(SHADERSRCDIR"vs_test.vert");
-        m_ui->gtxFragmentFileName->setText(SHADERSRCDIR"fs_test.frag");
-        LoadShaderText(m_ui->gtxVertex, SHADERSRCDIR"vs_test.vert");
-        LoadShaderText(m_ui->gtxFragment, SHADERSRCDIR"fs_test.frag");
 
         this->setCentralWidget(m_ui->centralwidget);
 
@@ -58,12 +54,26 @@ namespace vpa {
         m_vkDockUi->setupUi(m_vkDockWidget);
         m_vkDockUi->gwDisplayArea->setLayout(new QHBoxLayout());
         m_vkDockWidget->show();
-        m_vulkan = new VulkanMain(m_vkDockUi->gwDisplayArea, std::bind(&MainWindow::VulkanCreationCallback, this));
+        m_vulkan = new VulkanMain(m_vkDockUi->gwDisplayArea, std::bind(&MainWindow::PostVulkanSetup, this), std::bind(&MainWindow::VulkanCreationCallback, this));
 
         m_vulkan->GetConfig().vertShader = SHADERSRCDIR"vs_test.vert";
         m_vulkan->GetConfig().fragShader = SHADERSRCDIR"fs_test.frag";
 
-        ConnectInterface();
+        m_codeEditors[0] = m_ui->gtxVertex;
+        m_codeEditors[1] = m_ui->gtxTessControl;
+        m_codeEditors[2] = m_ui->gtxTessEval;
+        m_codeEditors[3] = m_ui->gtxGeometry;
+        m_codeEditors[4] = m_ui->gtxFragment;
+        m_codeEditors[0]->Init(m_ui->glVertexModified, m_ui->gtxVertexFileName, "vert", &Config().vertShader);
+        m_codeEditors[1]->Init(m_ui->glTessControlModified, m_ui->gtxTessControlFileName, "tesc", &Config().tescShader);
+        m_codeEditors[2]->Init(m_ui->glTessEvalModified, m_ui->gtxTessEvalFileName, "tese", &Config().teseShader);
+        m_codeEditors[3]->Init(m_ui->glGeometryModified, m_ui->gtxGeometryFileName, "geom", &Config().geomShader);
+        m_codeEditors[4]->Init(m_ui->glFragmentModified, m_ui->gtxFragmentFileName, "frag", &Config().fragShader);
+        m_ui->gtxVertexFileName->setText(SHADERSRCDIR"vs_test.vert");
+        m_ui->gtxFragmentFileName->setText(SHADERSRCDIR"fs_test.frag");
+        m_codeEditors[0]->Load(false);
+        m_codeEditors[4]->Load(false);
+
         // QObject::connect(m_cacheBtn, &QPushButton::released, [this](){ this->m_vulkan->WritePipelineCache(); });
     }
 
@@ -85,6 +95,11 @@ namespace vpa {
         return QGuiApplication::platformName() == "windows" && WindowsNativeEvent(static_cast<MSG*>(message));
     }
 
+    void MainWindow::PostVulkanSetup() {
+        ApplyLimits();
+        ConnectInterface();
+    }
+
     bool MainWindow::WindowsNativeEvent(MSG* msg) {
         if (msg->message == WM_ENTERSIZEMOVE) {
             if (m_vulkan) m_vulkan->Details().window->HandlingResize(true);
@@ -100,78 +115,33 @@ namespace vpa {
         return false;
     }
 
+    void MainWindow::keyPressEvent(QKeyEvent* event) {
+        if (event->key() == Qt::Key_S && QApplication::keyboardModifiers() && Qt::ControlModifier) {
+            m_codeEditors[m_ui->ShaderTabs->currentIndex()]->Save();
+        }
+    }
+
     void MainWindow::ConnectInterface() {
         // ------ Shader connections ------
-        QObject::connect(m_ui->gbVertexFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.vert)"));
-            m_ui->gtxVertexFileName->setText(str);
-            Config().vertShader = str;
-            LoadShaderText(m_ui->gtxVertex, str);
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbFragmentFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.frag)"));
-            m_ui->gtxFragmentFileName->setText(str);
-            Config().fragShader = str;
-            LoadShaderText(m_ui->gtxFragment, str);
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbGeometryFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.geom)"));
-            m_ui->gtxGeometryFileName->setText(str);
-            Config().geomShader = str;
-            LoadShaderText(m_ui->gtxGeometry, str);
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbTessControlFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tesc)"));
-            m_ui->gtxTessControlFileName->setText(str);
-            Config().tescShader = str;
-            LoadShaderText(m_ui->gtxTessControl, str);
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbTessEvalFile, &QPushButton::released, [this](){
-            QString str = QFileDialog::getOpenFileName(this, tr("Open File"), SHADERSRCDIR, tr("Shader Files (*.tese)"));
-            m_ui->gtxTessEvalFileName->setText(str);
-            Config().teseShader = str;
-            LoadShaderText(m_ui->gtxTessEval, str);
-            this->WriteAndReload(ReloadFlags::Everything);
-        });
+        QToolButton* fileButtons[size_t(ShaderStage::Count_)] = { m_ui->gbVertexFile, m_ui->gbTessControlFile, m_ui->gbTessEvalFile, m_ui->gbGeometryFile, m_ui->gbFragmentFile } ;
+        for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+            QObject::connect(fileButtons[i], &QPushButton::released, [this, i](){
+                m_codeEditors[i]->Load(true);
+                this->WriteAndReload(ReloadFlags::Everything);
+            });
+        }
 
-        QObject::connect(m_ui->gbCompile0, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxVertexFileName->text();
-            WriteShaderText(m_ui->gtxVertex, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxVertex->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile1, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxFragmentFileName->text();
-            WriteShaderText(m_ui->gtxFragment, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxFragment->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile2, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxGeometryFileName->text();
-            WriteShaderText(m_ui->gtxGeometry, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxGeometry->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile3, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxTessControlFileName->text();
-            WriteShaderText(m_ui->gtxTessControl, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxTessControl->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
-        });
-        QObject::connect(m_ui->gbCompile4, &QPushButton::released, [this](){
-            QString srcName = m_ui->gtxTessEvalFileName->text();
-            WriteShaderText(m_ui->gtxTessEval, srcName);
-            auto compileErrs = ShaderAnalytics::TryCompile(srcName, m_ui->gtxShaderConsole);
-            m_ui->gtxTessEval->SetLastCompileErrors(compileErrs);
-            if (compileErrs.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
+        QObject::connect(m_ui->gbCompile, &QPushButton::released, [this](){
+            QString names[size_t(ShaderStage::Count_)];
+            for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+                m_codeEditors[i]->Save();
+                names[i] = m_codeEditors[i]->FileNameWidget()->text();
+            }
+            auto compileErrors = ShaderAnalytics::TryCompile(names, m_vulkan->Limits(), m_ui->gtxShaderConsole);
+            for (size_t i = 0; i < size_t(ShaderStage::Count_); ++i) {
+                m_codeEditors[i]->SetLastCompileErrors(compileErrors[ShaderStage(i)]);
+            }
+            if (compileErrors.size() == 0) this->WriteAndReload(ReloadFlags::Everything);
         });
 
         // ------ Vertex Input connections ------
@@ -240,6 +210,16 @@ namespace vpa {
             HandleConfigValueChange<VkCompareOp>(Config().writables.depthCompareOp, ReloadFlags::Pipeline, index);
         });
         // ------ Renderpass connections ------
+    }
+
+    void MainWindow::ApplyLimits() {
+        if (!m_vulkan) return;
+        auto& limits = m_vulkan->Limits();
+        // gsDepthBiasClamp; gsDepthBiasSlope; gsDepthBiasConstant; gsMinSampleShading; don't appear to have any specific limits
+        m_ui->gsPatchPointCount->setRange(0, int(limits.maxTessellationPatchSize));
+        m_ui->gsPatchPointCount->setValue(0);
+        m_ui->gsLineWidth->setRange(int(limits.lineWidthRange[0] + FLT_EPSILON), int(limits.lineWidthRange[1] + FLT_EPSILON));
+        m_ui->gsLineWidth->setValue(int(limits.lineWidthRange[0] + FLT_EPSILON));
     }
 
     void MainWindow::HandleViewChangeApply(QVector<QLineEdit*> v) {
@@ -424,19 +404,6 @@ namespace vpa {
             box->addItem(str);
         }
         return box;
-    }
-
-    void MainWindow::LoadShaderText(QPlainTextEdit* textEdit, QString name) {
-        QFile file(name);
-        file.open(QIODevice::Text | QIODevice::ReadOnly);
-        textEdit->setPlainText(file.readAll());
-    }
-
-    void MainWindow::WriteShaderText(QPlainTextEdit* textEdit, QString name) {
-        QString output = textEdit->toPlainText();
-        QFile file(name);
-        file.open(QIODevice::Text | QIODevice::WriteOnly);
-        file.write(output.toUtf8());
     }
 
     void MainWindow::VulkanCreationCallback() {

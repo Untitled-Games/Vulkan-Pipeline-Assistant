@@ -14,5 +14,5 @@ layout(set = 0, binding = 1) uniform sampler2D txTest;
 void main()
 {
 	outColour = texture(txTest, inTexcoord) * PC.multiColour;
-	outColour2 = vec4(inTexcoord, 0.0, 1.0);
+	outColour2 = vec4(inTexcoord, 1.0, 1.0);
 }

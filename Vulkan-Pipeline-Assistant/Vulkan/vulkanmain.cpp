@@ -92,7 +92,7 @@ namespace vpa {
         }
     }
 
-    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> creationCallback)
+    VulkanMain::VulkanMain(QWidget* parent, std::function<void(void)> physDeviceCallback, std::function<void(void)> creationCallback)
         : m_renderer(nullptr), m_container(nullptr), m_parent(parent), m_creationCallback(creationCallback), m_currentState(VulkanState::Pending) {
         m_details.window = nullptr;
         m_renderer = new VulkanRenderer(this, creationCallback);
@@ -108,8 +108,9 @@ namespace vpa {
             return;
         }
 
-        QTimer::singleShot(500, [this]() {
+        QTimer::singleShot(500, [this, physDeviceCallback]() {
             VPAError vpaErr = CreatePhysicalDevice(m_details.physicalDevice);
+            physDeviceCallback();
             vpaErr = vpaErr == VPA_OK ? CreateDevice(m_details.device) : vpaErr;
             vpaErr = vpaErr == VPA_OK ? Create(false) : vpaErr;
 
